@@ -1,0 +1,2 @@
+/usr/bin/ar qc libdao_master.a CMakeFiles/dao_master.dir/master/src/DaoEtherCATMaster.cpp.o
+/usr/bin/ranlib libdao_master.a

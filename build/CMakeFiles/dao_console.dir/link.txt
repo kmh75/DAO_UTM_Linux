@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/dao_console.dir/link.d CMakeFiles/dao_console.dir/app/console/main.cpp.o -o dao_console  third_party/soem/libsoem.a -lpthread -lrt

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libdao_engine_api.a CMakeFiles/dao_engine_api.dir/engine/src/DaoEtherCAT.Engine.cpp.o
+/usr/bin/ranlib libdao_engine_api.a

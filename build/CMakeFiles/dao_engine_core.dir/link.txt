@@ -1,0 +1,2 @@
+/usr/bin/ar qc libdao_engine_core.a CMakeFiles/dao_engine_core.dir/engine/src/DaoEngineCore.cpp.o
+/usr/bin/ranlib libdao_engine_core.a

@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/dao/Projects/DAO_UTM_Linux/build/cmake_install.cmake",
+		"/home/dao/Projects/DAO_UTM_Linux/build/third_party/soem/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
