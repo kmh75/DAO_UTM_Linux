@@ -31,7 +31,7 @@ DaoEtherCATMaster::DaoEtherCATMaster()
 
 DaoEtherCATMaster::~DaoEtherCATMaster()
 {
-	StopCommunication(); // Åë½Å ½º·¹µå Á¾·á ¿äÃ»
+	StopCommunication(); // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»
     Close();
 }
 
@@ -48,16 +48,19 @@ bool DaoEtherCATMaster::Open(
         return false;
     }
 
-    // ÀÌÀü »ç¿ë ÈçÀûÀÌ ³²Áö ¾Êµµ·Ï ÄÁÅØ½ºÆ®¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Êµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ø½ï¿½Æ®ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
     std::memset(
         &context_,
         0,
         sizeof(context_));
 
     context_.manualstatechange = 1;
-	slaveCount_ = 0; // ½ºÄµ Àü±îÁö´Â ½½·¹ÀÌºê ¼ö¸¦ 0À¸·Î ÃÊ±âÈ­ÇÕ´Ï´Ù.
-    ResetProcessDataMap();
-	ResetAdcRuntimeInfo(); // DAO ADC ÃÖ½Å »óÅÂ¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+	slaveCount_ = 0; // ï¿½ï¿½Äµ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ìºï¿½ ï¿½ï¿½ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
+    ResetAdcRuntimeInfo();
+    ResetServoRuntimeInfo();
+    ResetIoRuntimeInfo();
+    ResetEncoderRuntimeInfo();
+  
 
     if (ecx_init(
         &context_,
@@ -73,7 +76,7 @@ bool DaoEtherCATMaster::Open(
 void DaoEtherCATMaster::Close()
 {
     // --------------------------------------------------------
-    // 1. ¼øÈ¯Åë½Å ½º·¹µå¸¦ ¸ÕÀú ¿ÏÀüÈ÷ Á¾·á
+    // 1. ï¿½ï¿½È¯ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å¸¦ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     StopCommunication();
 
@@ -84,16 +87,18 @@ void DaoEtherCATMaster::Close()
         ResetAdcRuntimeInfo();
         ResetServoRuntimeInfo();
         ResetIoRuntimeInfo();
+        ResetEncoderRuntimeInfo();
+
         return;
     }
 
     // --------------------------------------------------------
-    // 2. °Ë»öµÈ Slave°¡ ÀÖ´Ù¸é ¾ÈÀüÇÏ°Ô »óÅÂ¸¦ ³»¸³´Ï´Ù.
+    // 2. ï¿½Ë»ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ ï¿½Ö´Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
     //
-    // OP ¡æ SAFE-OP ¡æ INIT
+    // OP ï¿½ï¿½ SAFE-OP ï¿½ï¿½ INIT
     //
-    // »óÅÂ ÀüÈ¯ ½ÇÆÐ°¡ ÀÖ´õ¶óµµ
-    // ÃÖÁ¾ ecx_close()´Â ¹Ýµå½Ã ¼öÇàÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ ï¿½ï¿½ï¿½Ð°ï¿½ ï¿½Ö´ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ ecx_close()ï¿½ï¿½ ï¿½Ýµï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     if (slaveCount_ > 0)
     {
@@ -102,7 +107,7 @@ void DaoEtherCATMaster::Close()
     }
 
     // --------------------------------------------------------
-    // 3. EtherCAT ¾î´ðÅÍ Á¾·á
+    // 3. EtherCAT ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     ecx_close(&context_);
 
@@ -119,6 +124,8 @@ void DaoEtherCATMaster::Close()
     ResetAdcRuntimeInfo();
     ResetServoRuntimeInfo();
     ResetIoRuntimeInfo();
+    ResetEncoderRuntimeInfo();
+
 
     isOpen_ = false;
 }
@@ -135,21 +142,21 @@ bool DaoEtherCATMaster::IsCommunicationRunning() const
 
 bool DaoEtherCATMaster::StartCommunication()
 {
-    // ÀÌ¹Ì ½ÇÇà ÁßÀÌ¸é Áßº¹À¸·Î ½ÃÀÛÇÏÁö ¾Ê½À´Ï´Ù.
+    // ï¿½Ì¹ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ ï¿½ßºï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (communicationRunning_.load())
     {
         return false;
     }
 
-    // ÀÌÀü ½º·¹µå °´Ã¼°¡ ¾ÆÁ÷ join °¡´ÉÇÑ »óÅÂ¶ó¸é
-    // ¸ÕÀú ¿ÏÀüÈ÷ Á¤¸®ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ join ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¶ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     if (communicationThread_.joinable())
     {
         communicationThread_.join();
     }
 
-    // EtherCAT ¾î´ðÅÍ¿Í PDO ¸ÅÇÎÀÌ ÁØºñµÇÁö ¾Ê¾Ò´Ù¸é
-    // Åë½Å ½º·¹µå¸¦ ½ÃÀÛÇÏÁö ¾Ê½À´Ï´Ù.
+    // EtherCAT ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ PDO ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Øºï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò´Ù¸ï¿½
+    // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å¸¦ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (!isOpen_ ||
         slaveCount_ <= 0 ||
         !processDataMapped_)
@@ -179,11 +186,11 @@ bool DaoEtherCATMaster::StartCommunication()
 
 void DaoEtherCATMaster::StopCommunication()
 {
-    // ½º·¹µå°¡ Á¾·áµÇµµ·Ï ¿äÃ»ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½å°¡ ï¿½ï¿½ï¿½ï¿½Çµï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½Õ´Ï´ï¿½.
     communicationStopRequested_.store(true);
 
-    // ½ÇÁ¦ Åë½Å ½º·¹µå°¡ »ý¼ºµÅ ÀÖ´Ù¸é
-    // ¿ÏÀüÈ÷ ³¡³¯ ¶§±îÁö ±â´Ù¸³´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å°¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´Ù¸ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ù¸ï¿½ï¿½Ï´ï¿½.
     if (communicationThread_.joinable())
     {
         communicationThread_.join();
@@ -198,12 +205,12 @@ int DaoEtherCATMaster::ScanSlaves()
     {
         slaveCount_ = 0;
         ResetProcessDataMap();
-		ResetAdcRuntimeInfo();// DAO ADC ÃÖ½Å »óÅÂ¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+		ResetAdcRuntimeInfo();// DAO ADC ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
         return 0;
     }
 
     ResetProcessDataMap();
-	ResetAdcRuntimeInfo();// DAO ADC ÃÖ½Å »óÅÂ¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+	ResetAdcRuntimeInfo();// DAO ADC ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
 
     slaveCount_ =
         ecx_config_init(&context_);
@@ -218,11 +225,12 @@ int DaoEtherCATMaster::ScanSlaves()
     slaveCount_ =
         context_.slavecount;
 
-    // »õ·Î °Ë»öµÈ ¹°¸® Slave °³¼ö¿¡ ¸ÂÃç
-    // ·±Å¸ÀÓ ÀúÀå°ø°£À» ´Ù½Ã »ý¼ºÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     ResetAdcRuntimeInfo();
     ResetServoRuntimeInfo();
     ResetIoRuntimeInfo();
+    ResetEncoderRuntimeInfo();
 
     return slaveCount_;
 }
@@ -233,23 +241,23 @@ int DaoEtherCATMaster::GetSlaveCount() const
 }
 bool DaoEtherCATMaster::RequestAllSlavesPreOp()
 {
-    // ¾î´ðÅÍ°¡ ¿­·Á ÀÖÁö ¾ÊÀ¸¸é »óÅÂ ÀüÈ¯ ºÒ°¡
+    // ï¿½ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ ï¿½Ò°ï¿½
     if (!isOpen_)
     {
         return false;
     }
 
-    // °Ë»öµÈ Slave°¡ ¾øÀ¸¸é »óÅÂ ÀüÈ¯ ºÒ°¡
+    // ï¿½Ë»ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ ï¿½Ò°ï¿½
     if (slaveCount_ <= 0)
     {
         return false;
     }
 
-    // Slave 0¹øÀº SOEM¿¡¼­ ÀüÃ¼ Slave¸¦ ÀÇ¹ÌÇÕ´Ï´Ù.
+    // Slave 0ï¿½ï¿½ï¿½ï¿½ SOEMï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ Slaveï¿½ï¿½ ï¿½Ç¹ï¿½ï¿½Õ´Ï´ï¿½.
     context_.slavelist[0].state =
         EC_STATE_PRE_OP;
 
-    // PRE-OP »óÅÂ ¿äÃ»À» ÇÑ ¹ø Àü¼ÛÇÕ´Ï´Ù.
+    // PRE-OP ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     const int writeResult =
         ecx_writestate(
             &context_,
@@ -260,7 +268,7 @@ bool DaoEtherCATMaster::RequestAllSlavesPreOp()
         return false;
     }
 
-    // ¸ðµç Slave°¡ PRE-OP¿¡ µµ´ÞÇÒ ¶§±îÁö ±â´Ù¸³´Ï´Ù.
+    // ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ PRE-OPï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ù¸ï¿½ï¿½Ï´ï¿½.
     const uint16 reachedState =
         ecx_statecheck(
             &context_,
@@ -268,7 +276,7 @@ bool DaoEtherCATMaster::RequestAllSlavesPreOp()
             EC_STATE_PRE_OP,
             EC_TIMEOUTSTATE);
 
-    // ÃÖ½Å »óÅÂ¸¦ ´Ù½Ã ÀÐ½À´Ï´Ù.
+    // ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½Ù½ï¿½ ï¿½Ð½ï¿½ï¿½Ï´ï¿½.
     ecx_readstate(&context_);
 
     return reachedState == EC_STATE_PRE_OP;
@@ -289,8 +297,8 @@ bool DaoEtherCATMaster::GetSlaveInfo(
         return false;
     }
 
-    // ¿ÜºÎ ¸ñ·ÏÀº 0ºÎÅÍ ½ÃÀÛÇÏÁö¸¸
-    // SOEMÀÇ Slave ¹øÈ£´Â 1ºÎÅÍ ½ÃÀÛÇÕ´Ï´Ù.
+    // ï¿½Üºï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // SOEMï¿½ï¿½ Slave ï¿½ï¿½È£ï¿½ï¿½ 1ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     const int physicalSlaveIndex =
         slaveListIndex + 1;
 
@@ -332,7 +340,7 @@ bool DaoEtherCATMaster::GetSlaveInfo(
 bool DaoEtherCATMaster::RequestAllSlavesSafeOp()
 {
     // --------------------------------------------------------
-    // 1. ±âº» ½ÇÇà Á¶°Ç È®ÀÎ
+    // 1. ï¿½âº» ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     if (!isOpen_)
     {
@@ -344,14 +352,14 @@ bool DaoEtherCATMaster::RequestAllSlavesSafeOp()
         return false;
     }
 
-    // »óÅÂ ÀüÈ¯ Áß¿¡´Â ¼øÈ¯Åë½Å ½º·¹µå°¡ ¾ø¾î¾ß ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ ï¿½ß¿ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å°¡ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Õ´Ï´ï¿½.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 2. ÃÖ½Å EtherCAT »óÅÂ È®ÀÎ
+    // 2. ï¿½Ö½ï¿½ EtherCAT ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -359,16 +367,16 @@ bool DaoEtherCATMaster::RequestAllSlavesSafeOp()
         static_cast<std::uint16_t>(
             context_.slavelist[0].state & 0x000F);
 
-    // ¸ðµç Slave°¡ ÀÌ¹Ì SAFE-OPÀÌ¸é ¼º°øÀÔ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ ï¿½Ì¹ï¿½ SAFE-OPï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     if (currentBaseState == EC_STATE_SAFE_OP)
     {
         return true;
     }
 
     // --------------------------------------------------------
-    // 3. ÀüÃ¼ Slave¿¡ SAFE-OP »óÅÂ ¿äÃ»
+    // 3. ï¿½ï¿½Ã¼ Slaveï¿½ï¿½ SAFE-OP ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»
     //
-    // SOEMÀÇ Slave 0¹øÀº ÀüÃ¼ Slave¸¦ ÀÇ¹ÌÇÕ´Ï´Ù.
+    // SOEMï¿½ï¿½ Slave 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ Slaveï¿½ï¿½ ï¿½Ç¹ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     context_.slavelist[0].state =
         EC_STATE_SAFE_OP;
@@ -384,7 +392,7 @@ bool DaoEtherCATMaster::RequestAllSlavesSafeOp()
     }
 
     // --------------------------------------------------------
-    // 4. ¸ðµç Slave°¡ SAFE-OP¿¡ µµ´ÞÇÒ ¶§±îÁö ´ë±â
+    // 4. ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ SAFE-OPï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     constexpr int SAFE_OP_TIMEOUT_US =
         5 * 1000 * 1000;
@@ -410,7 +418,7 @@ bool DaoEtherCATMaster::RequestAllSlavesSafeOp()
 bool DaoEtherCATMaster::RequestAllSlavesOperational()
 {
     // --------------------------------------------------------
-    // 1. ±âº» Á¶°Ç È®ÀÎ
+    // 1. ï¿½âº» ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     if (!isOpen_)
     {
@@ -433,7 +441,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
     }
 
     // --------------------------------------------------------
-    // 2. ÀüÃ¼ Slave°¡ SAFE-OPÀÎÁö È®ÀÎ
+    // 2. ï¿½ï¿½Ã¼ Slaveï¿½ï¿½ SAFE-OPï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -452,7 +460,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
     }
 
     // --------------------------------------------------------
-    // 3. OP ¿äÃ» Àü Process Data 10È¸ Priming
+    // 3. OP ï¿½ï¿½Ã» ï¿½ï¿½ Process Data 10È¸ Priming
     // --------------------------------------------------------
     constexpr int PRIMING_ROUNDS = 10;
 
@@ -460,7 +468,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
         round < PRIMING_ROUNDS;
         ++round)
     {
-        // DAO ADC Output PDO´Â Ç×»ó 0À¸·Î À¯ÁöÇÕ´Ï´Ù.
+        // DAO ADC Output PDOï¿½ï¿½ ï¿½×»ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
         for (int physicalSlaveIndex = 1;
             physicalSlaveIndex <= slaveCount_;
             ++physicalSlaveIndex)
@@ -487,7 +495,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
                     slave.Obytes));
         }
 
-        // Servo¿Í IOÀÇ ÇöÀç Ãâ·Â ¸í·ÉÀ» PDO¿¡ ¹Ý¿µÇÕ´Ï´Ù.
+        // Servoï¿½ï¿½ IOï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ PDOï¿½ï¿½ ï¿½Ý¿ï¿½ï¿½Õ´Ï´ï¿½.
         PrepareServoAndIoOutputs();
 
         ecx_send_processdata(
@@ -505,7 +513,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
     }
 
     // --------------------------------------------------------
-    // 4. ÀüÃ¼ Slave¿¡ OP »óÅÂ ¿äÃ»
+    // 4. ï¿½ï¿½Ã¼ Slaveï¿½ï¿½ OP ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»
     // --------------------------------------------------------
     context_.slavelist[0].state =
         EC_STATE_OPERATIONAL;
@@ -521,7 +529,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
     }
 
     // --------------------------------------------------------
-    // 5. Process Data¸¦ °è¼Ó ±³È¯ÇÏ¸é¼­ OP µµ´Þ ´ë±â
+    // 5. Process Dataï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½Ï¸é¼­ OP ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     constexpr int OP_TIMEOUT_MS = 12000;
 
@@ -544,7 +552,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
             break;
         }
 
-        // ADC Ãâ·Â 0 À¯Áö
+        // ADC ï¿½ï¿½ï¿½ 0 ï¿½ï¿½ï¿½ï¿½
         for (int physicalSlaveIndex = 1;
             physicalSlaveIndex <= slaveCount_;
             ++physicalSlaveIndex)
@@ -620,7 +628,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
 bool DaoEtherCATMaster::RequestAllSlavesInit()
 {
     // --------------------------------------------------------
-    // 1. ±âº» ½ÇÇà Á¶°Ç È®ÀÎ
+    // 1. ï¿½âº» ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     if (!isOpen_)
     {
@@ -638,7 +646,7 @@ bool DaoEtherCATMaster::RequestAllSlavesInit()
     }
 
     // --------------------------------------------------------
-    // 2. ÃÖ½Å »óÅÂ È®ÀÎ
+    // 2. ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -646,14 +654,14 @@ bool DaoEtherCATMaster::RequestAllSlavesInit()
         static_cast<std::uint16_t>(
             context_.slavelist[0].state & 0x000F);
 
-    // ÀÌ¹Ì INITÀÌ¸é ¼º°øÀÔ´Ï´Ù.
+    // ï¿½Ì¹ï¿½ INITï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     if (currentBaseState == EC_STATE_INIT)
     {
         return true;
     }
 
     // --------------------------------------------------------
-    // 3. ÀüÃ¼ Slave¿¡ INIT »óÅÂ ¿äÃ»
+    // 3. ï¿½ï¿½Ã¼ Slaveï¿½ï¿½ INIT ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»
     // --------------------------------------------------------
     context_.slavelist[0].state =
         EC_STATE_INIT;
@@ -669,7 +677,7 @@ bool DaoEtherCATMaster::RequestAllSlavesInit()
     }
 
     // --------------------------------------------------------
-    // 4. ¸ðµç Slave°¡ INIT¿¡ µµ´ÞÇÒ ¶§±îÁö ´ë±â
+    // 4. ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ INITï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     constexpr int INIT_TIMEOUT_US =
         5 * 1000 * 1000;
@@ -721,7 +729,7 @@ bool DaoEtherCATMaster::IsDaoAdcSlave(
 bool DaoEtherCATMaster::IsLsL7nhServo(
     int physicalSlaveIndex) const
 {
-    // SOEMÀÇ ¹°¸® Slave ¹øÈ£´Â 1ºÎÅÍ ½ÃÀÛÇÕ´Ï´Ù.
+    // SOEMï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½È£ï¿½ï¿½ 1ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     if (physicalSlaveIndex <= 0 ||
         physicalSlaveIndex > slaveCount_)
     {
@@ -750,7 +758,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     int physicalSlaveIndex)
 {
     // --------------------------------------------------------
-    // 1. LS L7NH ¿©ºÎ¿Í Slave ¹øÈ£ È®ÀÎ
+    // 1. LS L7NH ï¿½ï¿½ï¿½Î¿ï¿½ Slave ï¿½ï¿½È£ È®ï¿½ï¿½
     // --------------------------------------------------------
     if (!IsLsL7nhServo(
         physicalSlaveIndex))
@@ -758,7 +766,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
         return false;
     }
 
-    // PDO Mapping / Assignment´Â PRE-OP¿¡¼­ ¼öÇàÇÕ´Ï´Ù.
+    // PDO Mapping / Assignmentï¿½ï¿½ PRE-OPï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     ecx_readstate(&context_);
 
     const ec_slavet& slave =
@@ -802,7 +810,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     // Total = 29 bytes
     // ========================================================
 
-    // RxPDO Assignment ºñÈ°¼ºÈ­
+    // RxPDO Assignment ï¿½ï¿½È°ï¿½ï¿½È­
     std::uint8_t rxAssignmentCount = 0;
 
     writeWkc =
@@ -822,7 +830,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // RxPDO 0x1601 Mapping ºñÈ°¼ºÈ­
+    // RxPDO 0x1601 Mapping ï¿½ï¿½È°ï¿½ï¿½È­
     std::uint8_t rxMappingCount = 0;
 
     writeWkc =
@@ -884,7 +892,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // RxPDO Mapping Entry °³¼ö È®Á¤
+    // RxPDO Mapping Entry ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     rxMappingCount =
         RX_MAPPING_COUNT;
 
@@ -905,7 +913,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // RxPDO 0x1601À» SM2¿¡ ÇÒ´ç
+    // RxPDO 0x1601ï¿½ï¿½ SM2ï¿½ï¿½ ï¿½Ò´ï¿½
     std::uint16_t rxPdoIndex =
         0x1601;
 
@@ -960,7 +968,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     // Total = 21 bytes
     // ========================================================
 
-    // TxPDO Assignment ºñÈ°¼ºÈ­
+    // TxPDO Assignment ï¿½ï¿½È°ï¿½ï¿½È­
     std::uint8_t txAssignmentCount = 0;
 
     writeWkc =
@@ -980,7 +988,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // TxPDO 0x1A01 Mapping ºñÈ°¼ºÈ­
+    // TxPDO 0x1A01 Mapping ï¿½ï¿½È°ï¿½ï¿½È­
     std::uint8_t txMappingCount = 0;
 
     writeWkc =
@@ -1040,7 +1048,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // TxPDO Mapping Entry °³¼ö È®Á¤
+    // TxPDO Mapping Entry ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     txMappingCount =
         TX_MAPPING_COUNT;
 
@@ -1061,7 +1069,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // TxPDO 0x1A01À» SM3¿¡ ÇÒ´ç
+    // TxPDO 0x1A01ï¿½ï¿½ SM3ï¿½ï¿½ ï¿½Ò´ï¿½
     std::uint16_t txPdoIndex =
         0x1A01;
 
@@ -1122,7 +1130,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhProfilePositionMode(
     }
 
     // --------------------------------------------------------
-    // LS L7NH Profile Position ¼³Á¤
+    // LS L7NH Profile Position ï¿½ï¿½ï¿½ï¿½
     //
     // 0x6060:00 = 1    Profile Position Mode
     // 0x6081:00        Profile Velocity
@@ -1215,7 +1223,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhOperationMode(
         return false;
     }
 
-    // Áö¿øÇÏ´Â CiA402 ¿îÀü¸ðµå¸¸ Çã¿ëÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ CiA402 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½å¸¸ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     if (mode != 1 &&
         mode != 3 &&
         mode != 6)
@@ -1249,7 +1257,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhOperationMode(
 bool DaoEtherCATMaster::IsFastechIo(
     int physicalSlaveIndex) const
 {
-    // SOEMÀÇ ¹°¸® Slave ¹øÈ£´Â 1ºÎÅÍ ½ÃÀÛÇÕ´Ï´Ù.
+    // SOEMï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½È£ï¿½ï¿½ 1ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     if (physicalSlaveIndex <= 0 ||
         physicalSlaveIndex > slaveCount_)
     {
@@ -1281,32 +1289,55 @@ bool DaoEtherCATMaster::IsFastechIo(
         slave.eep_rev == FASTECH_IO_REVISION;
 }
 
+bool DaoEtherCATMaster::IsFastechEncoder(
+    int physicalSlaveIndex) const
+{
+    if (physicalSlaveIndex <= 0 ||
+        physicalSlaveIndex > slaveCount_)
+    {
+        return false;
+    }
+
+    const ec_slavet& slave =
+        context_.slavelist[physicalSlaveIndex];
+
+    constexpr uint32_t FASTECH_VENDOR_ID =
+        0x0FA00000;
+
+    constexpr uint32_t FASTECH_CNT02_PRODUCT_CODE =
+        0x00002301;
+
+    return
+        slave.eep_man == FASTECH_VENDOR_ID &&
+        slave.eep_id == FASTECH_CNT02_PRODUCT_CODE;
+}
+
 bool DaoEtherCATMaster::MapProcessData()
 {
-    // ¾î´ðÅÍ°¡ ¿­¸®Áö ¾ÊÀº »óÅÂ¿¡¼­´Â ¸ÅÇÎÇÒ ¼ö ¾ø½À´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
     if (!isOpen_)
     {
         ResetProcessDataMap();
         return false;
     }
 
-    // °Ë»öµÈ Slave°¡ ¾øÀ¸¸é ¸ÅÇÎÇÒ ¼ö ¾ø½À´Ï´Ù.
+    // ï¿½Ë»ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
     if (slaveCount_ <= 0)
     {
         ResetProcessDataMap();
         return false;
     }
 
-    // ÀÌÀü ¸ÅÇÎ °á°ú¸¦ ¸ðµÎ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
     ResetProcessDataMap();
 
 
     // --------------------------------------------------------
-    // LS L7NH Servo PDO Assignment ¼³Á¤
+    // LS L7NH Servo PDO Assignment ï¿½ï¿½ï¿½ï¿½
     //
-    // Process Data¸¦ ¸ÅÇÎÇÏ±â Àü¿¡
-    // RxPDO´Â 0x1601 ÇÏ³ª,
-    // TxPDO´Â 0x1A01 ÇÏ³ª¸¸ »ç¿ëÇÏµµ·Ï °íÁ¤ÇÕ´Ï´Ù.
+    // Process Dataï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½
+    // RxPDOï¿½ï¿½ 0x1601 ï¿½Ï³ï¿½,
+    // TxPDOï¿½ï¿½ 0x1A01 ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     for (int physicalSlaveIndex = 1;
         physicalSlaveIndex <= slaveCount_;
@@ -1329,17 +1360,17 @@ bool DaoEtherCATMaster::MapProcessData()
 
     }
 
-    // DAO ADCÀÇ ¿ø·¡ CoE °ü·Ã Á¤º¸¸¦ ÀÓ½Ã ÀúÀåÇÕ´Ï´Ù.
+    // DAO ADCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ CoE ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ó½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     std::vector<SavedCoeInfo> savedCoeInfoList;
 
-    // Slave ÃÖ´ë °³¼ö¸¸Å­ ¹Ì¸® È®º¸ÇÕ´Ï´Ù.
+    // Slave ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å­ ï¿½Ì¸ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     savedCoeInfoList.reserve(
         static_cast<std::size_t>(slaveCount_));
 
     // --------------------------------------------------------
-    // DAO ADC¿¡¸¸ CoE PDO ÁúÀÇ¸¦ ÀÓ½Ã Â÷´ÜÇÕ´Ï´Ù.
+    // DAO ADCï¿½ï¿½ï¿½ï¿½ CoE PDO ï¿½ï¿½ï¿½Ç¸ï¿½ ï¿½Ó½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     //
-    // LS Servo¿Í EtherCAT IO¿¡´Â ÀÌ Ã³¸®¸¦ Àû¿ëÇÏÁö ¾Ê½À´Ï´Ù.
+    // LS Servoï¿½ï¿½ EtherCAT IOï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     // --------------------------------------------------------
     for (int physicalSlaveIndex = 1;
         physicalSlaveIndex <= slaveCount_;
@@ -1348,7 +1379,7 @@ bool DaoEtherCATMaster::MapProcessData()
         ec_slavet& slave =
             context_.slavelist[physicalSlaveIndex];
 
-        // DAO ADC°¡ ¾Æ´Ï¸é ±âÁ¸ SOEM ¸ÅÇÎ ¹æ½ÄÀ» ±×´ë·Î »ç¿ëÇÕ´Ï´Ù.
+        // DAO ADCï¿½ï¿½ ï¿½Æ´Ï¸ï¿½ ï¿½ï¿½ï¿½ï¿½ SOEM ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
         if (!IsDaoAdcSlave(slave))
         {
             continue;
@@ -1368,7 +1399,7 @@ bool DaoEtherCATMaster::MapProcessData()
         savedCoeInfoList.push_back(
             savedInfo);
 
-        // CoE ÇÁ·ÎÅäÄÝ ºñÆ®¸¸ ÀÓ½Ã·Î Á¦°ÅÇÕ´Ï´Ù.
+        // CoE ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ó½Ã·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
         const std::uint16_t coeMask =
             static_cast<std::uint16_t>(
                 ECT_MBXPROT_COE);
@@ -1384,7 +1415,7 @@ bool DaoEtherCATMaster::MapProcessData()
 
 
     // --------------------------------------------------------
-    // ÀüÃ¼ SlaveÀÇ Process Data¸¦ IO Map¿¡ ¹èÄ¡ÇÕ´Ï´Ù.
+    // ï¿½ï¿½Ã¼ Slaveï¿½ï¿½ Process Dataï¿½ï¿½ IO Mapï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
 
     mappedBytes_ =
@@ -1394,8 +1425,8 @@ bool DaoEtherCATMaster::MapProcessData()
             0);
 
     // --------------------------------------------------------
-    // ¸ÅÇÎ ¼º°ø ¿©ºÎ¿Í °ü°è¾øÀÌ
-    // DAO ADCÀÇ Mailbox/CoE Á¤º¸¸¦ ¹Ýµå½Ã ¿ø»óº¹±¸ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // DAO ADCï¿½ï¿½ Mailbox/CoE ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ýµï¿½ï¿½ ï¿½ï¿½ï¿½óº¹±ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     for (const SavedCoeInfo& savedInfo :
         savedCoeInfoList)
@@ -1411,14 +1442,14 @@ bool DaoEtherCATMaster::MapProcessData()
             savedInfo.coeDetails;
     }
 
-    // ¸ÅÇÎ¿¡ ½ÇÆÐÇÑ °æ¿ì ¸ðµç °á°ú¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
     if (mappedBytes_ <= 0)
     {
         ResetProcessDataMap();
         return false;
     }
 
-    // Group 0ÀÇ WKC Á¤º¸¸¦ ÀúÀåÇÕ´Ï´Ù.
+    // Group 0ï¿½ï¿½ WKC ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     const ec_groupt& group =
         context_.grouplist[0];
 
@@ -1434,12 +1465,16 @@ bool DaoEtherCATMaster::MapProcessData()
 
     processDataMapped_ = true;
 
-    // PDO ¸ÅÇÎ ÈÄ¿¡¾ß Expected WKC°¡ È®Á¤µÇ¹Ç·Î,
-    // ¹°¸® Slaveº° ·±Å¸ÀÓ Á¤º¸¿¡µµ »õ °ªÀ» ¹Ý¿µÇÕ´Ï´Ù.
+    // PDO ï¿½ï¿½ï¿½ï¿½ ï¿½Ä¿ï¿½ï¿½ï¿½ Expected WKCï¿½ï¿½ È®ï¿½ï¿½ï¿½Ç¹Ç·ï¿½,
+    // ï¿½ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ý¿ï¿½ï¿½Õ´Ï´ï¿½.
     ResetAdcRuntimeInfo();
     ResetServoRuntimeInfo();
     ResetIoRuntimeInfo();
+    ResetEncoderRuntimeInfo();
+
     ConfigureServoAndIoRuntimeInfo();
+    ConfigureEncoderRuntimeInfo();
+
     return true;
 }
 
@@ -1509,7 +1544,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
     DaoInternalAdcValidationInfo& validationInfo) const
 {
     // --------------------------------------------------------
-    // 1. ÀÌÀü °ªÀÌ ³²Áö ¾Êµµ·Ï °á°ú ±¸Á¶Ã¼ ÃÊ±âÈ­
+    // 1. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Êµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ ï¿½Ê±ï¿½È­
     // --------------------------------------------------------
     validationInfo = {};
 
@@ -1517,7 +1552,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
         physicalSlaveIndex;
 
     // --------------------------------------------------------
-    // 2. Process Data ¸ÅÇÎ ¿Ï·á ¿©ºÎ È®ÀÎ
+    // 2. Process Data ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     validationInfo.processDataMapped =
         processDataMapped_;
@@ -1528,9 +1563,9 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
     }
 
     // --------------------------------------------------------
-    // 3. ¹°¸® Slave ¹øÈ£ ¹üÀ§ È®ÀÎ
+    // 3. ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½È£ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     //
-    // SOEMÀÇ ½ÇÁ¦ Slave ¹øÈ£´Â 1ºÎÅÍ ½ÃÀÛÇÕ´Ï´Ù.
+    // SOEMï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½È£ï¿½ï¿½ 1ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     validationInfo.slaveIndexValid =
         physicalSlaveIndex >= 1 &&
@@ -1546,7 +1581,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
             physicalSlaveIndex];
 
     // --------------------------------------------------------
-    // 4. DAO ADC Identity ÀçÈ®ÀÎ
+    // 4. DAO ADC Identity ï¿½ï¿½È®ï¿½ï¿½
     // --------------------------------------------------------
     validationInfo.identityValid =
         IsDaoAdcSlave(slave);
@@ -1557,7 +1592,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
     }
 
     // --------------------------------------------------------
-    // 5. ½ÇÁ¦ PDO Å©±â ÀúÀå
+    // 5. ï¿½ï¿½ï¿½ï¿½ PDO Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     validationInfo.actualOutputBytes =
         static_cast<unsigned int>(
@@ -1567,7 +1602,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
         static_cast<unsigned int>(
             slave.Ibytes);
 
-    // DAO ADCÀÇ °ËÁõµÈ PDO Å©±â
+    // DAO ADCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ PDO Å©ï¿½ï¿½
     constexpr unsigned int
         DAO_ADC_OUTPUT_BYTES = 4;
 
@@ -1589,10 +1624,10 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
     }
 
     // --------------------------------------------------------
-    // 6. PDO Æ÷ÀÎÅÍ À¯È¿¼º È®ÀÎ
+    // 6. PDO ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¿ï¿½ï¿½ È®ï¿½ï¿½
     //
-    // Æ÷ÀÎÅÍ ÁÖ¼Ò¸¸ È®ÀÎÇÕ´Ï´Ù.
-    // ¾ÆÁ÷ ÇØ´ç ¸Þ¸ð¸®¸¦ ÀÐ°Å³ª ¾²Áö ¾Ê½À´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö¼Ò¸ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½Ø´ï¿½ ï¿½Þ¸ð¸®¸ï¿½ ï¿½Ð°Å³ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     // --------------------------------------------------------
     validationInfo.outputPointerValid =
         slave.outputs != nullptr;
@@ -1607,7 +1642,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
     }
 
     // --------------------------------------------------------
-    // ¸ðµç ¾ÈÀü Á¶°Ç Åë°ú
+    // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     return true;
 }
@@ -1615,14 +1650,14 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
 bool DaoEtherCATMaster::RequestDaoAdcSafeOp(
     int physicalSlaveIndex)
 {
-    // ¼øÈ¯Åë½Å Áß¿¡´Â EtherCAT »óÅÂ ÀüÈ¯À» Çã¿ëÇÏÁö ¾Ê½À´Ï´Ù.
+    // ï¿½ï¿½È¯ï¿½ï¿½ï¿½ ï¿½ß¿ï¿½ï¿½ï¿½ EtherCAT ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 1. ¸ÕÀú DAO ADC PDO ¾ÈÀü °ËÁõÀ» ´Ù½Ã ¼öÇàÇÕ´Ï´Ù.
+    // 1. ï¿½ï¿½ï¿½ï¿½ DAO ADC PDO ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     DaoInternalAdcValidationInfo validationInfo{};
 
@@ -1634,30 +1669,30 @@ bool DaoEtherCATMaster::RequestDaoAdcSafeOp(
     }
 
     // --------------------------------------------------------
-    // 2. ¹°¸® Slave °´Ã¼¸¦ °¡Á®¿É´Ï´Ù.
+    // 2. ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½É´Ï´ï¿½.
     //
-    // À§ °ËÁõ¿¡¼­ Slave ¹øÈ£ ¹üÀ§¿Í Identity,
-    // PDO Å©±â ¹× Æ÷ÀÎÅÍ±îÁö ¸ðµÎ È®ÀÎµÆ½À´Ï´Ù.
+    // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½È£ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Identity,
+    // PDO Å©ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í±ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ È®ï¿½ÎµÆ½ï¿½ï¿½Ï´ï¿½.
     // --------------------------------------------------------
     ec_slavet& slave =
         context_.slavelist[
             physicalSlaveIndex];
 
-    // ÃÖ½Å »óÅÂ¸¦ ÀÐ½À´Ï´Ù.
+    // ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½Ð½ï¿½ï¿½Ï´ï¿½.
     ecx_readstate(&context_);
 
     const std::uint16_t currentBaseState =
         static_cast<std::uint16_t>(
             slave.state & 0x000F);
 
-    // ÀÌ¹Ì SAFE-OPÀÌ¸é ¼º°øÀ¸·Î Ã³¸®ÇÕ´Ï´Ù.
+    // ï¿½Ì¹ï¿½ SAFE-OPï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     if (currentBaseState ==
         EC_STATE_SAFE_OP)
     {
         return true;
     }
 
-    // PRE-OP »óÅÂ°¡ ¾Æ´Ï¸é SAFE-OP ¿äÃ»À» º¸³»Áö ¾Ê½À´Ï´Ù.
+    // PRE-OP ï¿½ï¿½ï¿½Â°ï¿½ ï¿½Æ´Ï¸ï¿½ SAFE-OP ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (currentBaseState !=
         EC_STATE_PRE_OP)
     {
@@ -1665,9 +1700,9 @@ bool DaoEtherCATMaster::RequestDaoAdcSafeOp(
     }
 
     // --------------------------------------------------------
-    // 3. SAFE-OP »óÅÂ ¿äÃ»Àº ÇÑ ¹ø¸¸ Àü¼ÛÇÕ´Ï´Ù.
+    // 3. SAFE-OP ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     //
-    // LAN9252 Ã³¸® Áß °°Àº »óÅÂ ¸í·ÉÀ» ¹Ýº¹ÇØ¼­ ¾²Áö ¾Ê½À´Ï´Ù.
+    // LAN9252 Ã³ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ýºï¿½ï¿½Ø¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     // --------------------------------------------------------
     slave.state =
         EC_STATE_SAFE_OP;
@@ -1684,10 +1719,10 @@ bool DaoEtherCATMaster::RequestDaoAdcSafeOp(
     }
 
     // --------------------------------------------------------
-    // 4. »óÅÂ ¿äÃ»À» ¹Ýº¹ÇÏÁö ¾Ê°í SAFE-OP µµ´Þ¸¸ ±â´Ù¸³´Ï´Ù.
+    // 4. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½Ýºï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê°ï¿½ SAFE-OP ï¿½ï¿½ï¿½Þ¸ï¿½ ï¿½ï¿½Ù¸ï¿½ï¿½Ï´ï¿½.
     //
-    // ±âÁ¸ °ËÁõ ÇÁ·ÎÁ§Æ®ÀÇ SAFE-OP ´ë±â½Ã°£°ú µ¿ÀÏÇÏ°Ô
-    // ÃÖ´ë 12ÃÊ¸¦ Çã¿ëÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ SAFE-OP ï¿½ï¿½ï¿½Ã°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½
+    // ï¿½Ö´ï¿½ 12ï¿½Ê¸ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     constexpr int SAFE_OP_TIMEOUT_US =
         12 * 1000 * 1000;
@@ -1700,14 +1735,14 @@ bool DaoEtherCATMaster::RequestDaoAdcSafeOp(
             EC_STATE_SAFE_OP,
             SAFE_OP_TIMEOUT_US);
 
-    // ÃÖ½Å »óÅÂ¿Í AL Status Code¸¦ ´Ù½Ã ÀÐ½À´Ï´Ù.
+    // ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ AL Status Codeï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½Ð½ï¿½ï¿½Ï´ï¿½.
     ecx_readstate(&context_);
 
     const std::uint16_t finalBaseState =
         static_cast<std::uint16_t>(
             slave.state & 0x000F);
 
-    // SAFE-OP µµ´Þ°ú ¿À·ù ¾øÀ½±îÁö ¸ðµÎ È®ÀÎÇÕ´Ï´Ù.
+    // SAFE-OP ï¿½ï¿½ï¿½Þ°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     return
         reachedState == EC_STATE_SAFE_OP &&
         finalBaseState == EC_STATE_SAFE_OP &&
@@ -1719,7 +1754,7 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     DaoInternalProcessExchangeInfo& exchangeInfo)
 {
     // --------------------------------------------------------
-    // 1. ÀÌÀü °á°ú ÃÊ±âÈ­
+    // 1. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
     // --------------------------------------------------------
     exchangeInfo = {};
 
@@ -1729,15 +1764,15 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     exchangeInfo.expectedWkc =
         expectedWkc_;
 
-    // Åë½Å ½º·¹µå°¡ Process Data¸¦ ±³È¯ ÁßÀÌ¸é
-    // ¿ÜºÎÀÇ ´Ü¹ß ¼Û¼ö½ÅÀº Çã¿ëÇÏÁö ¾Ê½À´Ï´Ù.
+    // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å°¡ Process Dataï¿½ï¿½ ï¿½ï¿½È¯ ï¿½ï¿½ï¿½Ì¸ï¿½
+    // ï¿½Üºï¿½ï¿½ï¿½ ï¿½Ü¹ï¿½ ï¿½Û¼ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 2. Process Data ¸ÅÇÎ ¿©ºÎ È®ÀÎ
+    // 2. Process Data ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     if (!processDataMapped_)
     {
@@ -1745,7 +1780,7 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     }
 
     // --------------------------------------------------------
-    // 3. DAO ADC PDO ¾ÈÀü °ËÁõ Àç½ÇÇà
+    // 3. DAO ADC PDO ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     DaoInternalAdcValidationInfo validationInfo{};
 
@@ -1760,7 +1795,7 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     }
 
     // --------------------------------------------------------
-    // 4. ÃÖ½Å EtherCAT »óÅÂ È®ÀÎ
+    // 4. ï¿½Ö½ï¿½ EtherCAT ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -1781,14 +1816,14 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     }
 
     // --------------------------------------------------------
-    // 5. °ËÁõµÈ Output PDO 4¹ÙÀÌÆ®¸¸ 0À¸·Î ÃÊ±âÈ­
+    // 5. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Output PDO 4ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
     //
-    // ValidateDaoAdcPdo()¿¡¼­ ´ÙÀ½À» ÀÌ¹Ì È®ÀÎÇß½À´Ï´Ù.
+    // ValidateDaoAdcPdo()ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¹ï¿½ È®ï¿½ï¿½ï¿½ß½ï¿½ï¿½Ï´ï¿½.
     // - DAO ADC Identity
     // - Output Bytes = 4
-    // - Output Æ÷ÀÎÅÍ À¯È¿
+    // - Output ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¿
     //
-    // ½ÇÁ¦ Obytes °ª¸¸ »ç¿ëÇÏ¹Ç·Î ±× ÀÌ»óÀº °Çµå¸®Áö ¾Ê½À´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ Obytes ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï¹Ç·ï¿½ ï¿½ï¿½ ï¿½Ì»ï¿½ï¿½ï¿½ ï¿½Çµå¸®ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     // --------------------------------------------------------
     std::memset(
         slave.outputs,
@@ -1799,7 +1834,7 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     exchangeInfo.outputCleared = true;
 
     // --------------------------------------------------------
-    // 6. Process Data Á¤È®È÷ 1È¸ ¼Û¼ö½Å
+    // 6. Process Data ï¿½ï¿½È®ï¿½ï¿½ 1È¸ ï¿½Û¼ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     ecx_send_processdata(&context_);
 
@@ -1809,10 +1844,10 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
             EC_TIMEOUTRET);
 
     // --------------------------------------------------------
-    // 7. WKC °Ë»ç
+    // 7. WKC ï¿½Ë»ï¿½
     //
-    // ÇöÀç DAO ADC ´Üµ¶ ±¸¼ºÀÇ ¿¹»ó WKC´Â 3ÀÔ´Ï´Ù.
-    // ¹ü¿ë ¿£Áø¿¡¼­´Â ÀúÀåµÈ expectedWkc_¿Í ºñ±³ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ DAO ADC ï¿½Üµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ WKCï¿½ï¿½ 3ï¿½Ô´Ï´ï¿½.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ expectedWkc_ï¿½ï¿½ ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     exchangeInfo.wkcValid =
         exchangeInfo.actualWkc >=
@@ -1827,7 +1862,7 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
     DaoInternalPrimingInfo& primingInfo)
 {
     // --------------------------------------------------------
-    // 1. °á°ú ÃÊ±âÈ­
+    // 1. ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
     // --------------------------------------------------------
     primingInfo = {};
 
@@ -1840,17 +1875,17 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
     primingInfo.expectedWkc =
         expectedWkc_;
 
-    // Åë½Å ½º·¹µå¿Í Priming ¼Û¼ö½ÅÀÌ °ãÄ¡Áö ¾Êµµ·Ï Â÷´ÜÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Priming ï¿½Û¼ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½Êµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 2. Priming È½¼ö ¹üÀ§ °Ë»ç
+    // 2. Priming È½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ë»ï¿½
     //
-    // Àß¸øµÈ °ªÀÌ³ª °úµµÇÑ ¹Ýº¹À» ¸·½À´Ï´Ù.
-    // ÇöÀç ½ÃÇè¿¡¼­´Â 10È¸¸¦ »ç¿ëÇÕ´Ï´Ù.
+    // ï¿½ß¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì³ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ýºï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½è¿¡ï¿½ï¿½ï¿½ï¿½ 10È¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     constexpr int MIN_PRIMING_ROUNDS = 1;
     constexpr int MAX_PRIMING_ROUNDS = 100;
@@ -1862,7 +1897,7 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
     }
 
     // --------------------------------------------------------
-    // 3. ADC ¾ÈÀü °ËÁõ
+    // 3. ADC ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     DaoInternalAdcValidationInfo validationInfo{};
 
@@ -1877,7 +1912,7 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
     }
 
     // --------------------------------------------------------
-    // 4. SAFE-OP »óÅÂ È®ÀÎ
+    // 4. SAFE-OP ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -1898,7 +1933,7 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
     }
 
     // --------------------------------------------------------
-    // 5. ÁöÁ¤µÈ È½¼ö¸¸Å­ Process Data ¿Õº¹
+    // 5. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È½ï¿½ï¿½ï¿½ï¿½Å­ Process Data ï¿½Õºï¿½
     // --------------------------------------------------------
     for (int round = 0;
         round < roundCount;
@@ -1915,7 +1950,7 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
         primingInfo.lastWkc =
             exchangeInfo.actualWkc;
 
-        // Ã¹ ¹øÂ° °á°ú·Î ÃÖ¼Ò/ÃÖ´ë°ª ÃÊ±âÈ­
+        // Ã¹ ï¿½ï¿½Â° ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö¼ï¿½/ï¿½Ö´ë°ª ï¿½Ê±ï¿½È­
         if (primingInfo.completedRounds == 0)
         {
             primingInfo.minimumWkc =
@@ -1952,13 +1987,13 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
         {
             ++primingInfo.badWkcCount;
 
-            // ÇÑ ¹øÀÌ¶óµµ ½ÇÆÐÇÏ¸é Áï½Ã Áß´ÜÇÕ´Ï´Ù.
+            // ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¶ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½ ï¿½ß´ï¿½ï¿½Õ´Ï´ï¿½.
             break;
         }
     }
 
     // --------------------------------------------------------
-    // 6. ÀüÃ¼ Priming ¼º°ø ¿©ºÎ ÆÇ´Ü
+    // 6. ï¿½ï¿½Ã¼ Priming ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ç´ï¿½
     // --------------------------------------------------------
     primingInfo.allRoundsValid =
         primingInfo.completedRounds ==
@@ -1975,7 +2010,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     DaoInternalOperationalInfo& operationalInfo)
 {
     // --------------------------------------------------------
-    // 1. °á°ú ±¸Á¶Ã¼ ÃÊ±âÈ­
+    // 1. ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ ï¿½Ê±ï¿½È­
     // --------------------------------------------------------
     operationalInfo = {};
 
@@ -1985,14 +2020,14 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     operationalInfo.expectedWkc =
         expectedWkc_;
 
-    // ÀÌ¹Ì ¼øÈ¯Åë½Å ÁßÀÌ¶ó¸é »óÅÂ ÀüÈ¯ ¹× PrimingÀ» ¼öÇàÇÏÁö ¾Ê½À´Ï´Ù.
+    // ï¿½Ì¹ï¿½ ï¿½ï¿½È¯ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ ï¿½ï¿½ Primingï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 2. DAO ADC PDO ¾ÈÀü °ËÁõ
+    // 2. DAO ADC PDO ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     DaoInternalAdcValidationInfo validationInfo{};
 
@@ -2007,7 +2042,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     }
 
     // --------------------------------------------------------
-    // 3. ÇöÀç Slave »óÅÂ È®ÀÎ
+    // 3. ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -2019,7 +2054,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
         static_cast<std::uint16_t>(
             slave.state & 0x000F);
 
-    // ÀÌ¹Ì OP »óÅÂ¶ó¸é Á¤»óÀ¸·Î Ã³¸®ÇÕ´Ï´Ù.
+    // ï¿½Ì¹ï¿½ OP ï¿½ï¿½ï¿½Â¶ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     if (baseState == EC_STATE_OPERATIONAL)
     {
         operationalInfo.safeOpStateValid = true;
@@ -2038,7 +2073,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
         return slave.ALstatuscode == 0;
     }
 
-    // OP ÀüÈ¯Àº SAFE-OP »óÅÂ¿¡¼­¸¸ Çã¿ëÇÕ´Ï´Ù.
+    // OP ï¿½ï¿½È¯ï¿½ï¿½ SAFE-OP ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     operationalInfo.safeOpStateValid =
         baseState == EC_STATE_SAFE_OP;
 
@@ -2056,10 +2091,10 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     }
 
     // --------------------------------------------------------
-    // 4. OP ¿äÃ» Àü 10È¸ Priming ÀçÈ®ÀÎ
+    // 4. OP ï¿½ï¿½Ã» ï¿½ï¿½ 10È¸ Priming ï¿½ï¿½È®ï¿½ï¿½
     //
-    // ÇÑ ¹øÀÌ¶óµµ WKC°¡ ¿¹»óº¸´Ù ÀÛÀ¸¸é
-    // OP ¿äÃ» ÀÚÃ¼¸¦ º¸³»Áö ¾Ê½À´Ï´Ù.
+    // ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¶ï¿½ WKCï¿½ï¿½ ï¿½ï¿½ï¿½óº¸´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // OP ï¿½ï¿½Ã» ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     // --------------------------------------------------------
     constexpr int PRIMING_ROUNDS = 10;
 
@@ -2097,7 +2132,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     }
 
     // --------------------------------------------------------
-    // 5. OP »óÅÂ ¿äÃ»Àº Á¤È®È÷ ÇÑ ¹ø¸¸ Àü¼Û
+    // 5. OP ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     slave.state =
         EC_STATE_OPERATIONAL;
@@ -2127,10 +2162,10 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     }
 
     // --------------------------------------------------------
-    // 6. OP ÀüÈ¯ ´ë±â
+    // 6. OP ï¿½ï¿½È¯ ï¿½ï¿½ï¿½
     //
-    // »óÅÂ ¿äÃ»Àº ´Ù½Ã ¾²Áö ¾Ê½À´Ï´Ù.
-    // ±â´Ù¸®´Â µ¿¾È Process Data¸¸ °è¼Ó ±³È¯ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
+    // ï¿½ï¿½Ù¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Process Dataï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     constexpr int OP_TIMEOUT_MS = 12000;
 
@@ -2154,12 +2189,12 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
         }
 
         // ----------------------------------------------------
-        // °ËÁõµÈ DAO ADC Output PDO Å©±â¸¸Å­¸¸ 0À¸·Î ÃÊ±âÈ­
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DAO ADC Output PDO Å©ï¿½â¸¸Å­ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
         //
-        // ValidateDaoAdcPdo()¿¡¼­ ´ÙÀ½À» È®ÀÎÇß½À´Ï´Ù.
+        // ValidateDaoAdcPdo()ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½ß½ï¿½ï¿½Ï´ï¿½.
         // - DAO ADC Identity
         // - Output Bytes = 4
-        // - Output Æ÷ÀÎÅÍ À¯È¿
+        // - Output ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¿
         // ----------------------------------------------------
         std::memset(
             slave.outputs,
@@ -2167,7 +2202,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
             static_cast<std::size_t>(
                 slave.Obytes));
 
-        // Process Data 1È¸ ¿Õº¹
+        // Process Data 1È¸ ï¿½Õºï¿½
         ecx_send_processdata(&context_);
 
         const int processWkc =
@@ -2189,8 +2224,8 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
             ++operationalInfo.badWkcCount;
         }
 
-        // ÇöÀç »óÅÂ¸¸ È®ÀÎÇÕ´Ï´Ù.
-        // »óÅÂ ¸í·ÉÀ» ´Ù½Ã º¸³»Áö´Â ¾Ê½À´Ï´Ù.
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
         (void)ecx_statecheck(
             &context_,
             static_cast<std::uint16_t>(
@@ -2212,7 +2247,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
             static_cast<unsigned short>(
                 slave.ALstatuscode);
 
-        // OP µµ´Þ È®ÀÎ
+        // OP ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
         if (baseState ==
             EC_STATE_OPERATIONAL)
         {
@@ -2223,7 +2258,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
                 operationalInfo.operationalReached;
         }
 
-        // EtherCAT Error »óÅÂ°¡ µé¾î¿À¸é Áï½Ã Áß´Ü
+        // EtherCAT Error ï¿½ï¿½ï¿½Â°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ß´ï¿½
         if ((slave.state &
             EC_STATE_ERROR) != 0)
         {
@@ -2235,7 +2270,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     }
 
     // --------------------------------------------------------
-    // 7. ½Ã°£ ÃÊ°ú ÈÄ ÃÖÁ¾ »óÅÂ ÀúÀå
+    // 7. ï¿½Ã°ï¿½ ï¿½Ê°ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -2257,7 +2292,7 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     DaoInternalAdcReadInfo& readInfo)
 {
     // --------------------------------------------------------
-    // 1. °á°ú ±¸Á¶Ã¼ ÃÊ±âÈ­
+    // 1. ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ ï¿½Ê±ï¿½È­
     // --------------------------------------------------------
     readInfo = {};
 
@@ -2267,24 +2302,24 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     readInfo.expectedWkc =
         expectedWkc_;
 
-    // ¼øÈ¯Åë½Å ½º·¹µå°¡ ½ÇÇà ÁßÀÏ ¶§´Â
-    // º°µµÀÇ Process Data ¿Õº¹À» Çã¿ëÇÏÁö ¾Ê½À´Ï´Ù.
-    // ÃÖ½Å ADC °ªÀº Runtime Á¶È¸ API·Î ÀÐ¾î¾ß ÇÕ´Ï´Ù.
+    // ï¿½ï¿½È¯ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å°¡ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Process Data ï¿½Õºï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
+    // ï¿½Ö½ï¿½ ADC ï¿½ï¿½ï¿½ï¿½ Runtime ï¿½ï¿½È¸ APIï¿½ï¿½ ï¿½Ð¾ï¿½ï¿½ ï¿½Õ´Ï´ï¿½.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 2. DAO ADC PDO ¾ÈÀü °ËÁõ
+    // 2. DAO ADC PDO ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     //
-    // ´ÙÀ½ Á¶°ÇÀ» ´Ù½Ã È®ÀÎÇÕ´Ï´Ù.
-    // - PDO ¸ÅÇÎ ¿Ï·á
-    // - Slave ¹øÈ£ À¯È¿
-    // - DAO ADC Identity ÀÏÄ¡
-    // - Output 4¹ÙÀÌÆ®
-    // - Input 24¹ÙÀÌÆ®
-    // - ÀÔÃâ·Â Æ÷ÀÎÅÍ À¯È¿
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ù½ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+    // - PDO ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½
+    // - Slave ï¿½ï¿½È£ ï¿½ï¿½È¿
+    // - DAO ADC Identity ï¿½ï¿½Ä¡
+    // - Output 4ï¿½ï¿½ï¿½ï¿½Æ®
+    // - Input 24ï¿½ï¿½ï¿½ï¿½Æ®
+    // - ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¿
     // --------------------------------------------------------
     DaoInternalAdcValidationInfo validationInfo{};
 
@@ -2299,7 +2334,7 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     }
 
     // --------------------------------------------------------
-    // 3. ÃÖ½Å EtherCAT »óÅÂ È®ÀÎ
+    // 3. ï¿½Ö½ï¿½ EtherCAT ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -2320,9 +2355,9 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     }
 
     // --------------------------------------------------------
-    // 4. °ËÁõµÈ Output PDO 4¹ÙÀÌÆ®¸¸ 0À¸·Î ÃÊ±âÈ­
+    // 4. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Output PDO 4ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
     //
-    // slave.Obytes°¡ Á¤È®È÷ 4ÀÎÁö ¾Õ¿¡¼­ È®ÀÎÇß½À´Ï´Ù.
+    // slave.Obytesï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½ 4ï¿½ï¿½ï¿½ï¿½ ï¿½Õ¿ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½ß½ï¿½ï¿½Ï´ï¿½.
     // --------------------------------------------------------
     std::memset(
         slave.outputs,
@@ -2333,7 +2368,7 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     readInfo.outputCleared = true;
 
     // --------------------------------------------------------
-    // 5. Process Data Á¤È®È÷ 1È¸ ¿Õº¹
+    // 5. Process Data ï¿½ï¿½È®ï¿½ï¿½ 1È¸ ï¿½Õºï¿½
     // --------------------------------------------------------
     ecx_send_processdata(&context_);
 
@@ -2352,14 +2387,14 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     }
 
     // --------------------------------------------------------
-    // 6. Input PDO 24¹ÙÀÌÆ®¸¸ ¾ÈÀüÇÏ°Ô º¹»ç
+    // 6. Input PDO 24ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½
     //
-    // ValidateDaoAdcPdo()¿¡¼­ ´ÙÀ½À» È®ÀÎÇß½À´Ï´Ù.
+    // ValidateDaoAdcPdo()ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½ß½ï¿½ï¿½Ï´ï¿½.
     // - slave.inputs != nullptr
     // - slave.Ibytes == 24
     //
-    // Æ÷ÀÎÅÍ¸¦ ±¸Á¶Ã¼·Î Á÷Á¢ Ä³½ºÆÃÇÏÁö ¾Ê°í
-    // memcpy·Î ·ÎÄÃ ±¸Á¶Ã¼¿¡ Á¤È®È÷ 24¹ÙÀÌÆ®¸¸ º¹»çÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ä³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê°ï¿½
+    // memcpyï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½ 24ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     std::memcpy(
         &readInfo.data,
@@ -2369,10 +2404,10 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     readInfo.inputCopied = true;
 
     // --------------------------------------------------------
-    // 7. ¹°¸® Slaveº° ADC ·±Å¸ÀÓ Á¤º¸ °»½Å
+    // 7. ï¿½ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ ADC ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     //
-    // ¾ÕÀ¸·Î 2ms Åë½Å ½º·¹µå¿Í ¿ÜºÎ Á¶È¸ API°¡
-    // µ¿½Ã¿¡ Á¢±ÙÇÒ ¼ö ÀÖÀ¸¹Ç·Î mutex·Î º¸È£ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 2ms ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Üºï¿½ ï¿½ï¿½È¸ APIï¿½ï¿½
+    // ï¿½ï¿½ï¿½Ã¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ mutexï¿½ï¿½ ï¿½ï¿½È£ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     const std::size_t runtimeIndex =
         static_cast<std::size_t>(
@@ -2395,7 +2430,7 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
         runtimeInfo.physicalSlaveIndex =
             physicalSlaveIndex;
 
-        // ÇöÀç´Â ¹Ýº¹ Åë½Å ½º·¹µå°¡ ¾Æ´Ï¹Ç·Î falseÀÔ´Ï´Ù.
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ýºï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å°¡ ï¿½Æ´Ï¹Ç·ï¿½ falseï¿½Ô´Ï´ï¿½.
         runtimeInfo.communicationRunning =
             false;
 
@@ -2485,13 +2520,13 @@ bool DaoEtherCATMaster::SetDaoAdcZero(
     }
 
     // ----------------------------------------------------
-    // ÀÏ¹Ý Zero¿ë Stable Capture ½ÃÀÛ
+    // ï¿½Ï¹ï¿½ Zeroï¿½ï¿½ Stable Capture ï¿½ï¿½ï¿½ï¿½
     //
-    // À¯È¿ ADC SampleÀ» Á¤È®È÷ 600°³ ¼öÁýÇÕ´Ï´Ù.
-    // Á¤»ó ¾à 2000 sample/sec ±âÁØÀ¸·Î ¾à 0.3ÃÊÀÔ´Ï´Ù.
+    // ï¿½ï¿½È¿ ADC Sampleï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½ 600ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ 2000 sample/sec ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ 0.3ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     //
-    // ½Ã°£À¸·Î Á¾·áÇÏÁö ¾Ê°í ½ÇÁ¦ ¼öÁý Sample °³¼ö·Î
-    // Zero Æò±Õ°ªÀ» °áÁ¤ÇÕ´Ï´Ù.
+    // ï¿½Ã°ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Sample ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // Zero ï¿½ï¿½Õ°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // ----------------------------------------------------
     constexpr unsigned int ZERO_CAPTURE_SAMPLES = 600;
 
@@ -2504,8 +2539,8 @@ bool DaoEtherCATMaster::SetDaoAdcZero(
     runtimeInfo.processing.stableCaptureReferenceValue =
         0.0;
 
-    // ÀÏ¹Ý Zero´Â º°µµ ¾ÈÁ¤È­ ´ë±â ¾øÀÌ
-    // ¹Ù·Î 600 Sample Æò±ÕÀ» ½ÃÀÛÇÕ´Ï´Ù.
+    // ï¿½Ï¹ï¿½ Zeroï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½È­ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    // ï¿½Ù·ï¿½ 600 Sample ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     runtimeInfo.processing.stableCaptureWaitSamples =
         0;
 
@@ -2567,15 +2602,15 @@ bool DaoEtherCATMaster::SetDaoAdcCalibration(
     }
 
     // ----------------------------------------------------
-    // Calibration Stable Capture ½ÃÀÛ
+    // Calibration Stable Capture ï¿½ï¿½ï¿½ï¿½
     //
-    // ¾à 2000 sample/sec ±âÁØ:
+    // ï¿½ï¿½ 2000 sample/sec ï¿½ï¿½ï¿½ï¿½:
     //
-    // 1) ÃÖÃÊ 2000 SampleÀº ¾ÈÁ¤È­ ±¸°£À¸·Î ¹ö¸³´Ï´Ù.
-    // 2) ÀÌÈÄ À¯È¿ SampleÀ» Á¤È®È÷ 4000°³ ¼öÁýÇÕ´Ï´Ù.
-    // 3) 4000°³ Æò±Õ°ªÀ¸·Î Calibration ScaleÀ» °è»êÇÕ´Ï´Ù.
+    // 1) ï¿½ï¿½ï¿½ï¿½ 2000 Sampleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½È­ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+    // 2) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¿ Sampleï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½ 4000ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+    // 3) 4000ï¿½ï¿½ ï¿½ï¿½Õ°ï¿½ï¿½ï¿½ï¿½ï¿½ Calibration Scaleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     //
-    // ½ÇÁ¦ ¿Ï·á ÆÇ´ÜÀº ½Ã°£ÀÌ ¾Æ´Ï¶ó Sample °³¼öÀÔ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½ ï¿½Ç´ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ï¿½ï¿½ ï¿½Æ´Ï¶ï¿½ Sample ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     // ----------------------------------------------------
     constexpr unsigned int CALIBRATION_WAIT_SAMPLES =
         2000;
@@ -2639,7 +2674,7 @@ bool DaoEtherCATMaster::SetDaoAdcPowerLineFilterMode(
         return false;
     }
 
-    // Áö¿øÇÏ´Â Mode¸¸ Çã¿ëÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ Modeï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     if (mode != DaoInternalAdcPowerLineFilterMode::OFF &&
         mode != DaoInternalAdcPowerLineFilterMode::HZ_50 &&
         mode != DaoInternalAdcPowerLineFilterMode::HZ_60 &&
@@ -2653,10 +2688,10 @@ bool DaoEtherCATMaster::SetDaoAdcPowerLineFilterMode(
         mode;
 
     // ----------------------------------------------------
-    // Notch Mode°¡ º¯°æµÇ¸é ÀÌÀü Filter History¸¦ Æó±âÇÕ´Ï´Ù.
+    // Notch Modeï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç¸ï¿½ ï¿½ï¿½ï¿½ï¿½ Filter Historyï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     //
-    // ´Ù¸¥ Mode¿¡¼­ »ç¿ëÇÏ´ø x/y »óÅÂ¸¦ ±×´ë·Î ¾²¸é
-    // ¼ø°£ÀûÀÎ °úµµÀÀ´äÀÌ »ý±æ ¼ö ÀÖ½À´Ï´Ù.
+    // ï¿½Ù¸ï¿½ Modeï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ x/y ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö½ï¿½ï¿½Ï´ï¿½.
     // ----------------------------------------------------
     runtimeInfo.processing.notch50X1 = 0.0;
     runtimeInfo.processing.notch50X2 = 0.0;
@@ -2673,7 +2708,7 @@ bool DaoEtherCATMaster::SetDaoAdcPowerLineFilterMode(
     runtimeInfo.processing.notch120Y1 = 0.0;
     runtimeInfo.processing.notch120Y2 = 0.0;
 
-    // ÇöÀç °ªÀ¸·Î ´Ù½Ã ½ÃÀÛÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     runtimeInfo.processing.powerLineFiltered =
         runtimeInfo.processing.lowLevelFiltered;
 
@@ -2716,7 +2751,7 @@ bool DaoEtherCATMaster::SetDaoAdcFilterN(
     runtimeInfo.processing.filterN =
         filterN;
 
-    // N°ªÀÌ º¯°æµÇ¸é ±âÁ¸ Moving Average ÀÌ·ÂÀ» Æó±âÇÕ´Ï´Ù.
+    // Nï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç¸ï¿½ ï¿½ï¿½ï¿½ï¿½ Moving Average ï¿½Ì·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     runtimeInfo.processing.userFilterBuffer.fill(0.0);
 
     runtimeInfo.processing.userFilterIndex =
@@ -2771,12 +2806,12 @@ bool DaoEtherCATMaster::StartDaoAdcDiagnosticCapture(
         return false;
     }
 
-    // ±âÁ¸ Diagnostic Capture °á°ú´Â ¹ö¸®°í
-    // »õ Capture¸¦ ½ÃÀÛÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ Diagnostic Capture ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ Captureï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     runtimeInfo.diagnosticSamples.clear();
 
-    // ÃøÁ¤ Áß vector ÀçÇÒ´çÀÌ ¹ß»ýÇÏÁö ¾Êµµ·Ï
-    // ÇÊ¿äÇÑ Sample ¼ö¸¸Å­ ¹Ì¸® ¸Þ¸ð¸®¸¦ È®º¸ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ vector ï¿½ï¿½ï¿½Ò´ï¿½ï¿½ï¿½ ï¿½ß»ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Êµï¿½ï¿½ï¿½
+    // ï¿½Ê¿ï¿½ï¿½ï¿½ Sample ï¿½ï¿½ï¿½ï¿½Å­ ï¿½Ì¸ï¿½ ï¿½Þ¸ð¸®¸ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     runtimeInfo.diagnosticSamples.reserve(
         static_cast<std::size_t>(
             targetSampleCount));
@@ -2938,7 +2973,7 @@ bool DaoEtherCATMaster::ReadDaoAdcRingBuffer(
         : requestedCount;
 
     // ----------------------------------------------------
-    // °¡Àå ¿À·¡µÈ SampleºÎÅÍ ¼ø¼­´ë·Î ÀÐ½À´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Sampleï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ð½ï¿½ï¿½Ï´ï¿½.
     // ----------------------------------------------------
     for (std::size_t i = 0;
         i < actualReadCount;
@@ -3069,8 +3104,8 @@ bool DaoEtherCATMaster::GetServoRuntimeInfo(
         servoRuntimeInfoBySlave_[
             runtimeIndex];
 
-    // LS Servo Identity¿Í PDO °ËÁõÀ» Åë°úÇÑ
-    // Runtime¸¸ ¿ÜºÎ¿¡ ¹ÝÈ¯ÇÕ´Ï´Ù.
+    // LS Servo Identityï¿½ï¿½ PDO ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
+    // Runtimeï¿½ï¿½ ï¿½ÜºÎ¿ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
     if (!runtimeInfo.configured)
     {
         return false;
@@ -3108,8 +3143,44 @@ bool DaoEtherCATMaster::GetIoRuntimeInfo(
         ioRuntimeInfoBySlave_[
             runtimeIndex];
 
-    // FASTECH IO Identity¿Í PDO °ËÁõÀ» Åë°úÇÑ
-    // Runtime¸¸ ¿ÜºÎ¿¡ ¹ÝÈ¯ÇÕ´Ï´Ù.
+    // FASTECH IO Identityï¿½ï¿½ PDO ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
+    // Runtimeï¿½ï¿½ ï¿½ÜºÎ¿ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
+    if (!runtimeInfo.configured)
+    {
+        return false;
+    }
+
+    outInfo = runtimeInfo;
+
+    return true;
+}
+
+bool DaoEtherCATMaster::GetEncoderRuntimeInfo(
+    int physicalSlaveIndex,
+    DaoInternalEncoderRuntimeInfo& outInfo) const
+{
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    if (physicalSlaveIndex <= 0)
+    {
+        return false;
+    }
+
+    const std::size_t runtimeIndex =
+        static_cast<std::size_t>(
+            physicalSlaveIndex);
+
+    if (runtimeIndex >=
+        encoderRuntimeInfoBySlave_.size())
+    {
+        return false;
+    }
+
+    const DaoInternalEncoderRuntimeInfo& runtimeInfo =
+        encoderRuntimeInfoBySlave_[
+            runtimeIndex];
+
     if (!runtimeInfo.configured)
     {
         return false;
@@ -3161,7 +3232,7 @@ bool DaoEtherCATMaster::RequestServoOn(
         return false;
     }
 
-    // Fault »óÅÂ¿¡¼­´Â Servo ON ¸í·ÉÀ» Á¢¼öÇÏÁö ¾Ê½À´Ï´Ù.
+    // Fault ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ Servo ON ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.fault)
     {
         return false;
@@ -3172,8 +3243,8 @@ bool DaoEtherCATMaster::RequestServoOn(
         return false;
     }
 
-    // ´Ù¸¥ ¸í·ÉÀÌ ½ÇÇà ÁßÀÌ¸é »õ Servo ON ¸í·ÉÀ»
-    // µ¤¾î¾²Áö ¾Ê½À´Ï´Ù.
+    // ï¿½Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ ï¿½ï¿½ Servo ON ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½î¾²ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.commandState ==
         DAO_SERVO_COMMAND_STATE_ACCEPTED ||
         runtimeInfo.commandState ==
@@ -3199,8 +3270,8 @@ bool DaoEtherCATMaster::RequestServoOn(
     runtimeInfo.commandStartFrameCount =
         runtimeInfo.totalFrameCount;
 
-    // ÀÌ¹Ì Operation Enabled¶ó¸é
-    // ºÒÇÊ¿äÇÑ CiA402 ÀüÈ¯À» ´Ù½Ã ¼öÇàÇÏÁö ¾Ê½À´Ï´Ù.
+    // ï¿½Ì¹ï¿½ Operation Enabledï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½Ê¿ï¿½ï¿½ï¿½ CiA402 ï¿½ï¿½È¯ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.operationEnabled)
     {
         runtimeInfo.commandState =
@@ -3253,8 +3324,8 @@ bool DaoEtherCATMaster::RequestServoOff(
         return false;
     }
 
-    // ´Ù¸¥ ÀÏ¹Ý ¸í·ÉÀÌ ÁøÇà ÁßÀÌ¸é
-    // ÀÌ¹ø ´Ü°è¿¡¼­´Â Servo OFF ¿äÃ»À» µ¤¾î¾²Áö ¾Ê½À´Ï´Ù.
+    // ï¿½Ù¸ï¿½ ï¿½Ï¹ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½
+    // ï¿½Ì¹ï¿½ ï¿½Ü°è¿¡ï¿½ï¿½ï¿½ï¿½ Servo OFF ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½ï¿½ï¿½î¾²ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.commandState ==
         DAO_SERVO_COMMAND_STATE_ACCEPTED ||
         runtimeInfo.commandState ==
@@ -3280,8 +3351,8 @@ bool DaoEtherCATMaster::RequestServoOff(
     runtimeInfo.commandStartFrameCount =
         runtimeInfo.totalFrameCount;
 
-    // ÀÌ¹Ì Ready To Switch OnÀÌ¸é
-    // ¿ì¸®°¡ Á¤ÀÇÇÑ Servo OFF »óÅÂÀÔ´Ï´Ù.
+    // ï¿½Ì¹ï¿½ Ready To Switch Onï¿½Ì¸ï¿½
+    // ï¿½ì¸®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Servo OFF ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     if (runtimeInfo.cia402State == 0x0021)
     {
         runtimeInfo.commandState =
@@ -3340,18 +3411,18 @@ bool DaoEtherCATMaster::RequestServoHome(
         return false;
     }
 
-    // Fault »óÅÂ¿¡¼­´Â HomingÀ» ½ÃÀÛÇÏÁö ¾Ê½À´Ï´Ù.
+    // Fault ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ Homingï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.fault)
     {
         return false;
     }
 
-	if (runtimeInfo.stoActive) // STO°¡ È°¼ºÈ­µÇ¾î ÀÖÀ¸¸é HomingÀ» ½ÃÀÛÇÏÁö ¾Ê½À´Ï´Ù.
+	if (runtimeInfo.stoActive) // STOï¿½ï¿½ È°ï¿½ï¿½È­ï¿½Ç¾ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Homingï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     {
         return false;
     }
 
-    // ´Ù¸¥ ¸í·ÉÀÌ ÁøÇà ÁßÀÌ¸é Home ¸í·ÉÀ» µ¤¾î¾²Áö ¾Ê½À´Ï´Ù.
+    // ï¿½Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ Home ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½î¾²ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.commandState ==
         DAO_SERVO_COMMAND_STATE_ACCEPTED ||
         runtimeInfo.commandState ==
@@ -3393,7 +3464,7 @@ bool DaoEtherCATMaster::RequestServoHome(
     runtimeInfo.mailboxResult = 0;
 
 
-    // »õ HomingÀ» ½ÃÀÛÇÏ¹Ç·Î ÀÌÀü ¿Ï·á »óÅÂ´Â Á¦°ÅÇÕ´Ï´Ù.
+    // ï¿½ï¿½ Homingï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¹Ç·ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½ ï¿½ï¿½ï¿½Â´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     runtimeInfo.homed = false;
 
     return true;
@@ -3402,7 +3473,7 @@ bool DaoEtherCATMaster::RequestServoHome(
 
 
 // --------------------------------------------------------
-//À§Ä¡°áÁ¤ Á¦¾î¿ë Output Command¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+//ï¿½ï¿½Ä¡ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ Output Commandï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 bool DaoEtherCATMaster::RequestServoMoveAbsolute(
     int physicalSlaveIndex,
     int targetPosition,
@@ -3428,7 +3499,7 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
     {
         return false;
     }
-	// Profile Velocity°¡ 0ÀÌ¸é À§Ä¡ÀÌµ¿À» Á¢¼öÇÏÁö ¾Ê½À´Ï´Ù.
+	// Profile Velocityï¿½ï¿½ 0ï¿½Ì¸ï¿½ ï¿½ï¿½Ä¡ï¿½Ìµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (profileVelocity == 0)
     {
         return false;
@@ -3451,7 +3522,7 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
 
     const std::size_t runtimeIndex =
         static_cast<std::size_t>(
-			physicalSlaveIndex);  // 0¹øÀº EtherCAT Master ÀÚ½ÅÀÌ¹Ç·Î 1ºÎÅÍ ½ÃÀÛÇÕ´Ï´Ù.
+			physicalSlaveIndex);  // 0ï¿½ï¿½ï¿½ï¿½ EtherCAT Master ï¿½Ú½ï¿½ï¿½Ì¹Ç·ï¿½ 1ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     if (runtimeIndex >=
         servoRuntimeInfoBySlave_.size())
@@ -3469,19 +3540,19 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
         return false;
     }
 
-    // Fault »óÅÂ¿¡¼­´Â À§Ä¡ÀÌµ¿À» Á¢¼öÇÏÁö ¾Ê½À´Ï´Ù.
+    // Fault ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½Ìµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.fault)
     {
         return false;
     }
 
-	if (runtimeInfo.stoActive) // STO°¡ È°¼ºÈ­µÇ¾î ÀÖÀ¸¸é À§Ä¡ÀÌµ¿À» Á¢¼öÇÏÁö ¾Ê½À´Ï´Ù.
+	if (runtimeInfo.stoActive) // STOï¿½ï¿½ È°ï¿½ï¿½È­ï¿½Ç¾ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½Ìµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     {
         return false;
     }
 
-    // ´Ù¸¥ Servo ¸í·ÉÀÌ ÁøÇà ÁßÀÌ¸é
-    // »õ MoveAbs ¸í·ÉÀ¸·Î µ¤¾î¾²Áö ¾Ê½À´Ï´Ù.
+    // ï¿½Ù¸ï¿½ Servo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½
+    // ï¿½ï¿½ MoveAbs ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½î¾²ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.commandState ==
         DAO_SERVO_COMMAND_STATE_ACCEPTED ||
         runtimeInfo.commandState ==
@@ -3508,7 +3579,7 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
         runtimeInfo.totalFrameCount;
 
     // --------------------------------------------------------
-    // Move Absolute ¸í·É ÆÄ¶ó¹ÌÅÍ ÀúÀå
+    // Move Absolute ï¿½ï¿½ï¿½ï¿½ ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     runtimeInfo.moveTargetPosition =
         targetPosition;
@@ -3517,10 +3588,10 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
         profileVelocity;
 
     runtimeInfo.moveProfileAcceleration =
-		safeAcceleration;  // 0ÀÌ¸é ±âº»°ªÀ¸·Î ´ëÃ¼
+		safeAcceleration;  // 0ï¿½Ì¸ï¿½ ï¿½âº»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼
 
     runtimeInfo.moveProfileDeceleration =
-		safeDeceleration; // 0ÀÌ¸é ±âº»°ªÀ¸·Î ´ëÃ¼
+		safeDeceleration; // 0ï¿½Ì¸ï¿½ ï¿½âº»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼
 
     if (timeoutMs == 0)
     {
@@ -3541,19 +3612,19 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
                 ? positionDifference
                 : -positionDifference);
 
-        // °Å¸® / ¼Óµµ ±âÁØ ÀÌµ¿½Ã°£
-        // ÇöÀç Position, Velocity°¡ °°Àº User Unit °è¿­ÀÌ¶ó´Â ÀüÁ¦ÀÔ´Ï´Ù.
+        // ï¿½Å¸ï¿½ / ï¿½Óµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ï¿½Ã°ï¿½
+        // ï¿½ï¿½ï¿½ï¿½ Position, Velocityï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ User Unit ï¿½è¿­ï¿½Ì¶ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
         const unsigned long long baseMoveTimeMs =
             (moveDistance * 1000ULL +
                 static_cast<unsigned long long>(profileVelocity) - 1ULL)
             /
             static_cast<unsigned long long>(profileVelocity);
 
-        // ¿¹»ó½Ã°£ÀÇ 2¹è + 2ÃÊ ¿©À¯
+        // ï¿½ï¿½ï¿½ï¿½Ã°ï¿½ï¿½ï¿½ 2ï¿½ï¿½ + 2ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         unsigned long long calculatedTimeoutMs =
             (baseMoveTimeMs * 2ULL) + 2000ULL;
 
-        // ³Ê¹« ÂªÀº ÀÌµ¿µµ ÃÖ¼Ò 3ÃÊ´Â È®º¸
+        // ï¿½Ê¹ï¿½ Âªï¿½ï¿½ ï¿½Ìµï¿½ï¿½ï¿½ ï¿½Ö¼ï¿½ 3ï¿½Ê´ï¿½ È®ï¿½ï¿½
         if (calculatedTimeoutMs < 3000ULL)
         {
             calculatedTimeoutMs = 3000ULL;
@@ -3587,8 +3658,8 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
 
 
 // --------------------------------------------------------
-// Profile Velocity Á¦¾î ¸í·ÉÀ» Á¢¼öÇÕ´Ï´Ù.
-// ½ÇÁ¦ ¼Óµµ Ãâ·ÂÀº ProcessServoCommands()¿¡¼­ Ã³¸®ÇÕ´Ï´Ù.
+// Profile Velocity ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+// ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ProcessServoCommands()ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 // --------------------------------------------------------
 bool DaoEtherCATMaster::RequestServoVelocity(
     int physicalSlaveIndex,
@@ -3634,13 +3705,13 @@ bool DaoEtherCATMaster::RequestServoVelocity(
         return false;
     }
 
-    // Fault »óÅÂ¿¡¼­´Â ¼Óµµ¿îÀüÀ» Á¢¼öÇÏÁö ¾Ê½À´Ï´Ù.
+    // Fault ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.fault)
     {
         return false;
     }
 
-    // STO »óÅÂ¿¡¼­´Â ¾î¶°ÇÑ ¼Óµµ¿îÀüµµ Á¢¼öÇÏÁö ¾Ê½À´Ï´Ù.
+    // STO ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½î¶°ï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.stoActive)
     {
         return false;
@@ -3660,12 +3731,12 @@ bool DaoEtherCATMaster::RequestServoVelocity(
         : deceleration;
 
     // --------------------------------------------------------
-    // ÀÌ¹Ì Velocity ¿îÀü ÁßÀÌ¶ó¸é
-    // »õ·Î¿î ¼Óµµ°ªÀ¸·Î °»½ÅÇÒ ¼ö ÀÖ½À´Ï´Ù.
+    // ï¿½Ì¹ï¿½ Velocity ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½
+    // ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö½ï¿½ï¿½Ï´ï¿½.
     //
-    // +°ª : Á¤¹æÇâ
-    // -°ª : ¿ª¹æÇâ
-    //  0  : °¨¼Ó Á¤Áö
+    // +ï¿½ï¿½ : ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // -ï¿½ï¿½ : ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    //  0  : ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     if (runtimeInfo.commandType ==
         DAO_SERVO_COMMAND_VELOCITY &&
@@ -3684,8 +3755,8 @@ bool DaoEtherCATMaster::RequestServoVelocity(
         return true;
     }
 
-    // ´Ù¸¥ Servo ¸í·ÉÀÌ ÁøÇà ÁßÀÌ¸é
-    // »õ ¼Óµµ¸í·ÉÀ¸·Î µ¤¾î¾²Áö ¾Ê½À´Ï´Ù.
+    // ï¿½Ù¸ï¿½ Servo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½
+    // ï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½î¾²ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.commandState ==
         DAO_SERVO_COMMAND_STATE_ACCEPTED ||
         runtimeInfo.commandState ==
@@ -3725,9 +3796,9 @@ bool DaoEtherCATMaster::RequestServoVelocity(
 }
 // --------------------------------------------------------
 // --------------------------------------------------------
-// ÇöÀç Servo ¿îÀüÀ» Á¤Áö ¸í·ÉÀ¸·Î ÀüÈ¯ÇÕ´Ï´Ù.
-// ½ÇÁ¦ Á¤Áö µ¿ÀÛÀº ProcessServoCommands()¿¡¼­ Ã³¸®ÇÕ´Ï´Ù.
-// Servo OFF°¡ ¾Æ´Ï¶ó °¨¼Ó Á¤Áö + ÅäÅ© À¯ÁöÀÔ´Ï´Ù.
+// ï¿½ï¿½ï¿½ï¿½ Servo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ProcessServoCommands()ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+// Servo OFFï¿½ï¿½ ï¿½Æ´Ï¶ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ + ï¿½ï¿½Å© ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
 // --------------------------------------------------------
 bool DaoEtherCATMaster::RequestServoStop(
     int physicalSlaveIndex)
@@ -3770,8 +3841,8 @@ bool DaoEtherCATMaster::RequestServoStop(
         return false;
     }
 
-    // Fault / STO »óÅÂ¿¡¼­´Â ÀÏ¹Ý Stop ¸í·ÉÀ¸·Î
-    // »óÅÂ¸¦ µ¤¾î¾²Áö ¾Ê½À´Ï´Ù.
+    // Fault / STO ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ï¹ï¿½ Stop ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½î¾²ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (runtimeInfo.fault ||
         runtimeInfo.stoActive)
     {
@@ -3953,14 +4024,14 @@ bool DaoEtherCATMaster::SetIoOutputCommand(
         return false;
     }
 
-    // IN8OUT8Àº ÇÏÀ§ 8ºñÆ®¸¸ Çã¿ëÇÕ´Ï´Ù.
+    // IN8OUT8ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ 8ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     if (runtimeInfo.outputBytes == 1)
     {
         outputValue =
             static_cast<unsigned short>(
                 outputValue & 0x00FF);
     }
-    // IN16OUT16Àº 16ºñÆ® ÀüÃ¼¸¦ »ç¿ëÇÕ´Ï´Ù.
+    // IN16OUT16ï¿½ï¿½ 16ï¿½ï¿½Æ® ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     else if (runtimeInfo.outputBytes != 2)
     {
         return false;
@@ -3974,20 +4045,20 @@ bool DaoEtherCATMaster::SetIoOutputCommand(
 void DaoEtherCATMaster::ResetAdcRuntimeInfo()
 {
     // --------------------------------------------------------
-    // ADC ·±Å¸ÀÓ ÀúÀå°ø°£ ÀüÃ¼¸¦ º¯°æÇÏ¹Ç·Î
-    // ¿ÜºÎ Á¶È¸ ¶Ç´Â Åë½Å ½º·¹µå Á¢±Ù°ú Ãæµ¹ÇÏÁö ¾Ê°Ô
-    // mutex·Î º¸È£ÇÕ´Ï´Ù.
+    // ADC ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¹Ç·ï¿½
+    // ï¿½Üºï¿½ ï¿½ï¿½È¸ ï¿½Ç´ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ù°ï¿½ ï¿½æµ¹ï¿½ï¿½ï¿½ï¿½ ï¿½Ê°ï¿½
+    // mutexï¿½ï¿½ ï¿½ï¿½È£ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     std::lock_guard<std::mutex> lock(
         adcRuntimeMutex_);
 
-    // ±âÁ¸ ¹°¸® Slaveº° ADC ·±Å¸ÀÓ Á¤º¸¸¦ ¸ðµÎ Á¦°ÅÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ ADC ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     adcRuntimeInfoBySlave_.clear();
 
-    // SOEMÀÇ ¹°¸® Slave ¹øÈ£´Â 1ºÎÅÍ ½ÃÀÛÇÕ´Ï´Ù.
-    // 0¹øÀº ÀüÃ¼ Slave¿ëÀÌ¹Ç·Î »ç¿ëÇÏÁö ¾ÊÁö¸¸,
-    // ¹°¸® ¹øÈ£¸¦ ±×´ë·Î vector index·Î »ç¿ëÇÏ±â À§ÇØ
-    // slaveCount + 1 Å©±â·Î È®º¸ÇÕ´Ï´Ù.
+    // SOEMï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½È£ï¿½ï¿½ 1ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+    // 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ Slaveï¿½ï¿½ï¿½Ì¹Ç·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È£ï¿½ï¿½ ï¿½×´ï¿½ï¿½ vector indexï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½
+    // slaveCount + 1 Å©ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     if (slaveCount_ > 0)
     {
         adcRuntimeInfoBySlave_.resize(
@@ -4014,7 +4085,7 @@ void DaoEtherCATMaster::ResetAdcRuntimeInfo()
     }
 }
 
-void DaoEtherCATMaster::ResetServoRuntimeInfo() // ¼­º¸ ·±Å¸ÀÓ Á¤º¸ ÃÊ±âÈ­
+void DaoEtherCATMaster::ResetServoRuntimeInfo() // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
 {
     std::lock_guard<std::mutex> lock(
         servoRuntimeMutex_);
@@ -4048,7 +4119,7 @@ void DaoEtherCATMaster::ResetServoRuntimeInfo() // ¼­º¸ ·±Å¸ÀÓ Á¤º¸ ÃÊ±âÈ­
 }
 
 
-void DaoEtherCATMaster::ResetIoRuntimeInfo() //·±Å¸ÀÓIOÁ¤º¸ ÃÊ±âÈ­
+void DaoEtherCATMaster::ResetIoRuntimeInfo() //ï¿½ï¿½Å¸ï¿½ï¿½IOï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
 {
     std::lock_guard<std::mutex> lock(
         ioRuntimeMutex_);
@@ -4080,10 +4151,45 @@ void DaoEtherCATMaster::ResetIoRuntimeInfo() //·±Å¸ÀÓIOÁ¤º¸ ÃÊ±âÈ­
         }
     }
 }
-void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸ÞÀÎ ·çÇÁ
+
+void DaoEtherCATMaster::ResetEncoderRuntimeInfo()
+{
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    encoderRuntimeInfoBySlave_.clear();
+
+    if (slaveCount_ > 0)
+    {
+        encoderRuntimeInfoBySlave_.resize(
+            static_cast<std::size_t>(
+                slaveCount_ + 1));
+
+        for (int physicalSlaveIndex = 1;
+            physicalSlaveIndex <= slaveCount_;
+            ++physicalSlaveIndex)
+        {
+            DaoInternalEncoderRuntimeInfo& runtimeInfo =
+                encoderRuntimeInfoBySlave_[
+                    static_cast<std::size_t>(
+                        physicalSlaveIndex)];
+
+            runtimeInfo = {};
+
+            runtimeInfo.physicalSlaveIndex =
+                physicalSlaveIndex;
+
+            runtimeInfo.expectedWkc =
+                expectedWkc_;
+        }
+    }
+}
+
+
+void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ï¿½ï¿½È¯ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 {
     // --------------------------------------------------------
-    // EtherCAT ¼øÈ¯Åë½Å ¸ñÇ¥ ÁÖ±â
+    // EtherCAT ï¿½ï¿½È¯ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ ï¿½Ö±ï¿½
     //
     // 2ms = 500Hz
     // --------------------------------------------------------
@@ -4099,10 +4205,10 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸Þ
             COMMUNICATION_PERIOD;
 
         // ----------------------------------------------------
-        // 1. °ËÁõµÈ ¸ðµç DAO ADC Output PDO¸¦ 0À¸·Î À¯Áö
+        // 1. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ DAO ADC Output PDOï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         //
-        // ¾ÆÁ÷ Servo¿Í IO´Â µî·ÏµÇÁö ¾Ê¾ÒÀ¸¹Ç·Î
-        // ÇöÀç´Â ADC Output 4¹ÙÀÌÆ®¸¸ Ã³¸®ÇÕ´Ï´Ù.
+        // ï¿½ï¿½ï¿½ï¿½ Servoï¿½ï¿½ IOï¿½ï¿½ ï¿½ï¿½Ïµï¿½ï¿½ï¿½ ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½Ç·ï¿½
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ ADC Output 4ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
         // ----------------------------------------------------
         for (int physicalSlaveIndex = 1;
             physicalSlaveIndex <= slaveCount_;
@@ -4117,7 +4223,7 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸Þ
                 continue;
             }
 
-            // °ËÁõµÈ DAO ADC PDO Å©±â¿Í Æ÷ÀÎÅÍ¸¸ Çã¿ëÇÕ´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DAO ADC PDO Å©ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             if (slave.Obytes != 4 ||
                 slave.Ibytes != 24 ||
                 slave.outputs == nullptr ||
@@ -4134,13 +4240,15 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸Þ
         }
 
         // ----------------------------------------------------
-        // LS Servo¿Í FASTECH IOÀÇ ÃÖ½Å Ãâ·Â ¸í·ÉÀ»
-        // ½ÇÁ¦ Output PDO ¸Þ¸ð¸®¿¡ ¹Ý¿µÇÕ´Ï´Ù.
+        // LS Servoï¿½ï¿½ FASTECH IOï¿½ï¿½ ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        // ï¿½ï¿½ï¿½ï¿½ Output PDO ï¿½Þ¸ð¸®¿ï¿½ ï¿½Ý¿ï¿½ï¿½Õ´Ï´ï¿½.
         // ----------------------------------------------------
         PrepareServoAndIoOutputs();
 
+        PrepareEncoderOutputs();
+
         // ----------------------------------------------------
-        // 2. ÀüÃ¼ EtherCAT Process Data¸¦ Á¤È®È÷ ÇÑ ¹ø ¼Û¼ö½Å
+        // 2. ï¿½ï¿½Ã¼ EtherCAT Process Dataï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Û¼ï¿½ï¿½ï¿½
         // ----------------------------------------------------
         ecx_send_processdata(
             &context_);
@@ -4151,21 +4259,25 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸Þ
                 EC_TIMEOUTRET);
 
         // ----------------------------------------------------
-        // ÀÌ¹ø ÇÁ·¹ÀÓÀÇ LS Servo¿Í FASTECH IO ÀÔ·Â PDO¸¦
-        // °¢ ÀåÄ¡ÀÇ Runtime ÀúÀå°ø°£¿¡ ¹Ý¿µÇÕ´Ï´Ù.
+        // ï¿½Ì¹ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ LS Servoï¿½ï¿½ FASTECH IO ï¿½Ô·ï¿½ PDOï¿½ï¿½
+        // ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ Runtime ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ý¿ï¿½ï¿½Õ´Ï´ï¿½.
         // ----------------------------------------------------
         CaptureServoAndIoInputs(
             actualWkc);
 
-        // ÃÖ½Å Servo »óÅÂ¸¦ ±âÁØÀ¸·Î
-        // °¢ ÃàÀÇ ºñµ¿±â ¸í·É »óÅÂ¸Ó½ÅÀ» ÁøÇàÇÕ´Ï´Ù.
+
+        CaptureEncoderInputs(
+            actualWkc);
+
+        // ï¿½Ö½ï¿½ Servo ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ñµ¿±ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸Ó½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
         ProcessServoCommands();
 
         const bool wkcValid =
             actualWkc >= expectedWkc_;
 
         // ----------------------------------------------------
-        // 3. °¢ DAO ADCÀÇ Input PDO¸¦ ·±Å¸ÀÓ ÀúÀå°ø°£¿¡ ¹Ý¿µ
+        // 3. ï¿½ï¿½ DAO ADCï¿½ï¿½ Input PDOï¿½ï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ý¿ï¿½
         // ----------------------------------------------------
         for (int physicalSlaveIndex = 1;
             physicalSlaveIndex <= slaveCount_;
@@ -4190,7 +4302,7 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸Þ
 
             DaoInternalAdcInputPdo latestData{};
 
-            // WKC°¡ Á¤»óÀÏ ¶§¸¸ »õ ADC µ¥ÀÌÅÍ¸¦ º¹»çÇÕ´Ï´Ù.
+            // WKCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ADC ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             if (wkcValid)
             {
                 std::memcpy(
@@ -4266,12 +4378,12 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸Þ
         }
 
         // ----------------------------------------------------
-        // 4. ´ÙÀ½ 2ms Àý´ë½Ã°¢±îÁö ´ë±â
+        // 4. ï¿½ï¿½ï¿½ï¿½ 2ms ï¿½ï¿½ï¿½ï¿½Ã°ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
         // ----------------------------------------------------
         std::this_thread::sleep_until(
             nextWakeTime);
 
-        // PC°¡ ¿À·¡ Á¤ÁöÇÑ °æ¿ì ¹Ð¸° ÁÖ±â¸¦ ¿¬¼Ó ¼öÇàÇÏÁö ¾Ê½À´Ï´Ù.
+        // PCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ð¸ï¿½ ï¿½Ö±â¸¦ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
         const auto now =
             std::chrono::steady_clock::now();
 
@@ -4283,7 +4395,7 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸Þ
     }
 
     // --------------------------------------------------------
-    // ½º·¹µå Á¾·á ½Ã ¸ðµç ADC RuntimeÀÇ ½ÇÇà »óÅÂ¸¦ false·Î º¯°æ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ ADC Runtimeï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ falseï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4301,8 +4413,8 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸Þ
     }
 
     // --------------------------------------------------------
-    // ½º·¹µå Á¾·á ½Ã ¸ðµç Servo RuntimeÀÇ
-    // ½ÇÇà »óÅÂ¸¦ false·Î º¯°æ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ Servo Runtimeï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ falseï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4320,8 +4432,8 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸Þ
     }
 
     // --------------------------------------------------------
-    // ½º·¹µå Á¾·á ½Ã ¸ðµç IO RuntimeÀÇ
-    // ½ÇÇà »óÅÂ¸¦ false·Î º¯°æ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ IO Runtimeï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ falseï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4338,13 +4450,29 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ¼øÈ¯Åë½Å ½º·¹µå ¸Þ
         }
     }
 
+    {
+        std::lock_guard<std::mutex> lock(
+            encoderRuntimeMutex_);
+
+        for (std::size_t runtimeIndex = 1;
+            runtimeIndex <
+            encoderRuntimeInfoBySlave_.size();
+            ++runtimeIndex)
+        {
+            encoderRuntimeInfoBySlave_[
+                runtimeIndex]
+                .communicationRunning = false;
+        }
+    }
+    
+
     communicationRunning_.store(false);
 }
 
 void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
 {
     // --------------------------------------------------------
-    // LS Servo Runtime ±¸¼º
+    // LS Servo Runtime ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4366,7 +4494,7 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
                     static_cast<std::size_t>(
                         physicalSlaveIndex)];
 
-            // ±âº»°ªÀ¸·Î ´Ù½Ã ÃÊ±âÈ­
+            // ï¿½âº»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½Ê±ï¿½È­
             runtimeInfo = {};
 
             runtimeInfo.physicalSlaveIndex =
@@ -4375,7 +4503,7 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
             runtimeInfo.expectedWkc =
                 expectedWkc_;
 
-            // LS L7NH°¡ ¾Æ´Ï¸é ¿©±â±îÁö¸¸ À¯Áö
+            // LS L7NHï¿½ï¿½ ï¿½Æ´Ï¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             if (!IsLsL7nhServo(
                 physicalSlaveIndex))
             {
@@ -4386,7 +4514,7 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
                 context_.slavelist[
                     physicalSlaveIndex];
 
-            // PDO Å©±â°¡ Á¤È®È÷ ¸Â´Â °æ¿ì¸¸ È°¼ºÈ­
+            // PDO Å©ï¿½â°¡ ï¿½ï¿½È®ï¿½ï¿½ ï¿½Â´ï¿½ ï¿½ï¿½ì¸¸ È°ï¿½ï¿½È­
             const bool outputSizeValid =
                 slave.Obytes ==
                 sizeof(
@@ -4414,12 +4542,12 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
             runtimeInfo.configured = true;
 
             // ----------------------------------------------------
-            // Servo ÃÊ±â Output PDO ±âº»°ª
+            // Servo ï¿½Ê±ï¿½ Output PDO ï¿½âº»ï¿½ï¿½
             //
-            // ½ÇÁ¦ À§Ä¡´Â ¾ÆÁ÷ Ã¹ Input PDO¸¦ ¹Þ±â ÀüÀÌ¹Ç·Î
-            // Target PositionÀº 0À¸·Î ½ÃÀÛÇÕ´Ï´Ù.
-            // Ã¹ Á¤»ó ÀÔ·ÂÀ» ¹ÞÀº µÚ »óÅÂ¸Ó½Å¿¡¼­
-            // ÇöÀç ½ÇÁ¦ À§Ä¡·Î ´Ù½Ã ¸ÂÃä´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ã¹ Input PDOï¿½ï¿½ ï¿½Þ±ï¿½ ï¿½ï¿½ï¿½Ì¹Ç·ï¿½
+            // Target Positionï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+            // Ã¹ ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸Ó½Å¿ï¿½ï¿½ï¿½
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
             // ----------------------------------------------------
             runtimeInfo.outputCommand = {};
 
@@ -4451,16 +4579,18 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
                 0;
 
 
-            // ÀÔ·ÂÀº ¾ÆÁ÷ À¯È¿ÇÏÁö ¾ÊÀ½
+            // ï¿½Ô·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¿ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             runtimeInfo.latestInput = {};
             runtimeInfo.hasValidInputData = false;
         }
     }
 
 
+  
+
 
     // --------------------------------------------------------
-    // FASTECH IO Runtime ±¸¼º
+    // FASTECH IO Runtime ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4527,7 +4657,7 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
                 continue;
             }
 
-			runtimeInfo.configured = true; // FASTECH IO·Î ±¸¼ºµÊ
+			runtimeInfo.configured = true; // FASTECH IOï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             runtimeInfo.outputBytes =
                 outputBytes;
 
@@ -4541,13 +4671,91 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
     }
 }
 
+
+void DaoEtherCATMaster::ConfigureEncoderRuntimeInfo()
+{
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    for (int physicalSlaveIndex = 1;
+        physicalSlaveIndex <= slaveCount_;
+        ++physicalSlaveIndex)
+    {
+        if (physicalSlaveIndex >=
+            static_cast<int>(
+                encoderRuntimeInfoBySlave_.size()))
+        {
+            continue;
+        }
+
+        DaoInternalEncoderRuntimeInfo& runtimeInfo =
+            encoderRuntimeInfoBySlave_[
+                static_cast<std::size_t>(
+                    physicalSlaveIndex)];
+
+        runtimeInfo = {};
+
+        runtimeInfo.physicalSlaveIndex =
+            physicalSlaveIndex;
+
+        runtimeInfo.expectedWkc =
+            expectedWkc_;
+
+        if (!IsFastechEncoder(
+            physicalSlaveIndex))
+        {
+            continue;
+        }
+
+        const ec_slavet& slave =
+            context_.slavelist[
+                physicalSlaveIndex];
+
+        const bool outputSizeValid =
+            slave.Obytes ==
+            sizeof(
+                DaoInternalFastechEncoderOutputPdo);
+
+        const bool inputSizeValid =
+            slave.Ibytes ==
+            sizeof(
+                DaoInternalFastechEncoderInputPdo);
+
+        const bool outputPointerValid =
+            slave.outputs != nullptr;
+
+        const bool inputPointerValid =
+            slave.inputs != nullptr;
+
+        if (!outputSizeValid ||
+            !inputSizeValid ||
+            !outputPointerValid ||
+            !inputPointerValid)
+        {
+            continue;
+        }
+
+        runtimeInfo.configured = true;
+
+        runtimeInfo.outputCommand = {};
+
+        // CH1 Count Enable = 3030:01 = bit 0   
+        runtimeInfo.outputCommand.counterCommand = 0x01;
+
+        runtimeInfo.latestInput = {};
+
+        runtimeInfo.hasValidInputData =
+            false;
+    }
+}
+
 void DaoEtherCATMaster::PrepareServoAndIoOutputs()
 {
     // --------------------------------------------------------
-    // LS Servo Ãâ·Â PDO ÁØºñ
+    // LS Servo ï¿½ï¿½ï¿½ PDO ï¿½Øºï¿½
     //
-    // ¿ÜºÎ API°¡ º¸°üÇÑ outputCommand¸¦
-    // ½ÇÁ¦ EtherCAT Output PDO ¸Þ¸ð¸®·Î º¹»çÇÕ´Ï´Ù.
+    // ï¿½Üºï¿½ APIï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ outputCommandï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ EtherCAT Output PDO ï¿½Þ¸ð¸®·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4571,8 +4779,8 @@ void DaoEtherCATMaster::PrepareServoAndIoOutputs()
                 servoRuntimeInfoBySlave_[
                     runtimeIndex];
 
-            // PDO Å©±â¿Í Æ÷ÀÎÅÍ °ËÁõÀ» Åë°úÇÑ
-            // LS Servo¸¸ Ã³¸®ÇÕ´Ï´Ù.
+            // PDO Å©ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
+            // LS Servoï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             if (!runtimeInfo.configured)
             {
                 continue;
@@ -4582,9 +4790,9 @@ void DaoEtherCATMaster::PrepareServoAndIoOutputs()
                 context_.slavelist[
                     physicalSlaveIndex];
 
-            // ConfigureServoAndIoRuntimeInfo()¿¡¼­
-            // ÀÌ¹Ì 12¹ÙÀÌÆ®¿Í Æ÷ÀÎÅÍ¸¦ °ËÁõÇßÁö¸¸,
-            // ½ÇÁ¦ º¹»ç Á÷Àü¿¡µµ ÇÑ ¹ø ´õ È®ÀÎÇÕ´Ï´Ù.
+            // ConfigureServoAndIoRuntimeInfo()ï¿½ï¿½ï¿½ï¿½
+            // ï¿½Ì¹ï¿½ 12ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             if (slave.outputs == nullptr ||
                 slave.Obytes !=
                 sizeof(
@@ -4602,10 +4810,10 @@ void DaoEtherCATMaster::PrepareServoAndIoOutputs()
     }
 
     // --------------------------------------------------------
-    // FASTECH IO Ãâ·Â PDO ÁØºñ
+    // FASTECH IO ï¿½ï¿½ï¿½ PDO ï¿½Øºï¿½
     //
-    // IN8OUT8Àº 1¹ÙÀÌÆ®,
-    // IN16OUT16Àº 2¹ÙÀÌÆ®¸¸ º¹»çÇÕ´Ï´Ù.
+    // IN8OUT8ï¿½ï¿½ 1ï¿½ï¿½ï¿½ï¿½Æ®,
+    // IN16OUT16ï¿½ï¿½ 2ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4671,6 +4879,56 @@ void DaoEtherCATMaster::PrepareServoAndIoOutputs()
         }
     }
 }
+
+
+void DaoEtherCATMaster::PrepareEncoderOutputs()
+{
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    for (int physicalSlaveIndex = 1;
+        physicalSlaveIndex <= slaveCount_;
+        ++physicalSlaveIndex)
+    {
+        const std::size_t runtimeIndex =
+            static_cast<std::size_t>(
+                physicalSlaveIndex);
+
+        if (runtimeIndex >=
+            encoderRuntimeInfoBySlave_.size())
+        {
+            continue;
+        }
+
+        DaoInternalEncoderRuntimeInfo& runtimeInfo =
+            encoderRuntimeInfoBySlave_[
+                runtimeIndex];
+
+        if (!runtimeInfo.configured)
+        {
+            continue;
+        }
+
+        ec_slavet& slave =
+            context_.slavelist[
+                physicalSlaveIndex];
+
+        if (slave.outputs == nullptr ||
+            slave.Obytes !=
+            sizeof(
+                DaoInternalFastechEncoderOutputPdo))
+        {
+            continue;
+        }
+
+        std::memcpy(
+            slave.outputs,
+            &runtimeInfo.outputCommand,
+            sizeof(
+                DaoInternalFastechEncoderOutputPdo));
+    }
+}
+
 void DaoEtherCATMaster::CaptureServoAndIoInputs(
     int actualWkc)
 {
@@ -4678,7 +4936,7 @@ void DaoEtherCATMaster::CaptureServoAndIoInputs(
         actualWkc >= expectedWkc_;
 
     // --------------------------------------------------------
-    // LS Servo ÀÔ·Â PDO ÀúÀå
+    // LS Servo ï¿½Ô·ï¿½ PDO ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4746,7 +5004,7 @@ void DaoEtherCATMaster::CaptureServoAndIoInputs(
 
             runtimeInfo.hasValidInputData = true;
 
-            // ÃÖ½Å StatusWord¸¦ ¿£Áø °øÅë »óÅÂ·Î ÇØ¼®ÇÕ´Ï´Ù.
+            // ï¿½Ö½ï¿½ StatusWordï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â·ï¿½ ï¿½Ø¼ï¿½ï¿½Õ´Ï´ï¿½.
             UpdateServoDerivedState(
                 runtimeInfo);
 
@@ -4755,7 +5013,7 @@ void DaoEtherCATMaster::CaptureServoAndIoInputs(
     }
 
     // --------------------------------------------------------
-    // FASTECH IO ÀÔ·Â PDO ÀúÀå
+    // FASTECH IO ï¿½Ô·ï¿½ PDO ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4851,6 +5109,83 @@ void DaoEtherCATMaster::CaptureServoAndIoInputs(
         }
     }
 }
+void DaoEtherCATMaster::CaptureEncoderInputs(
+    int actualWkc)
+{
+    const bool wkcValid =
+        actualWkc >= expectedWkc_;
+
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    for (int physicalSlaveIndex = 1;
+        physicalSlaveIndex <= slaveCount_;
+        ++physicalSlaveIndex)
+    {
+        const std::size_t runtimeIndex =
+            static_cast<std::size_t>(
+                physicalSlaveIndex);
+
+        if (runtimeIndex >=
+            encoderRuntimeInfoBySlave_.size())
+        {
+            continue;
+        }
+
+        DaoInternalEncoderRuntimeInfo& runtimeInfo =
+            encoderRuntimeInfoBySlave_[
+                runtimeIndex];
+
+        if (!runtimeInfo.configured)
+        {
+            continue;
+        }
+
+        runtimeInfo.communicationRunning =
+            communicationRunning_.load();
+
+        runtimeInfo.lastWkc =
+            actualWkc;
+
+        runtimeInfo.expectedWkc =
+            expectedWkc_;
+
+        ++runtimeInfo.totalFrameCount;
+
+        if (!wkcValid)
+        {
+            ++runtimeInfo.badWkcFrameCount;
+            continue;
+        }
+
+        ++runtimeInfo.goodWkcFrameCount;
+
+        const ec_slavet& slave =
+            context_.slavelist[
+                physicalSlaveIndex];
+
+        if (slave.inputs == nullptr ||
+            slave.Ibytes !=
+            sizeof(
+                DaoInternalFastechEncoderInputPdo))
+        {
+            continue;
+        }
+
+        std::memcpy(
+            &runtimeInfo.latestInput,
+            slave.inputs,
+            sizeof(
+                DaoInternalFastechEncoderInputPdo));
+
+        runtimeInfo.hasValidInputData =
+            true;
+
+        ++runtimeInfo.inputUpdateCount;
+    }
+}
+
+
 
 void DaoEtherCATMaster::ProcessServoCommands()
 {
@@ -4886,7 +5221,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
 
         // ====================================================
-        // ÇöÀç ½ÇÇà ÁßÀÎ ¸í·É Á¾·ù È®ÀÎ
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
         // ====================================================
         const bool isServoOnCommand =
             runtimeInfo.commandType ==
@@ -4913,7 +5248,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             DAO_SERVO_COMMAND_STOP;
 
 
-        // ÇöÀç »óÅÂ¸Ó½Å¿¡¼­ Ã³¸®ÇÏ´Â ¸í·ÉÀÌ ¾Æ´Ï¸é ¹«½Ã
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸Ó½Å¿ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Æ´Ï¸ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (!isServoOnCommand &&
             !isServoOffCommand &&
             !isHomingCommand &&
@@ -4924,7 +5259,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             continue;
         }
 
-        // ACCEPTED ¶Ç´Â RUNNING »óÅÂÀÇ ¸í·É¸¸ ÁøÇà
+        // ACCEPTED ï¿½Ç´ï¿½ RUNNING ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½É¸ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (runtimeInfo.commandState !=
             DAO_SERVO_COMMAND_STATE_ACCEPTED &&
             runtimeInfo.commandState !=
@@ -4940,7 +5275,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
         if (isHomingCommand)
         {
             // ------------------------------------------------
-            // Fault »óÅÂ¿¡¼­´Â Homing ÁøÇà ±ÝÁö
+            // Fault ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ Homing ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             // ------------------------------------------------
             if (runtimeInfo.fault) 
             {
@@ -4954,7 +5289,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 continue;
             }
 
-			if (runtimeInfo.stoActive) // STO Active »óÅÂ¿¡¼­´Â Homing ÁøÇà ±ÝÁö
+			if (runtimeInfo.stoActive) // STO Active ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ Homing ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             {
                 runtimeInfo.outputCommand.controlWord =
                     0x000F;
@@ -4979,8 +5314,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 runtimeInfo.outputCommand;
 
 
-            // Homing »óÅÂ¸Ó½Å ÀüÃ¼¿¡¼­ °øÅëÀ¸·Î
-            // ¾ÈÀüÇÑ Ãâ·Â°ªÀ» À¯ÁöÇÕ´Ï´Ù.
+            // Homing ï¿½ï¿½ï¿½Â¸Ó½ï¿½ ï¿½ï¿½Ã¼ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Â°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             command.targetPosition =
                 runtimeInfo.latestInput.actualPosition;
 
@@ -4994,8 +5329,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 1. HOMING_PREPARE
             //
-            // Servo¸¦ Ready To Switch On(0x21) »óÅÂ·Î
-            // ³»¸° µÚ Homing Mode º¯°æÀ» ÁØºñÇÕ´Ï´Ù.
+            // Servoï¿½ï¿½ Ready To Switch On(0x21) ï¿½ï¿½ï¿½Â·ï¿½
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Homing Mode ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Øºï¿½ï¿½Õ´Ï´ï¿½.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_HOMING_PREPARE)
@@ -5003,18 +5338,18 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 runtimeInfo.commandState =
                     DAO_SERVO_COMMAND_STATE_RUNNING;
 
-                // Ready To Switch On »óÅÂ°¡ ¾Æ´Ï¸é
-                // Shutdown ¸í·ÉÀ» À¯ÁöÇÕ´Ï´Ù.
+                // Ready To Switch On ï¿½ï¿½ï¿½Â°ï¿½ ï¿½Æ´Ï¸ï¿½
+                // Shutdown ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 if (runtimeInfo.cia402State != 0x0021)
                 {
                     command.controlWord = 0x0006;
                     continue;
                 }
 
-                // Servo OFF »óÅÂ È®ÀÎ ¿Ï·á
+                // Servo OFF ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ ï¿½Ï·ï¿½
                 command.controlWord = 0x0006;
 
-                // Homing Mode ¿äÃ»
+                // Homing Mode ï¿½ï¿½Ã»
                 command.operationMode = 6;
 
                 runtimeInfo.commandStep =
@@ -5028,7 +5363,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // 2. HOMING_MODE_REQUEST
             //
             // 0x6060 = 6
-            // 0x6061 Mode Display = 6 È®ÀÎ
+            // 0x6061 Mode Display = 6 È®ï¿½ï¿½
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_HOMING_MODE_REQUEST)
@@ -5037,8 +5372,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 command.operationMode = 6;
 
-                // Drive°¡ ½ÇÁ¦ Homing Mode·Î
-                // º¯°æµÉ ¶§±îÁö ±â´Ù¸³´Ï´Ù.
+                // Driveï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Homing Modeï¿½ï¿½
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ù¸ï¿½ï¿½Ï´ï¿½.
                 if (runtimeInfo.latestInput.operationModeDisplay != 6)
                 {
                     continue;
@@ -5054,7 +5389,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 3. HOMING_SERVO_ON
             //
-            // Homing Mode »óÅÂ¿¡¼­ Servo ON
+            // Homing Mode ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ Servo ON
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_HOMING_SERVO_ON)
@@ -5062,7 +5397,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.operationMode = 6;
 
 
-                // ÀÌ¹Ì Operation Enabled
+                // ï¿½Ì¹ï¿½ Operation Enabled
                 if (runtimeInfo.cia402State == 0x0027)
                 {
                     command.controlWord = 0x000F;
@@ -5092,8 +5427,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
 
-                // Á¤ÀÇÇÏÁö ¾ÊÀº »óÅÂ¿¡¼­´Â
-                // ÀÓÀÇ·Î ´ÙÀ½ ´Ü°è·Î ÁøÇàÇÏÁö ¾Ê½À´Ï´Ù.
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½
+                // ï¿½ï¿½ï¿½Ç·ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ü°ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
                 continue;
             }
 
@@ -5101,7 +5436,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 4. HOMING_START
             //
-            // Homing Start bit¸¦ ¿Ã¸³´Ï´Ù.
+            // Homing Start bitï¿½ï¿½ ï¿½Ã¸ï¿½ï¿½Ï´ï¿½.
             //
             // 0x001F =
             // Operation Enabled + Homing Start
@@ -5114,11 +5449,11 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.controlWord = 0x001F;
 
 
-                // ½ÇÁ¦ Homing µ¿ÀÛÀÌ ½ÃÀÛµÇ´Â ½ÃÁ¡
+                // ï¿½ï¿½ï¿½ï¿½ Homing ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ÛµÇ´ï¿½ ï¿½ï¿½ï¿½ï¿½
                 runtimeInfo.homingStartFrameCount =
                     runtimeInfo.totalFrameCount;
 
-                // Homing À§Ä¡ º¯È­ °¨½Ã ÃÊ±âÈ­
+                // Homing ï¿½ï¿½Ä¡ ï¿½ï¿½È­ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
                 runtimeInfo.homingLastPosition =
                     runtimeInfo.latestInput.actualPosition;
 
@@ -5129,13 +5464,13 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     true;
 
                 runtimeInfo.homingAttainedWentLow =
-					false; // Homing Attained Bit°¡ Low·Î ¶³¾îÁø ÀûÀÌ ÀÖ´ÂÁö
+					false; // Homing Attained Bitï¿½ï¿½ Lowï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ï¿½ï¿½
 
-                // ½ÇÁ¦ Move ½ÃÀÛ À§Ä¡ ÀúÀå
+                // ï¿½ï¿½ï¿½ï¿½ Move ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½
                 runtimeInfo.moveStartPosition =
                     runtimeInfo.latestInput.actualPosition;
 
-                // ½ÇÁ¦ Move ½ÃÀÛ Frame ÀúÀå
+                // ï¿½ï¿½ï¿½ï¿½ Move ï¿½ï¿½ï¿½ï¿½ Frame ï¿½ï¿½ï¿½ï¿½
                 runtimeInfo.moveStartFrameCount =
                     runtimeInfo.totalFrameCount;
 
@@ -5149,8 +5484,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 5. HOMING_RUNNING
             //
-            // Drive°¡ ¼³Á¤µÈ Homing Method¿¡ µû¶ó
-            // ÀÚÃ¼ Homing ÇÁ·Î¼¼½º¸¦ ¼öÇàÇÕ´Ï´Ù.
+            // Driveï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Homing Methodï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+            // ï¿½ï¿½Ã¼ Homing ï¿½ï¿½ï¿½Î¼ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             //
             // StatusWord
             // Bit 12 : Homing Attained
@@ -5165,7 +5500,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     runtimeInfo.latestInput.statusWord;
 
                 // ----------------------------------------------------
-                // Homing Áß ½ÇÁ¦ À§Ä¡ º¯È­ °¨½Ã
+                // Homing ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½È­ ï¿½ï¿½ï¿½ï¿½
                 // ----------------------------------------------------
                 if (runtimeInfo.homingPositionMonitorStarted)
                 {
@@ -5182,8 +5517,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                         ? positionDifference
                         : -positionDifference;
 
-                    // ¡¾5 count Á¤µµÀÇ ÀÛÀº À§Ä¡ Èçµé¸²Àº
-                    // ½ÇÁ¦ ÀÌµ¿À¸·Î ÆÇ´ÜÇÏÁö ¾Ê½À´Ï´Ù.
+                    // ï¿½ï¿½5 count ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½é¸²ï¿½ï¿½
+                    // ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ç´ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
                     constexpr long long
                         HOMING_POSITION_CHANGE_THRESHOLD = 5;
 
@@ -5199,10 +5534,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
                 // ----------------------------------------------------
-                // ¸¶Áö¸· À§Ä¡ º¯È­ ÀÌÈÄ °æ°ú Frame °è»ê
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½È­ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Frame ï¿½ï¿½ï¿½
                 //
-                // EtherCAT ÁÖ±â = 2ms
-                // ¾ÆÁ÷ ¿¡·¯ ÆÇÁ¤Àº ÇÏÁö ¾Ê½À´Ï´Ù.
+                // EtherCAT ï¿½Ö±ï¿½ = 2ms
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
                 // ----------------------------------------------------
                 const std::uint64_t noMoveFrames =
                     runtimeInfo.totalFrameCount -
@@ -5215,8 +5550,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 const bool homingError =
                     (statusWord & 0x2000) != 0;
 
-                // »õ HomingÀÌ ½ÇÁ¦·Î ½ÃÀÛµÈ ÈÄ
-                // Homing Attained Bit°¡ ÇÑ¹ø LOW°¡ µÇ´Â °ÍÀ» È®ÀÎÇÕ´Ï´Ù.
+                // ï¿½ï¿½ Homingï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ûµï¿½ ï¿½ï¿½
+                // Homing Attained Bitï¿½ï¿½ ï¿½Ñ¹ï¿½ LOWï¿½ï¿½ ï¿½Ç´ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 if (!homingAttained)
                 {
                     runtimeInfo.homingAttainedWentLow =
@@ -5224,10 +5559,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
                 // ------------------------------------------------
-                // Homing Timeout °Ë»ç
+                // Homing Timeout ï¿½Ë»ï¿½
                 //
-                // EtherCAT ÁÖ±â = 2ms
-                // timeoutMs¸¦ ÇÊ¿äÇÑ PDO Frame ¼ö·Î º¯È¯ÇÕ´Ï´Ù.
+                // EtherCAT ï¿½Ö±ï¿½ = 2ms
+                // timeoutMsï¿½ï¿½ ï¿½Ê¿ï¿½ï¿½ï¿½ PDO Frame ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
                 // ------------------------------------------------
                 const std::uint64_t elapsedHomingFrames =
                     runtimeInfo.totalFrameCount -
@@ -5243,7 +5578,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 // ---------------------------------------------
                 if (homingError)
                 {
-                    // Homing Start bit ÇØÁ¦
+                    // Homing Start bit ï¿½ï¿½ï¿½ï¿½
                     command.controlWord = 0x000F;
 
                     runtimeInfo.commandState =
@@ -5257,7 +5592,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
                 // ---------------------------------------------
-               // Homing ¿Ï·á 
+               // Homing ï¿½Ï·ï¿½ 
                // ---------------------------------------------
                 if (runtimeInfo.homingAttainedWentLow &&
                     homingAttained &&
@@ -5277,10 +5612,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 // ------------------------------------------------
                 if (elapsedHomingFrames >= timeoutFrames)
                 {
-                    // Homing Start bit ÇØÁ¦
+                    // Homing Start bit ï¿½ï¿½ï¿½ï¿½
                     command.controlWord = 0x000F;
 
-                    // ´ÙÀ½ PDOºÎÅÍ Profile Position Mode·Î º¹±Í ¿äÃ»
+                    // ï¿½ï¿½ï¿½ï¿½ PDOï¿½ï¿½ï¿½ï¿½ Profile Position Modeï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»
                     command.operationMode = 1;
 
                     command.targetPosition =
@@ -5302,7 +5637,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                
 
 
-                // ¾ÆÁ÷ Homing ÁøÇà Áß
+                // ï¿½ï¿½ï¿½ï¿½ Homing ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
                 command.controlWord = 0x001F;
 
                 continue;
@@ -5312,8 +5647,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 6. HOMING_FINISH
             //
-            // Homing ¿Ï·á ÈÄ Start bit¸¦ ÇØÁ¦ÇÏ°í
-            // Profile Position Mode(1) º¹±Í¸¦ ¿äÃ»ÇÕ´Ï´Ù.
+            // Homing ï¿½Ï·ï¿½ ï¿½ï¿½ Start bitï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½
+            // Profile Position Mode(1) ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½Ã»ï¿½Õ´Ï´ï¿½.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_HOMING_FINISH)
@@ -5337,10 +5672,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 7. HOMING_RESTORE_MODE
             //
-            // 0x6060 = 1À» À¯ÁöÇÏ¸é¼­
-            // 0x6061 Mode Display°¡ ½ÇÁ¦ 1ÀÎÁö È®ÀÎÇÕ´Ï´Ù.
+            // 0x6060 = 1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¸é¼­
+            // 0x6061 Mode Displayï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ 1ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             //
-            // ÀÌ¹ø ´Ü°è¿¡¼­´Â ¾ÆÁ÷ COMPLETED Ã³¸®ÇÏÁö ¾Ê½À´Ï´Ù.
+            // ï¿½Ì¹ï¿½ ï¿½Ü°è¿¡ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ COMPLETED Ã³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_HOMING_RESTORE_MODE)
@@ -5355,8 +5690,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.targetVelocity = 0;
 
 
-                // Drive°¡ ½ÇÁ¦ Profile Position Mode·Î
-                // º¹±ÍÇÒ ¶§±îÁö ±â´Ù¸³´Ï´Ù.
+                // Driveï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Profile Position Modeï¿½ï¿½
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ù¸ï¿½ï¿½Ï´ï¿½.
                 if (runtimeInfo.latestInput.operationModeDisplay != 1)
                 {
                     continue;
@@ -5364,10 +5699,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
 
                 // ====================================================
-                // Homing ÀüÃ¼ ÇÁ·Î¼¼½º Á¤»ó ¿Ï·á
+                // Homing ï¿½ï¿½Ã¼ ï¿½ï¿½ï¿½Î¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½
                 //
-                // Drive°¡ Profile Position Mode(1)·Î
-                // ½ÇÁ¦ º¹±ÍÇÑ °Í±îÁö È®ÀÎÇÑ µÚ ¿Ï·á Ã³¸®ÇÕ´Ï´Ù.
+                // Driveï¿½ï¿½ Profile Position Mode(1)ï¿½ï¿½
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Í±ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ï·ï¿½ Ã³ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 // ====================================================
 
                 runtimeInfo.homed = true;
@@ -5381,8 +5716,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             }
 
 
-            // Á¤ÀÇÇÏÁö ¾ÊÀº Homing Step¿¡¼­´Â
-            // ÀÓÀÇ µ¿ÀÛÀ» ¸¸µéÁö ¾Ê½À´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Homing Stepï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
             continue;
         }
 
@@ -5393,7 +5728,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
         // ====================================================
 		if (isMoveAbsoluteCommand) // Profile Position Mode(1) + Servo ON + Move Start
         {
-			if (runtimeInfo.fault) // Fault »óÅÂ¿¡¼­´Â ÀÌµ¿ ±ÝÁö
+			if (runtimeInfo.fault) // Fault ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
             {
                 runtimeInfo.commandState =
                     DAO_SERVO_COMMAND_STATE_ERROR;
@@ -5403,7 +5738,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 continue;
             }
 
-			if (runtimeInfo.stoActive) // STO Active »óÅÂ¿¡¼­´Â ÀÌµ¿ ±ÝÁö
+			if (runtimeInfo.stoActive) // STO Active ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
             {
                 runtimeInfo.outputCommand.targetVelocity = 0;
 
@@ -5423,8 +5758,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 1. MOVE_ABS_PREPARE
             //
-            // ¾ÆÁ÷ ÀÌµ¿ ½ÃÀÛÀº ÇÏÁö ¾Ê½À´Ï´Ù.
-            // Profile Position Mode(1) ¿äÃ»¸¸ ÁØºñÇÕ´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
+            // Profile Position Mode(1) ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½Øºï¿½ï¿½Õ´Ï´ï¿½.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_MOVE_ABS_PREPARE)
@@ -5436,8 +5771,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 command.operationMode = 1;
 
-                // ¾ÆÁ÷ ½ÇÁ¦ ¸ñÇ¥À§Ä¡´Â º¸³»Áö ¾Ê°í
-                // ÇöÀç À§Ä¡¸¦ À¯ÁöÇÕ´Ï´Ù.
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê°ï¿½
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 command.targetPosition =
                     runtimeInfo.latestInput.actualPosition;
 
@@ -5452,10 +5787,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 2. MOVE_ABS_MODE_REQUEST
             //
-            // Profile Position Mode(1)¸¦ °è¼Ó ¿äÃ»ÇÏ¸é¼­
-            // DriveÀÇ Mode Display(0x6061)°¡ ½ÇÁ¦ 1ÀÎÁö È®ÀÎÇÕ´Ï´Ù.
+            // Profile Position Mode(1)ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½Ï¸é¼­
+            // Driveï¿½ï¿½ Mode Display(0x6061)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ 1ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             //
-            // ¾ÆÁ÷ ¸ñÇ¥ À§Ä¡ ÀÌµ¿Àº ½ÃÀÛÇÏÁö ¾Ê½À´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ ï¿½ï¿½Ä¡ ï¿½Ìµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_MOVE_ABS_MODE_REQUEST)
@@ -5464,21 +5799,21 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 command.controlWord = 0x000F;
 
-                // ¾ÆÁ÷ ½ÇÁ¦ ¸ñÇ¥À§Ä¡¸¦ º¸³»Áö ¾Ê°í
-                // ÇöÀç À§Ä¡¸¦ À¯ÁöÇÕ´Ï´Ù.
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê°ï¿½
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 command.targetPosition =
                     runtimeInfo.latestInput.actualPosition;
 
                 command.targetVelocity = 0;
 
-                // Drive°¡ ½ÇÁ¦ Profile Position Mode°¡ µÉ ¶§±îÁö ´ë±â
+                // Driveï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Profile Position Modeï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
                 if (runtimeInfo.latestInput.operationModeDisplay != 1)
                 {
                     continue;
                 }
 
-                // Mode 1 È®ÀÎ ¿Ï·á.
-                // ´ÙÀ½ ´Ü°è´Â Servo ON È®ÀÎ/ÀüÈ¯ÀÔ´Ï´Ù.
+                // Mode 1 È®ï¿½ï¿½ ï¿½Ï·ï¿½.
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½Ü°ï¿½ï¿½ Servo ON È®ï¿½ï¿½/ï¿½ï¿½È¯ï¿½Ô´Ï´ï¿½.
                 runtimeInfo.commandStep =
                     DAO_SERVO_STEP_MOVE_ABS_SERVO_ON;
 
@@ -5488,25 +5823,25 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 3. MOVE_ABS_SERVO_ON
             //
-            // Profile Position Mode(1) È®ÀÎ ÈÄ
-            // Servo¸¦ Operation Enabled(0x27)±îÁö ¿Ã¸³´Ï´Ù.
+            // Profile Position Mode(1) È®ï¿½ï¿½ ï¿½ï¿½
+            // Servoï¿½ï¿½ Operation Enabled(0x27)ï¿½ï¿½ï¿½ï¿½ ï¿½Ã¸ï¿½ï¿½Ï´ï¿½.
             //
-            // ¾ÆÁ÷ ¸ñÇ¥ À§Ä¡ ÀÌµ¿Àº ½ÃÀÛÇÏÁö ¾Ê½À´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ ï¿½ï¿½Ä¡ ï¿½Ìµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_MOVE_ABS_SERVO_ON)
             {
                 command.operationMode = 1;
 
-                // ¾ÆÁ÷ ½ÇÁ¦ ¸ñÇ¥À§Ä¡¸¦ ³ÖÁö ¾Ê°í
-                // ÇöÀç À§Ä¡¸¦ À¯ÁöÇÕ´Ï´Ù.
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê°ï¿½
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 command.targetPosition =
                     runtimeInfo.latestInput.actualPosition;
 
                 command.targetVelocity = 0;
 
-                // ÀÌ¹Ì Operation EnabledÀÌ¸é
-                // ´ÙÀ½ Move Start ÁØºñ ´Ü°è·Î ÀÌµ¿
+                // ï¿½Ì¹ï¿½ Operation Enabledï¿½Ì¸ï¿½
+                // ï¿½ï¿½ï¿½ï¿½ Move Start ï¿½Øºï¿½ ï¿½Ü°ï¿½ï¿½ ï¿½Ìµï¿½
                 if (runtimeInfo.cia402State == 0x0027)
                 {
                     command.controlWord = 0x000F;
@@ -5541,19 +5876,19 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // ¿¹»óÇÏÁö ¸øÇÑ »óÅÂ¿¡¼­´Â
-                // ÀÓÀÇ·Î ´ÙÀ½ ´Ü°è·Î ÁøÇàÇÏÁö ¾Ê½À´Ï´Ù.
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½
+                // ï¿½ï¿½ï¿½Ç·ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ü°ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
                 continue;
             }
 
             // =================================================
             // 4. MOVE_ABS_START
             //
-            // Profile Position Mode(1) + Servo ON È®ÀÎ ÈÄ
-            // ¸ñÇ¥ À§Ä¡ / ¼Óµµ / °¡¼Ó / °¨¼Ó °ªÀ» PDO¿¡ ÁØºñÇÕ´Ï´Ù.
+            // Profile Position Mode(1) + Servo ON È®ï¿½ï¿½ ï¿½ï¿½
+            // ï¿½ï¿½Ç¥ ï¿½ï¿½Ä¡ / ï¿½Óµï¿½ / ï¿½ï¿½ï¿½ï¿½ / ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ PDOï¿½ï¿½ ï¿½Øºï¿½ï¿½Õ´Ï´ï¿½.
             //
-            // ¾ÆÁ÷ New Set-point bit´Â ¿Ã¸®Áö ¾Ê½À´Ï´Ù.
-            // µû¶ó¼­ ÀÌ¹ø ´Ü°è¿¡¼­´Â ½ÇÁ¦ ÀÌµ¿À» ½ÃÀÛÇÏÁö ¾Ê½À´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ New Set-point bitï¿½ï¿½ ï¿½Ã¸ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¹ï¿½ ï¿½Ü°è¿¡ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_MOVE_ABS_START)
@@ -5577,10 +5912,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.touchProbeFunction = 0;
 
                 // Profile Position New Set-point
-                // Bit 4¸¦ ¿Ã·Á ½ÇÁ¦ Àý´ëÀ§Ä¡ ÀÌµ¿À» ½ÃÀÛÇÕ´Ï´Ù.
+                // Bit 4ï¿½ï¿½ ï¿½Ã·ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¡ ï¿½Ìµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 command.controlWord = 0x001F;
 
-                // ½ÇÁ¦ Move Absolute ½ÃÀÛ ½ÃÁ¡ ±â·Ï
+                // ï¿½ï¿½ï¿½ï¿½ Move Absolute ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
                 runtimeInfo.moveStartPosition =
                     runtimeInfo.latestInput.actualPosition;
 
@@ -5612,12 +5947,12 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 command.targetVelocity = 0;
 
-                // New Set-point bit´Â ÇØÁ¦ »óÅÂ À¯Áö
+                // New Set-point bitï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 command.controlWord = 0x000F;
 
                 // ------------------------------------------------
-                // 1. ÀÌµ¿ ½ÃÀÛ ÈÄ Target Reached°¡
-                //    ÇÑ¹ø LOW°¡ µÇ¾ú´ÂÁö È®ÀÎ
+                // 1. ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Target Reachedï¿½ï¿½
+                //    ï¿½Ñ¹ï¿½ LOWï¿½ï¿½ ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
                 // ------------------------------------------------
                 if (!runtimeInfo.targetReached)
                 {
@@ -5626,8 +5961,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
                 // ------------------------------------------------
-                // 2. LOW È®ÀÎ ÈÄ ´Ù½Ã HIGH°¡ µÇ¸é
-                //    Á¤»ó ÀÌµ¿ ¿Ï·á
+                // 2. LOW È®ï¿½ï¿½ ï¿½ï¿½ ï¿½Ù½ï¿½ HIGHï¿½ï¿½ ï¿½Ç¸ï¿½
+                //    ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½Ï·ï¿½
                 // ------------------------------------------------
                 if (runtimeInfo.moveTargetReachedWentLow &&
                     runtimeInfo.targetReached)
@@ -5639,7 +5974,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
                 // ------------------------------------------------
-                // 3. ¾ÆÁ÷ ¿Ï·áµÇÁö ¾Ê¾Ò´Ù¸é Timeout È®ÀÎ
+                // 3. ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò´Ù¸ï¿½ Timeout È®ï¿½ï¿½
                 // ------------------------------------------------
                 const std::uint64_t elapsedFrames =
                     runtimeInfo.totalFrameCount -
@@ -5652,7 +5987,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 if (elapsedFrames >= timeoutFrames)
                 {
-                    // TimeoutÀÌ ¹ß»ýÇØµµ Servo OFF´Â ÇÏÁö ¾Ê½À´Ï´Ù.
+                    // Timeoutï¿½ï¿½ ï¿½ß»ï¿½ï¿½Øµï¿½ Servo OFFï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
                     command.controlWord = 0x000F;
                     command.operationMode = 1;
                     command.targetVelocity = 0;
@@ -5665,7 +6000,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // ¾ÆÁ÷ ÀÌµ¿ Áß
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½
                 continue;
             }
 
@@ -5673,15 +6008,15 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 6. MOVE_ABS_FINISH
             //
-            // ¸ñÇ¥ À§Ä¡ µµ´Þ È®ÀÎ ÈÄ
-            // Move Absolute ¸í·ÉÀ» Á¤»ó ¿Ï·á Ã³¸®ÇÕ´Ï´Ù.
+            // ï¿½ï¿½Ç¥ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ ï¿½ï¿½
+            // Move Absolute ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½ Ã³ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_MOVE_ABS_FINISH)
             {
                 command.operationMode = 1;
 
-                // Servo´Â °è¼Ó Operation Enabled À¯Áö
+                // Servoï¿½ï¿½ ï¿½ï¿½ï¿½ Operation Enabled ï¿½ï¿½ï¿½ï¿½
                 command.controlWord = 0x000F;
 
                 command.targetPosition =
@@ -5705,7 +6040,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 continue;
             }
-            // ÀÌÈÄ ´Ü°è´Â ´ÙÀ½ ÀÛ¾÷¿¡¼­ ±¸ÇöÇÕ´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½Ü°ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Û¾ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             continue;
         }
 
@@ -5721,9 +6056,9 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 300. VELOCITY_PREPARE
             //
-            // PV ¸ðµå·Î ¹Ù²Ù±â Àü¿¡
-            // Target Velocity¸¦ ¹Ýµå½Ã 0À¸·Î ¸¸µé¾î µÓ´Ï´Ù.
-            // ÀÌ ´Ü°è¿¡¼­´Â ½ÇÁ¦ ÀÌµ¿ÇÏÁö ¾Ê½À´Ï´Ù.
+            // PV ï¿½ï¿½ï¿½ï¿½ ï¿½Ù²Ù±ï¿½ ï¿½ï¿½ï¿½ï¿½
+            // Target Velocityï¿½ï¿½ ï¿½Ýµï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ó´Ï´ï¿½.
+            // ï¿½ï¿½ ï¿½Ü°è¿¡ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_VELOCITY_PREPARE)
@@ -5731,17 +6066,17 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 runtimeInfo.commandState =
                     DAO_SERVO_COMMAND_STATE_RUNNING;
 
-                // ÇöÀç À§Ä¡ À¯Áö
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½
                 command.targetPosition =
                     runtimeInfo.latestInput.actualPosition;
 
-                // ¾ÆÁ÷ ±âÁ¸ PP ¸ðµå À¯Áö
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ PP ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 command.operationMode = 1;
 
-                // Servo ON »óÅÂ À¯Áö
+                // Servo ON ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 command.controlWord = 0x000F;
 
-                // PV ÀüÈ¯ Àü¿¡ ¼Óµµ´Â ¹Ýµå½Ã 0
+                // PV ï¿½ï¿½È¯ ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ ï¿½Ýµï¿½ï¿½ 0
                 command.targetVelocity = 0;
 
                 command.profileAcceleration =
@@ -5759,16 +6094,16 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 310. VELOCITY_MODE_REQUEST
             //
-            // Profile Velocity Mode(3)¸¦ ¿äÃ»ÇÕ´Ï´Ù.
-            // Target Velocity´Â ¾ÆÁ÷ 0À¸·Î À¯ÁöÇÕ´Ï´Ù.
+            // Profile Velocity Mode(3)ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½Õ´Ï´ï¿½.
+            // Target Velocityï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_VELOCITY_MODE_REQUEST)
             {
-                // PV Mode ¿äÃ»
+                // PV Mode ï¿½ï¿½Ã»
                 command.operationMode = 3;
 
-                // ¸ðµå ÀüÈ¯ Áß¿¡´Â ½ÇÁ¦ ÀÌµ¿ ±ÝÁö
+                // ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ ï¿½ß¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
                 command.targetVelocity = 0;
 
                 command.profileAcceleration =
@@ -5777,10 +6112,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.profileDeceleration =
                     runtimeInfo.velocityDeceleration;
 
-                // Servo »óÅÂ´Â À¯Áö
+                // Servo ï¿½ï¿½ï¿½Â´ï¿½ ï¿½ï¿½ï¿½ï¿½
                 command.controlWord = 0x000F;
 
-                // Drive°¡ ½ÇÁ¦·Î PV Mode·Î ÀüÈ¯µÆ´ÂÁö È®ÀÎ
+                // Driveï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ PV Modeï¿½ï¿½ ï¿½ï¿½È¯ï¿½Æ´ï¿½ï¿½ï¿½ È®ï¿½ï¿½
                 if (runtimeInfo.latestInput.operationModeDisplay != 3)
                 {
                     continue;
@@ -5795,16 +6130,16 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 320. VELOCITY_SERVO_ON
             //
-            // PV Mode »óÅÂ¿¡¼­ CiA402 Operation Enabled¸¦
-            // È®º¸ÇÕ´Ï´Ù.
-            // Target Velocity´Â ¾ÆÁ÷ 0À¸·Î À¯ÁöÇÕ´Ï´Ù.
+            // PV Mode ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ CiA402 Operation Enabledï¿½ï¿½
+            // È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+            // Target Velocityï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_VELOCITY_SERVO_ON)
             {
                 command.operationMode = 3;
 
-                // ¾ÆÁ÷ ½ÇÁ¦ ÀÌµ¿ÇÏÁö ¾ÊÀ½
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 command.targetVelocity = 0;
 
                 command.profileAcceleration =
@@ -5816,7 +6151,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 const int ciaState =
                     runtimeInfo.cia402State;
 
-                // ÀÌ¹Ì Operation Enabled »óÅÂ
+                // ï¿½Ì¹ï¿½ Operation Enabled ï¿½ï¿½ï¿½ï¿½
                 if (ciaState == 0x27)
                 {
                     command.controlWord = 0x000F;
@@ -5848,19 +6183,19 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // ¸ð¸£´Â »óÅÂ¿¡¼­´Â ÀÓÀÇ·Î ÁøÇàÇÏÁö ¾ÊÀ½
+                // ï¿½ð¸£´ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ç·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 continue;
             }
 
             // ----------------------------------------------------
             // 330. VELOCITY_RUNNING
             //
-            // Profile Velocity Mode¿¡¼­ ½ÇÁ¦ Target Velocity¸¦
-            // 0x60FF·Î Ãâ·ÂÇÕ´Ï´Ù.
+            // Profile Velocity Modeï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Target Velocityï¿½ï¿½
+            // 0x60FFï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             //
-            // +°ª : Á¤¹æÇâ
-            // -°ª : ¿ª¹æÇâ
-            //  0  :  °¨¼Ó Á¤Áö, Servo ON À¯Áö, ÅäÅ© À¯Áö
+            // +ï¿½ï¿½ : ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            // -ï¿½ï¿½ : ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            //  0  :  ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, Servo ON ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½Å© ï¿½ï¿½ï¿½ï¿½
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_VELOCITY_RUNNING)
@@ -5873,10 +6208,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.profileDeceleration =
                     runtimeInfo.velocityDeceleration;
 
-                // Servo Operation Enabled À¯Áö
+                // Servo Operation Enabled ï¿½ï¿½ï¿½ï¿½
                 command.controlWord = 0x000F;
 
-                // Fault ¶Ç´Â STO ¹ß»ý ½Ã ¼Óµµ¸í·É Â÷´Ü
+                // Fault ï¿½Ç´ï¿½ STO ï¿½ß»ï¿½ ï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 if (runtimeInfo.fault ||
                     runtimeInfo.stoActive)
                 {
@@ -5890,14 +6225,14 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // STOP ÀÔ·ÂÀÌ µé¾î¿À¸é ÀÌµ¿ ±ÝÁö
+                // STOP ï¿½Ô·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
                 if (runtimeInfo.stopInput)
                 {
                     command.targetVelocity = 0;
                     continue;
                 }
 
-                // Á¤¹æÇâ ÀÌµ¿ Áß Positive LimitÀÌ¸é ÀÌµ¿ ±ÝÁö
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ Positive Limitï¿½Ì¸ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
                 if (runtimeInfo.velocityTarget > 0 &&
                     runtimeInfo.positiveLimit)
                 {
@@ -5905,7 +6240,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // ¿ª¹æÇâ ÀÌµ¿ Áß Negative LimitÀÌ¸é ÀÌµ¿ ±ÝÁö
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ Negative Limitï¿½Ì¸ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
                 if (runtimeInfo.velocityTarget < 0 &&
                     runtimeInfo.negativeLimit)
                 {
@@ -5913,7 +6248,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // ½ÇÁ¦ Profile Velocity Ãâ·Â
+                // ï¿½ï¿½ï¿½ï¿½ Profile Velocity ï¿½ï¿½ï¿½
                 command.targetVelocity =
                     runtimeInfo.velocityTarget;
 
@@ -5935,8 +6270,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 400. STOP_PREPARE
             //
-            // ÇöÀç ¸ðµå¸¦ È®ÀÎÇÏ°í Á¤Áö ÁØºñ¸¸ ÇÕ´Ï´Ù.
-            // ½ÇÁ¦ Á¤Áö µ¿ÀÛÀº ´ÙÀ½ Step¿¡¼­ Ã³¸®ÇÕ´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½å¸¦ È®ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Øºï¿½ ï¿½Õ´Ï´ï¿½.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Stepï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_STOP_PREPARE)
@@ -5944,10 +6279,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 runtimeInfo.commandState =
                     DAO_SERVO_COMMAND_STATE_RUNNING;
 
-                // Servo ON »óÅÂ´Â À¯ÁöÇÕ´Ï´Ù.
+                // Servo ON ï¿½ï¿½ï¿½Â´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 command.controlWord = 0x000F;
 
-                // PV ¸ðµå¶ó¸é ¿ì¼± Target Velocity¸¦ 0À¸·Î ÁØºñ
+                // PV ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ì¼± Target Velocityï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½Øºï¿½
                 if (runtimeInfo.latestInput.operationModeDisplay == 3)
                 {
                     command.operationMode = 3;
@@ -5955,7 +6290,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
                 else
                 {
-                    // PP ¶Ç´Â ±âÅ¸ À§Ä¡°è¿­Àº ÇöÀç ¸ðµå À¯Áö
+                    // PP ï¿½Ç´ï¿½ ï¿½ï¿½Å¸ ï¿½ï¿½Ä¡ï¿½è¿­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                     command.operationMode =
                         runtimeInfo.latestInput.operationModeDisplay;
                 }
@@ -5969,8 +6304,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 410. STOPPING
             //
-            // ÇöÀç ¿îÀü¸ðµå¿¡ µû¶ó ½ÇÁ¦ Á¤Áö ¸í·ÉÀ» ¼öÇàÇÕ´Ï´Ù.
-            // Servo ON »óÅÂ´Â À¯ÁöÇÕ´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½å¿¡ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+            // Servo ON ï¿½ï¿½ï¿½Â´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_STOPPING)
@@ -5980,8 +6315,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 // ------------------------------------------------
                 // PV Mode
-                // Target Velocity¸¦ 0À¸·Î ³»·Á °¨¼Ó Á¤ÁöÇÕ´Ï´Ù.
-                // Servo ON / ÅäÅ©´Â À¯ÁöÇÕ´Ï´Ù.
+                // Target Velocityï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+                // Servo ON / ï¿½ï¿½Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 // ------------------------------------------------
                 if (currentMode == 3)
                 {
@@ -5997,7 +6332,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 // ------------------------------------------------
                 // PP Mode
-                // CiA402 Halt bit¸¦ »ç¿ëÇÏ¿© °¨¼Ó Á¤ÁöÇÕ´Ï´Ù.
+                // CiA402 Halt bitï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 //
                 // 0x000F : Operation Enabled
                 // 0x010F : Operation Enabled + Halt
@@ -6014,8 +6349,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // ÇöÀç ¸ðµå°¡ ¿¹»óÇÏÁö ¸øÇÑ °ªÀÌ¸é
-                // ÀÓÀÇ µ¿ÀÛÇÏÁö ¾Ê°í Servo ON »óÅÂ¸¸ À¯ÁöÇÕ´Ï´Ù.
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½å°¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê°ï¿½ Servo ON ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 command.controlWord = 0x000F;
                 command.targetVelocity = 0;
 
@@ -6025,8 +6360,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 420. STOP_FINISH
             //
-            // Á¤Áö ¸í·É ¿Ï·á Ã³¸®
-            // Servo ON »óÅÂ´Â À¯ÁöÇÕ´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½ Ã³ï¿½ï¿½
+            // Servo ON ï¿½ï¿½ï¿½Â´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_STOP_FINISH)
@@ -6047,10 +6382,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
         // Servo ON / Servo OFF COMMAND
         // ====================================================
 
-        // Servo ONÀº Fault »óÅÂ¿¡¼­ ÁøÇàÇÏÁö ¾Ê½À´Ï´Ù.
+        // Servo ONï¿½ï¿½ Fault ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
         //
-        // Servo OFF´Â Á¤Áö ¹æÇâ ¸í·ÉÀÌ¹Ç·Î
-        // Fault »óÅÂ¿¡¼­µµ ¾Æ·¡ OFF Ã³¸®±îÁö Çã¿ëÇÕ´Ï´Ù.
+        // Servo OFFï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì¹Ç·ï¿½
+        // Fault ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Æ·ï¿½ OFF Ã³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
         if (isServoOnCommand &&
             runtimeInfo.fault)
         {
@@ -6068,7 +6403,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             runtimeInfo.commandStartFrameCount;
 
 
-        // 2ms ¡¿ 1000 = ¾à 2ÃÊ
+        // 2ms ï¿½ï¿½ 1000 = ï¿½ï¿½ 2ï¿½ï¿½
         if (elapsedFrames >=
             SERVO_ON_TIMEOUT_FRAMES)
         {
@@ -6091,7 +6426,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
         // ====================================================
         // SERVO OFF
         //
-        // ¿£ÁøÀÇ Servo OFF ¿Ï·á »óÅÂ:
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Servo OFF ï¿½Ï·ï¿½ ï¿½ï¿½ï¿½ï¿½:
         // Ready To Switch On = 0x0021
         // ====================================================
         if (isServoOffCommand)
@@ -6106,7 +6441,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             command.digitalOutputs = 0;
 
 
-            // Servo OFF ¿Ï·á
+            // Servo OFF ï¿½Ï·ï¿½
             if (cia402State == 0x0021)
             {
                 command.controlWord = 0x0006;
@@ -6120,8 +6455,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             }
 
 
-            // Operation Enabled / Switched On µî¿¡¼­´Â
-            // Shutdown ¸í·ÉÀ¸·Î 0x21±îÁö ³»¸³´Ï´Ù.
+            // Operation Enabled / Switched On ï¿½î¿¡ï¿½ï¿½ï¿½ï¿½
+            // Shutdown ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 0x21ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
             command.controlWord = 0x0006;
 
             runtimeInfo.commandState =
@@ -6135,7 +6470,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
         // SERVO ON
         // ====================================================
 
-        // À§Ä¡ ¸í·É¿¡ ÀÇÇÑ ¿¹»óÇÏÁö ¸øÇÑ ÀÌµ¿ ¹æÁö
+        // ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½É¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
         command.targetPosition =
             runtimeInfo.latestInput.actualPosition;
 
@@ -6191,8 +6526,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
         }
 
 
-        // ±× ¿ÜÀÇ ¿¹»óÇÏÁö ¸øÇÑ CiA402 »óÅÂ¿¡¼­´Â
-        // ÀÓÀÇÀÇ Ãß°¡ ¸í·ÉÀ» ¸¸µéÁö ¾Ê½À´Ï´Ù.
+        // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ CiA402 ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     }
 }
 
@@ -6205,12 +6540,12 @@ void DaoEtherCATMaster::UpdateServoDerivedState(
         runtimeInfo.latestInput.statusWord;
 
     // --------------------------------------------------------
-    // CiA402 »óÅÂ¸¦ ¿£Áø ³»ºÎ °øÅë°ªÀ¸·Î Á¤±ÔÈ­ÇÕ´Ï´Ù.
+    // CiA402 ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ë°ªï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½È­ï¿½Õ´Ï´ï¿½.
     //
-    // LS L7NHÀÇ ½ÇÁ¦ StatusWord¿¡´Â
-    // Quick Stop µîÀÇ »óÅÂ ºñÆ®°¡ ÇÔ²² Æ÷ÇÔµÇ¹Ç·Î
-    // ´Ü¼øÈ÷ 0x006F ¸¶½ºÅ© °á°ú¸¦ ±×´ë·Î »óÅÂ°ªÀ¸·Î
-    // »ç¿ëÇÏ¸é Switch On Disabled°¡ 0x0060À¸·Î º¸ÀÏ ¼ö ÀÖ½À´Ï´Ù.
+    // LS L7NHï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ StatusWordï¿½ï¿½ï¿½ï¿½
+    // Quick Stop ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ô²ï¿½ ï¿½ï¿½ï¿½ÔµÇ¹Ç·ï¿½
+    // ï¿½Ü¼ï¿½ï¿½ï¿½ 0x006F ï¿½ï¿½ï¿½ï¿½Å© ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½Â°ï¿½ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½Ï¸ï¿½ Switch On Disabledï¿½ï¿½ 0x0060ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö½ï¿½ï¿½Ï´ï¿½.
     // --------------------------------------------------------
 
     // Fault
@@ -6240,8 +6575,8 @@ void DaoEtherCATMaster::UpdateServoDerivedState(
     }
     else
     {
-        // ¾ÆÁ÷ Á¤ÀÇÇÏÁö ¾ÊÀº »óÅÂ´Â
-        // ¿ø·¡ ¸¶½ºÅ© °á°ú¸¦ Áø´Ü¿ëÀ¸·Î ³²±é´Ï´Ù.
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â´ï¿½
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Å© ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ü¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
         runtimeInfo.cia402State =
             static_cast<unsigned short>(
                 statusWord & 0x006F);
@@ -6257,7 +6592,7 @@ void DaoEtherCATMaster::UpdateServoDerivedState(
         (statusWord & 0x0400) != 0;
 
     // --------------------------------------------------------
-    // LS L7NH 0x60FD Digital Inputs »óÅÂ ÇØ¼®
+    // LS L7NH 0x60FD Digital Inputs ï¿½ï¿½ï¿½ï¿½ ï¿½Ø¼ï¿½
     // --------------------------------------------------------
     const unsigned int digitalInputs =
         runtimeInfo.latestInput.digitalInputs;
@@ -6285,10 +6620,10 @@ double DaoEtherCATMaster::ApplyAdcNotchFilter(
     double& x1,
     double& x2,
     double& y1,
-	double& y2)  // 2Â÷ IIR Notch Filter
+	double& y2)  // 2ï¿½ï¿½ IIR Notch Filter
 {
     // --------------------------------------------------------
-    // ±âº» ÀÔ·Â°ª °ËÁõ
+    // ï¿½âº» ï¿½Ô·Â°ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     if (sampleRateHz <= 0.0 ||
         notchFrequencyHz <= 0.0 ||
@@ -6298,13 +6633,13 @@ double DaoEtherCATMaster::ApplyAdcNotchFilter(
     }
 
     // --------------------------------------------------------
-    // Ã¹ Sample ÃÊ±âÈ­
+    // Ã¹ Sample ï¿½Ê±ï¿½È­
     //
-    // ADC °ªÀÌ ¾à 8¹é¸¸ count ¼öÁØÀÌ¹Ç·Î
-    // Filter ³»ºÎ »óÅÂ¸¦ 0¿¡¼­ ½ÃÀÛ½ÃÅ°¸é
-    // Ã³À½ ¼ø°£ Å« °úµµÀÀ´äÀÌ ¹ß»ýÇÒ ¼ö ÀÖ½À´Ï´Ù.
+    // ADC ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ 8ï¿½é¸¸ count ï¿½ï¿½ï¿½ï¿½ï¿½Ì¹Ç·ï¿½
+    // Filter ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û½ï¿½Å°ï¿½ï¿½
+    // Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Å« ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß»ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö½ï¿½ï¿½Ï´ï¿½.
     //
-    // »óÅÂ°¡ ¸ðµÎ 0ÀÌ¸é ÇöÀç ÀÔ·Â°ªÀ¸·Î ÃÊ±âÈ­ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½Â°ï¿½ ï¿½ï¿½ï¿½ 0ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·Â°ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     if (x1 == 0.0 &&
         x2 == 0.0 &&
@@ -6320,13 +6655,13 @@ double DaoEtherCATMaster::ApplyAdcNotchFilter(
     }
 
     // --------------------------------------------------------
-    // 2Â÷ IIR Notch Filter
+    // 2ï¿½ï¿½ IIR Notch Filter
     //
     // Zero : notchFrequencyHz
-    // Pole : µ¿ÀÏ ÁÖÆÄ¼ö, radius = r
+    // Pole : ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ä¼ï¿½, radius = r
     //
-    // rÀÌ 1.0¿¡ °¡±î¿ï¼ö·Ï
-    // Á¦°Å ´ë¿ªÀÌ Á¼¾ÆÁö°í ¿ø·¡ ½ÅÈ£ º¸Á¸¼ºÀÌ ÁÁ¾ÆÁý´Ï´Ù.
+    // rï¿½ï¿½ 1.0ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ë¿ªï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È£ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
     // --------------------------------------------------------
     constexpr double PI =
         3.14159265358979323846;
@@ -6343,7 +6678,7 @@ double DaoEtherCATMaster::ApplyAdcNotchFilter(
         std::cos(omega);
 
     // --------------------------------------------------------
-    // DC Gain = 1ÀÌ µÇµµ·Ï Gain º¸Á¤
+    // DC Gain = 1ï¿½ï¿½ ï¿½Çµï¿½ï¿½ï¿½ Gain ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     const double numeratorDc =
         2.0 - (2.0 * cosOmega);
@@ -6373,7 +6708,7 @@ double DaoEtherCATMaster::ApplyAdcNotchFilter(
         (POLE_RADIUS * POLE_RADIUS * y2);
 
     // --------------------------------------------------------
-    // ´ÙÀ½ Sample¿ë »óÅÂ °»½Å
+    // ï¿½ï¿½ï¿½ï¿½ Sampleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     x2 = x1;
     x1 = inputValue;
@@ -6393,7 +6728,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
         rawSample;
 
     // --------------------------------------------------------
-    // Àú¼öÁØ Filter Ã¹ »ùÇÃ ÃÊ±âÈ­
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Filter Ã¹ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
     // --------------------------------------------------------
     if (!runtimeInfo.processing.lowLevelFilterInitialized)
     {
@@ -6410,7 +6745,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
     }
 
     // --------------------------------------------------------
-    // Àú¼öÁØ 1Â÷ Low-Pass Filter
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 1ï¿½ï¿½ Low-Pass Filter
     // --------------------------------------------------------
     constexpr double LOW_LEVEL_FILTER_ALPHA = 0.1;
 
@@ -6425,9 +6760,9 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
     // Power Line Notch Filter
     //
-    // ±âº»°ªÀº Low-Level Filter °á°ú ±×´ë·Î »ç¿ëÇÕ´Ï´Ù.
-    // HZ_60 ¸ðµå¿¡¼­´Â
-    // 60Hz -> 120Hz ¼ø¼­·Î Notch¸¦ Åë°ú½ÃÅµ´Ï´Ù.
+    // ï¿½âº»ï¿½ï¿½ï¿½ï¿½ Low-Level Filter ï¿½ï¿½ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+    // HZ_60 ï¿½ï¿½å¿¡ï¿½ï¿½ï¿½ï¿½
+    // 60Hz -> 120Hz ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Notchï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Åµï¿½Ï´ï¿½.
     // --------------------------------------------------------
     runtimeInfo.processing.powerLineFiltered =
         runtimeInfo.processing.lowLevelFiltered;
@@ -6438,14 +6773,14 @@ void DaoEtherCATMaster::ProcessAdcSample(
     switch (runtimeInfo.processing.powerLineFilterMode)
     {
     case DaoInternalAdcPowerLineFilterMode::OFF:
-        // ¾Æ¹« Notchµµ Àû¿ëÇÏÁö ¾Ê½À´Ï´Ù.
+        // ï¿½Æ¹ï¿½ Notchï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
         runtimeInfo.processing.powerLineFiltered =
             runtimeInfo.processing.lowLevelFiltered;
         break;
 
 
     case DaoInternalAdcPowerLineFilterMode::HZ_50:
-        // 50Hz¸¸ Á¦°Å
+        // 50Hzï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         runtimeInfo.processing.powerLineFiltered =
             ApplyAdcNotchFilter(
                 runtimeInfo.processing.lowLevelFiltered,
@@ -6459,7 +6794,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
 
     case DaoInternalAdcPowerLineFilterMode::HZ_60:
-        // 60Hz¸¸ Á¦°Å
+        // 60Hzï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         runtimeInfo.processing.powerLineFiltered =
             ApplyAdcNotchFilter(
                 runtimeInfo.processing.lowLevelFiltered,
@@ -6473,7 +6808,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
 
     case DaoInternalAdcPowerLineFilterMode::HZ_120:
-        // 120Hz¸¸ Á¦°Å
+        // 120Hzï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         runtimeInfo.processing.powerLineFiltered =
             ApplyAdcNotchFilter(
                 runtimeInfo.processing.lowLevelFiltered,
@@ -6488,7 +6823,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
     case DaoInternalAdcPowerLineFilterMode::HZ_50_60:
     {
-        // 50Hz Á¦°Å ÈÄ 60Hz Á¦°Å
+        // 50Hz ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ 60Hz ï¿½ï¿½ï¿½ï¿½
         const double notch50Value =
             ApplyAdcNotchFilter(
                 runtimeInfo.processing.lowLevelFiltered,
@@ -6514,7 +6849,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
     case DaoInternalAdcPowerLineFilterMode::HZ_60_120:
     {
-        // 60Hz Á¦°Å ÈÄ 120Hz Á¦°Å
+        // 60Hz ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ 120Hz ï¿½ï¿½ï¿½ï¿½
         const double notch60Value =
             ApplyAdcNotchFilter(
                 runtimeInfo.processing.lowLevelFiltered,
@@ -6545,7 +6880,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
     }
 
     // --------------------------------------------------------
-    // Zero Àû¿ë
+    // Zero ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     if (runtimeInfo.processing.zeroInitialized)
     {
@@ -6560,7 +6895,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
     }
 
     // --------------------------------------------------------
-    // Calibration Àû¿ë
+    // Calibration ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     runtimeInfo.processing.calibratedValue =
         runtimeInfo.processing.zeroedValue *
@@ -6569,8 +6904,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
     // 3-Sample Median Filter
     //
-    // ¼ø°£ÀûÀ¸·Î ÇÑ Sample¸¸ Å©°Ô Æ¢´Â °ªÀ» Á¦°ÅÇÏ±â À§ÇÑ
-    // ÀÛÀº Median FilterÀÔ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Sampleï¿½ï¿½ Å©ï¿½ï¿½ Æ¢ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ Median Filterï¿½Ô´Ï´ï¿½.
     // --------------------------------------------------------
     {
         runtimeInfo.processing.medianBuffer[
@@ -6587,8 +6922,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
             if (runtimeInfo.processing.medianCount < 3)
             {
-                // ÃÊ±â 1~2 SampleÀº Median 3 °è»êÀÌ ºÒ°¡´ÉÇÏ¹Ç·Î
-                // ÇöÀç Calibration °ªÀ» ±×´ë·Î »ç¿ëÇÕ´Ï´Ù.
+                // ï¿½Ê±ï¿½ 1~2 Sampleï¿½ï¿½ Median 3 ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ò°ï¿½ï¿½ï¿½ï¿½Ï¹Ç·ï¿½
+                // ï¿½ï¿½ï¿½ï¿½ Calibration ï¿½ï¿½ï¿½ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                 runtimeInfo.processing.medianFilteredValue =
                     runtimeInfo.processing.calibratedValue;
             }
@@ -6622,11 +6957,11 @@ void DaoEtherCATMaster::ProcessAdcSample(
     }
 
     // --------------------------------------------------------
-    // »ç¿ëÀÚ N Sample Moving Average Filter
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ N Sample Moving Average Filter
     //
-    // ÁÖÀÇ:
-    // calibratedValue°¡ ¾Æ´Ï¶ó
-    // Median 3 Ã³¸® ÈÄ °ªÀÎ medianFilteredValue¸¦ »ç¿ëÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½:
+    // calibratedValueï¿½ï¿½ ï¿½Æ´Ï¶ï¿½
+    // Median 3 Ã³ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ medianFilteredValueï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     {
         unsigned int filterN =
@@ -6645,7 +6980,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
         }
 
         // ----------------------------------------------------
-        // ¾ÆÁ÷ Buffer°¡ N°³ Ã¤¿öÁöÁö ¾ÊÀº ÃÊ±â ±¸°£
+        // ï¿½ï¿½ï¿½ï¿½ Bufferï¿½ï¿½ Nï¿½ï¿½ Ã¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½ ï¿½ï¿½ï¿½ï¿½
         // ----------------------------------------------------
         if (runtimeInfo.processing.userFilterCount < filterN)
         {
@@ -6670,14 +7005,14 @@ void DaoEtherCATMaster::ProcessAdcSample(
         else
         {
             // ------------------------------------------------
-            // °¡Àå ¿À·¡µÈ Sample Á¦°Å
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Sample ï¿½ï¿½ï¿½ï¿½
             // ------------------------------------------------
             runtimeInfo.processing.userFilterSum -=
                 runtimeInfo.processing.userFilterBuffer[
                     runtimeInfo.processing.userFilterIndex];
 
             // ------------------------------------------------
-            // »õ·Î¿î Median Filter °á°ú ÀúÀå
+            // ï¿½ï¿½ï¿½Î¿ï¿½ Median Filter ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             // ------------------------------------------------
             runtimeInfo.processing.userFilterBuffer[
                 runtimeInfo.processing.userFilterIndex] =
@@ -6699,19 +7034,19 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
     // Stable Capture
     //
-    // ¸ñÇ¥ Sample °³¼ö¸¦ Á¤È®È÷ ¼öÁýÇÕ´Ï´Ù.
+    // ï¿½ï¿½Ç¥ Sample ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     //
     // Zero:
-    //   Á¤È®È÷ 600 Sample
+    //   ï¿½ï¿½È®ï¿½ï¿½ 600 Sample
     //
     // Calibration:
-    //   ¾ÈÁ¤È­ Sample ¹ö¸²
-    //   + Á¤È®È÷ ÁöÁ¤µÈ Sample ¼ö Æò±Õ
+    //   ï¿½ï¿½ï¿½ï¿½È­ Sample ï¿½ï¿½ï¿½ï¿½
+    //   + ï¿½ï¿½È®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Sample ï¿½ï¿½ ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     if (runtimeInfo.processing.stableCaptureActive)
     {
         // ----------------------------------------------------
-        // ¾ÈÁ¤È­ ´ë±â SampleÀº Æò±Õ¿¡ Æ÷ÇÔÇÏÁö ¾Ê½À´Ï´Ù.
+        // ï¿½ï¿½ï¿½ï¿½È­ ï¿½ï¿½ï¿½ Sampleï¿½ï¿½ ï¿½ï¿½Õ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
         // ----------------------------------------------------
         if (runtimeInfo.processing.stableCaptureWaitSamples > 0)
         {
@@ -6722,7 +7057,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
             runtimeInfo.processing.stableCaptureSampleCount)
         {
             // ------------------------------------------------
-            // À¯È¿ Sample Á¤È®È÷ 1°³ ÇÕ»ê
+            // ï¿½ï¿½È¿ Sample ï¿½ï¿½È®ï¿½ï¿½ 1ï¿½ï¿½ ï¿½Õ»ï¿½
             // ------------------------------------------------
             runtimeInfo.processing.stableCaptureSum +=
                 runtimeInfo.processing.powerLineFiltered;
@@ -6730,7 +7065,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
             ++runtimeInfo.processing.stableCaptureCollectedCount;
 
             // ------------------------------------------------
-            // Á¤È®È÷ ¸ñÇ¥ Sample °³¼ö¿¡ µµ´ÞÇÑ °æ¿ì¿¡¸¸ ¿Ï·á
+            // ï¿½ï¿½È®ï¿½ï¿½ ï¿½ï¿½Ç¥ Sample ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ì¿¡ï¿½ï¿½ ï¿½Ï·ï¿½
             // ------------------------------------------------
             if (runtimeInfo.processing.stableCaptureCollectedCount ==
                 runtimeInfo.processing.stableCaptureSampleCount)
@@ -6741,7 +7076,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                         runtimeInfo.processing.stableCaptureCollectedCount);
 
                 // ====================================================
-                // ZERO Capture ¿Ï·á
+                // ZERO Capture ï¿½Ï·ï¿½
                 // ====================================================
                 if (runtimeInfo.processing.stableCaptureType ==
                     DaoInternalAdcStableCaptureType::ZERO)
@@ -6762,8 +7097,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
                         0.0;
 
                     // --------------------------------------------
-                    // Zero ±âÁØÀÌ º¯°æµÇ¾úÀ¸¹Ç·Î
-                    // Median 3ÀÇ ÀÌÀü ±âÁØ µ¥ÀÌÅÍ Æó±â
+                    // Zero ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½Ç·ï¿½
+                    // Median 3ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
                     // --------------------------------------------
                     runtimeInfo.processing.medianBuffer[0] = 0.0;
                     runtimeInfo.processing.medianBuffer[1] = 0.0;
@@ -6776,7 +7111,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                         0;
 
                     // --------------------------------------------
-                    // ÀÌÀü Zero ±âÁØÀÇ N Filter µ¥ÀÌÅÍµµ Æó±â
+                    // ï¿½ï¿½ï¿½ï¿½ Zero ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ N Filter ï¿½ï¿½ï¿½ï¿½ï¿½Íµï¿½ ï¿½ï¿½ï¿½
                     // --------------------------------------------
                     runtimeInfo.processing.userFilterBuffer.fill(0.0);
 
@@ -6794,7 +7129,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                 }
 
                 // ====================================================
-                // CALIBRATION Capture ¿Ï·á
+                // CALIBRATION Capture ï¿½Ï·ï¿½
                 // ====================================================
                 else if (
                     runtimeInfo.processing.stableCaptureType ==
@@ -6805,8 +7140,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
                         runtimeInfo.processing.zeroOffset;
 
                     // --------------------------------------------
-                    // SpanÀÌ Áö³ªÄ¡°Ô ÀÛÀ¸¸é Àß¸øµÈ ±³Á¤ÀÌ¹Ç·Î
-                    // ±âÁ¸ Calibration ScaleÀ» À¯ÁöÇÕ´Ï´Ù.
+                    // Spanï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì¹Ç·ï¿½
+                    // ï¿½ï¿½ï¿½ï¿½ Calibration Scaleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
                     // --------------------------------------------
                     if (std::abs(calibrationSpan) >= 1.0)
                     {
@@ -6814,7 +7149,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                             runtimeInfo.processing.stableCaptureReferenceValue /
                             calibrationSpan;
 
-                        // »õ·Î¿î ScaleÀ» ÇöÀç ÃÖ½Å°ª¿¡ Àû¿ë
+                        // ï¿½ï¿½ï¿½Î¿ï¿½ Scaleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ö½Å°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                         runtimeInfo.processing.calibratedValue =
                             runtimeInfo.processing.zeroedValue *
                             runtimeInfo.processing.calibrationScale;
@@ -6823,8 +7158,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
                             runtimeInfo.processing.calibratedValue;
 
                         // ----------------------------------------
-                        // Calibration ScaleÀÌ º¯°æµÇ¾úÀ¸¹Ç·Î
-                        // Median 3ÀÇ ÀÌÀü Scale µ¥ÀÌÅÍ Æó±â
+                        // Calibration Scaleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½Ç·ï¿½
+                        // Median 3ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Scale ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
                         // ----------------------------------------
                         runtimeInfo.processing.medianBuffer[0] = 0.0;
                         runtimeInfo.processing.medianBuffer[1] = 0.0;
@@ -6837,7 +7172,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                             0;
 
                         // ----------------------------------------
-                        // ÀÌÀü Scale ±âÁØÀÇ N Filter µ¥ÀÌÅÍ Æó±â
+                        // ï¿½ï¿½ï¿½ï¿½ Scale ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ N Filter ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
                         // ----------------------------------------
                         runtimeInfo.processing.userFilterBuffer.fill(0.0);
 
@@ -6856,7 +7191,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                 }
 
                 // ------------------------------------------------
-                // Stable Capture Á¾·á
+                // Stable Capture ï¿½ï¿½ï¿½ï¿½
                 // ------------------------------------------------
                 runtimeInfo.processing.stableCaptureActive =
                     false;
@@ -6870,10 +7205,10 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
     // ADC Diagnostic Capture
     //
-    // Noise ºÐ¼®¿ëÀ¸·Î ÇöÀç SampleÀÇ Ã³¸® ´Ü°èº° °ªÀ»
-    // ¸Þ¸ð¸®¿¡ ÀúÀåÇÕ´Ï´Ù.
+    // Noise ï¿½Ð¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Sampleï¿½ï¿½ Ã³ï¿½ï¿½ ï¿½Ü°èº° ï¿½ï¿½ï¿½ï¿½
+    // ï¿½Þ¸ð¸®¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     //
-    // ¸ñÇ¥ Sample °³¼ö¿¡ Á¤È®È÷ µµ´ÞÇÏ¸é ÀÚµ¿ Á¾·áÇÕ´Ï´Ù.
+    // ï¿½ï¿½Ç¥ Sample ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¸ï¿½ ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // --------------------------------------------------------
     if (runtimeInfo.diagnosticCaptureActive)
     {
@@ -6923,8 +7258,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
 // ADC Runtime Ring Buffer Push
 //
-// ÃÖÁ¾ »ç¿ëÀÚ¿ë FilteredValue¸¦
-// ¸ðµç Ã³¸® Sample¸¶´Ù Ring Buffer¿¡ ÀúÀåÇÕ´Ï´Ù.
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ú¿ï¿½ FilteredValueï¿½ï¿½
+// ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ Sampleï¿½ï¿½ï¿½ï¿½ Ring Bufferï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 // --------------------------------------------------------
     {
         DaoInternalAdcBufferedSample bufferedSample{};
@@ -6938,7 +7273,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
         ++runtimeInfo.ringBufferNextSampleIndex;
 
         // ----------------------------------------------------
-        // Buffer¿¡ ºó °ø°£ÀÌ ÀÖ´Â °æ¿ì
+        // Bufferï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½
         // ----------------------------------------------------
         if (runtimeInfo.ringBufferCount <
             DaoInternalAdcRuntimeInfo::ADC_RING_BUFFER_SIZE)
@@ -6956,10 +7291,10 @@ void DaoEtherCATMaster::ProcessAdcSample(
         else
         {
             // ------------------------------------------------
-            // Buffer°¡ °¡µæ Âù °æ¿ì
+            // Bufferï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½
             //
-            // °¡Àå ¿À·¡µÈ Sample ÇÏ³ª¸¦ ¹ö¸®°í
-            // »õ SampleÀ» ÀúÀåÇÕ´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Sample ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            // ï¿½ï¿½ Sampleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             // ------------------------------------------------
             runtimeInfo.ringBuffer[
                 runtimeInfo.ringBufferHead] =
@@ -6975,7 +7310,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
                 ++runtimeInfo.ringBufferOverflowCount;
 
-                // count´Â ÀÌ¹Ì MAX »óÅÂÀÌ¹Ç·Î ±×´ë·Î À¯ÁöÇÕ´Ï´Ù.
+                // countï¿½ï¿½ ï¿½Ì¹ï¿½ MAX ï¿½ï¿½ï¿½ï¿½ï¿½Ì¹Ç·ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
         }
     }
 

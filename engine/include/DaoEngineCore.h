@@ -57,13 +57,13 @@ public:
         int logicalIndex,
         DaoInternalLogicalDeviceInfo& deviceInfo) const;
 
-	bool RequestAllSlavesPreOp(); // °Ë»öµÈ ¸ðµç Slave¸¦ PRE-OP »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+	bool RequestAllSlavesPreOp(); // ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ PRE-OP ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
    
-	bool RequestAllSlavesSafeOp(); // °Ë»öµÈ ¸ðµç Slave¸¦ SAFE-OP »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+	bool RequestAllSlavesSafeOp(); // ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ SAFE-OP ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 
-	bool RequestAllSlavesOperational(); // °Ë»öµÈ ¸ðµç Slave¸¦ OP »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+	bool RequestAllSlavesOperational(); // ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ OP ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 
-    bool RequestAllSlavesInit(); // °Ë»öµÈ ¸ðµç Slave¸¦ INIT »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+    bool RequestAllSlavesInit(); // ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ INIT ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 
     bool MapProcessData();
 
@@ -160,9 +160,13 @@ public:
         int logicalIoIndex,
         DaoInternalIoRuntimeInfo& runtimeInfo) const;
 
+    bool GetEncoderRuntimeInfo(
+    int logicalEncoderIndex,
+    DaoInternalEncoderRuntimeInfo& runtimeInfo) const;
+
     bool SetServoOutputCommand(
         int logicalServoIndex,
-		const DaoInternalLsServoOutputPdo& command);  // ³í¸® Servo¿¡ ¼Û½ÅÇÒ Output PDO ¸í·ÉÀ» ÀúÀåÇÕ´Ï´Ù.
+		const DaoInternalLsServoOutputPdo& command);  // ï¿½ï¿½ï¿½ï¿½ Servoï¿½ï¿½ ï¿½Û½ï¿½ï¿½ï¿½ Output PDO ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     bool ServoOn(
         int logicalServoIndex);
@@ -172,7 +176,7 @@ public:
 
     bool ServoHome(
         int logicalServoIndex,
-        unsigned int timeoutMs); // ³í¸® Servo¸¦ Homing »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+        unsigned int timeoutMs); // ï¿½ï¿½ï¿½ï¿½ Servoï¿½ï¿½ Homing ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 
     bool ServoMoveAbsolute(
         int logicalServoIndex,
@@ -180,13 +184,13 @@ public:
         unsigned int profileVelocity,
         unsigned int profileAcceleration,
         unsigned int profileDeceleration,
-		unsigned int timeoutMs); // ³í¸® Servo¸¦ Àý´ë À§Ä¡·Î ÀÌµ¿ÇÕ´Ï´Ù.
+		unsigned int timeoutMs); // ï¿½ï¿½ï¿½ï¿½ Servoï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½Ìµï¿½ï¿½Õ´Ï´ï¿½.
 
     bool ServoVelocity(
         int logicalServoIndex,
         int targetVelocity,
         unsigned int acceleration,
-		unsigned int deceleration); // ³í¸® Servo¸¦ ¼ÓµµÁ¦¾î¸ðµå·Î ¿îÀüÇÕ´Ï´Ù.
+		unsigned int deceleration); // ï¿½ï¿½ï¿½ï¿½ Servoï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     
    
 
@@ -194,29 +198,29 @@ public:
         int logicalServoIndex,
         int speed,
         unsigned int acceleration,
-		unsigned int deceleration); // ³í¸® Servo¸¦ Á¤¹æÇâ jog ¼ÓµµÁ¦¾î¸ðµå·Î ¿îÀüÇÕ´Ï´Ù.
+		unsigned int deceleration); // ï¿½ï¿½ï¿½ï¿½ Servoï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ jog ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     bool ServoJogNegative(
         int logicalServoIndex,
         int speed,
         unsigned int acceleration,
-		unsigned int deceleration); // ³í¸® Servo¸¦ ¿ª¹æÇâ jog ¼ÓµµÁ¦¾î¸ðµå·Î ¿îÀüÇÕ´Ï´Ù.
+		unsigned int deceleration); // ï¿½ï¿½ï¿½ï¿½ Servoï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ jog ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     bool ServoStop(
-		int logicalServoIndex); // ³í¸® Servo¸¦ Á¤Áö½ÃÅµ´Ï´Ù.
+		int logicalServoIndex); // ï¿½ï¿½ï¿½ï¿½ Servoï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Åµï¿½Ï´ï¿½.
 
 
 
 
-    // ³í¸® Servo ¹øÈ£¸¦ ¹°¸® Slave ¹øÈ£·Î º¯È¯ÇÑ µÚ
-    // LS L7NHÀÇ CiA402 ¿îÀü¸ðµå¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ Servo ï¿½ï¿½È£ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½È£ï¿½ï¿½ ï¿½ï¿½È¯ï¿½ï¿½ ï¿½ï¿½
+    // LS L7NHï¿½ï¿½ CiA402 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½å¸¦ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     //
     // mode:
     // 1 = Profile Position
     // 3 = Profile Velocity
     // 6 = Homing
     //
-    // SDO Åë½ÅÀ» »ç¿ëÇÏ¹Ç·Î ¼øÈ¯Åë½ÅÀÌ Á¤ÁöµÈ »óÅÂ¿¡¼­ È£ÃâÇÕ´Ï´Ù.
+    // SDO ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï¹Ç·ï¿½ ï¿½ï¿½È¯ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ È£ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     bool SetServoOperationMode(
         int logicalServoIndex,
         signed char mode);
@@ -235,11 +239,11 @@ public:
         int logicalIoIndex,
         unsigned short outputValue);
 
-	bool StartCommunication(); // Åë½Å ½º·¹µå ½ÃÀÛ
+	bool StartCommunication(); // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-	void StopCommunication(); // Åë½Å ½º·¹µå Á¾·á ¿äÃ»
+	void StopCommunication(); // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»
 
-	bool IsCommunicationRunning() const; // Åë½Å ½º·¹µå°¡ ½ÇÇà ÁßÀÎÁö È®ÀÎ
+	bool IsCommunicationRunning() const; // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å°¡ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
 
 private:
     bool RefreshAdapterList();
@@ -267,4 +271,5 @@ private:
     std::vector<DaoInternalLogicalDeviceInfo> servoDevices_;
     std::vector<DaoInternalLogicalDeviceInfo> adcDevices_;
     std::vector<DaoInternalLogicalDeviceInfo> ioDevices_;
+    std::vector<DaoInternalLogicalDeviceInfo> encoderDevices_;
 };

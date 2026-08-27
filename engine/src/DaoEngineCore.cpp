@@ -153,7 +153,7 @@ int DaoEngineCore::ScanSlaves()
     const int detectedSlaveCount =
         master_.ScanSlaves();
 
-    // ÀÌÀü °Ë»ö °á°ú´Â Ç×»ó Á¦°ÅÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½Ë»ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½×»ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     ClearLogicalDevices();
 
     if (detectedSlaveCount <= 0)
@@ -161,7 +161,7 @@ int DaoEngineCore::ScanSlaves()
         return 0;
     }
 
-    // °Ë»öµÈ ¹°¸® Slave¸¦ ³í¸® ÀåÄ¡·Î µî·ÏÇÕ´Ï´Ù.
+    // ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     BuildLogicalDevices();
 
     return detectedSlaveCount;
@@ -191,6 +191,7 @@ void DaoEngineCore::ClearLogicalDevices()
     servoDevices_.clear();
     adcDevices_.clear();
     ioDevices_.clear();
+    encoderDevices_.clear();
 }
 
 int DaoEngineCore::ClassifyDevice(
@@ -227,6 +228,24 @@ int DaoEngineCore::ClassifyDevice(
         slaveInfo.revision == 0x00000001)
     {
         return DAO_DEVICE_IO;
+    }
+
+    // --------------------------------------------------------
+    // FASTECH Ezi-IO EtherCAT CNT02
+    // --------------------------------------------------------
+    if (slaveInfo.vendorId == 0x0FA00000 &&
+        slaveInfo.productCode == 0x00002301)
+    {
+        return DAO_DEVICE_ENCODER;
+    }
+
+    // --------------------------------------------------------
+    // FASTECH Ezi-IO EtherCAT CNT02
+    // --------------------------------------------------------
+    if (slaveInfo.vendorId == 0x0FA00000 &&
+    slaveInfo.productCode == 0x00002301)
+    {
+        return DAO_DEVICE_ENCODER;
     }
 
     return DAO_DEVICE_UNKNOWN;
@@ -269,6 +288,10 @@ void DaoEngineCore::BuildLogicalDevices()
         case DAO_DEVICE_IO:
             targetList = &ioDevices_;
             break;
+            
+        case DAO_DEVICE_ENCODER:
+            targetList = &encoderDevices_;
+            break;
 
         default:
             targetList = &unknownDevices_;
@@ -280,7 +303,7 @@ void DaoEngineCore::BuildLogicalDevices()
         deviceInfo.deviceType =
             deviceType;
 
-        // °°Àº ÀåÄ¡ Á¾·ù ¾È¿¡¼­ 0ºÎÅÍ ½ÃÀÛÇÕ´Ï´Ù.
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ ï¿½È¿ï¿½ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
         deviceInfo.logicalIndex =
             static_cast<int>(targetList->size());
 
@@ -320,6 +343,9 @@ DaoEngineCore::GetLogicalDeviceList(
 
     case DAO_DEVICE_IO:
         return &ioDevices_;
+
+    case DAO_DEVICE_ENCODER:
+        return &encoderDevices_;
 
     default:
         return nullptr;
@@ -553,19 +579,19 @@ bool DaoEngineCore::ValidateDaoAdcPdo(
 bool DaoEngineCore::RequestDaoAdcSafeOp(
     int physicalSlaveIndex)
 {
-    // ¿£ÁøÀÌ ÃÊ±âÈ­µÇÁö ¾Ê¾Ò´Ù¸é »óÅÂ ÀüÈ¯ ±ÝÁö
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò´Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ ï¿½ï¿½ï¿½ï¿½
     if (!IsInitialized())
     {
         return false;
     }
 
-    // EtherCAT ¾î´ðÅÍ°¡ ¿­¸®Áö ¾Ê¾Ò´Ù¸é »óÅÂ ÀüÈ¯ ±ÝÁö
+    // EtherCAT ï¿½ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò´Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ ï¿½ï¿½ï¿½ï¿½
     if (!master_.IsOpen())
     {
         return false;
     }
 
-    // ½ÇÁ¦ SAFE-OP ÀüÈ¯Àº Master °èÃþ¿¡¼­ ¼öÇà
+    // ï¿½ï¿½ï¿½ï¿½ SAFE-OP ï¿½ï¿½È¯ï¿½ï¿½ Master ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     return master_.RequestDaoAdcSafeOp(
         physicalSlaveIndex);
 }
@@ -574,7 +600,7 @@ bool DaoEngineCore::ExchangeDaoAdcProcessDataOnce(
     int physicalSlaveIndex,
     DaoInternalProcessExchangeInfo& exchangeInfo)
 {
-    // ¿£ÁøÀÌ ÃÊ±âÈ­µÇÁö ¾ÊÀº »óÅÂ¿¡¼­´Â Åë½Å ±ÝÁö
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     if (!IsInitialized())
     {
         exchangeInfo = {};
@@ -584,7 +610,7 @@ bool DaoEngineCore::ExchangeDaoAdcProcessDataOnce(
         return false;
     }
 
-    // EtherCAT ¾î´ðÅÍ°¡ ¿­¸®Áö ¾ÊÀº »óÅÂ¿¡¼­´Â Åë½Å ±ÝÁö
+    // EtherCAT ï¿½ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     if (!master_.IsOpen())
     {
         exchangeInfo = {};
@@ -594,7 +620,7 @@ bool DaoEngineCore::ExchangeDaoAdcProcessDataOnce(
         return false;
     }
 
-    // ½ÇÁ¦ 1È¸ Process Data ¿Õº¹Àº Master °èÃþ¿¡¼­ ¼öÇà
+    // ï¿½ï¿½ï¿½ï¿½ 1È¸ Process Data ï¿½Õºï¿½ï¿½ï¿½ Master ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     return master_.ExchangeDaoAdcProcessDataOnce(
         physicalSlaveIndex,
         exchangeInfo);
@@ -605,7 +631,7 @@ bool DaoEngineCore::PrimeDaoAdcProcessData(
     int roundCount,
     DaoInternalPrimingInfo& primingInfo)
 {
-    // ¿£ÁøÀÌ ÃÊ±âÈ­µÇÁö ¾ÊÀº »óÅÂ¿¡¼­´Â Åë½Å ±ÝÁö
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     if (!IsInitialized())
     {
         primingInfo = {};
@@ -618,7 +644,7 @@ bool DaoEngineCore::PrimeDaoAdcProcessData(
         return false;
     }
 
-    // EtherCAT ¾î´ðÅÍ°¡ ¿­¸®Áö ¾ÊÀº »óÅÂ¿¡¼­´Â Åë½Å ±ÝÁö
+    // EtherCAT ï¿½ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     if (!master_.IsOpen())
     {
         primingInfo = {};
@@ -631,7 +657,7 @@ bool DaoEngineCore::PrimeDaoAdcProcessData(
         return false;
     }
 
-    // ½ÇÁ¦ PrimingÀº Master °èÃþ¿¡¼­ ¼öÇà
+    // ï¿½ï¿½ï¿½ï¿½ Primingï¿½ï¿½ Master ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     return master_.PrimeDaoAdcProcessData(
         physicalSlaveIndex,
         roundCount,
@@ -642,7 +668,7 @@ bool DaoEngineCore::RequestDaoAdcOperational(
     int physicalSlaveIndex,
     DaoInternalOperationalInfo& operationalInfo)
 {
-    // ¿£ÁøÀÌ ÃÊ±âÈ­µÇÁö ¾ÊÀº »óÅÂ¿¡¼­´Â OP ÀüÈ¯ ±ÝÁö
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ OP ï¿½ï¿½È¯ ï¿½ï¿½ï¿½ï¿½
     if (!IsInitialized())
     {
         operationalInfo = {};
@@ -653,7 +679,7 @@ bool DaoEngineCore::RequestDaoAdcOperational(
         return false;
     }
 
-    // EtherCAT ¾î´ðÅÍ°¡ ¿­·Á ÀÖÁö ¾ÊÀ¸¸é OP ÀüÈ¯ ±ÝÁö
+    // EtherCAT ï¿½ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ OP ï¿½ï¿½È¯ ï¿½ï¿½ï¿½ï¿½
     if (!master_.IsOpen())
     {
         operationalInfo = {};
@@ -664,7 +690,7 @@ bool DaoEngineCore::RequestDaoAdcOperational(
         return false;
     }
 
-    // ½ÇÁ¦ OP ÀüÈ¯Àº Master °èÃþ¿¡¼­ ¼öÇà
+    // ï¿½ï¿½ï¿½ï¿½ OP ï¿½ï¿½È¯ï¿½ï¿½ Master ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     return master_.RequestDaoAdcOperational(
         physicalSlaveIndex,
         operationalInfo);
@@ -674,7 +700,7 @@ bool DaoEngineCore::ReadDaoAdcOnce(
     int physicalSlaveIndex,
     DaoInternalAdcReadInfo& readInfo)
 {
-    // ¿£ÁøÀÌ ÃÊ±âÈ­µÇÁö ¾ÊÀº »óÅÂ¿¡¼­´Â ADC ÀÐ±â ±ÝÁö
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ï¿½ï¿½ ADC ï¿½Ð±ï¿½ ï¿½ï¿½ï¿½ï¿½
     if (!IsInitialized())
     {
         readInfo = {};
@@ -685,7 +711,7 @@ bool DaoEngineCore::ReadDaoAdcOnce(
         return false;
     }
 
-    // EtherCAT ¾î´ðÅÍ°¡ ¿­·Á ÀÖÁö ¾ÊÀ¸¸é ADC ÀÐ±â ±ÝÁö
+    // EtherCAT ï¿½ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ADC ï¿½Ð±ï¿½ ï¿½ï¿½ï¿½ï¿½
     if (!master_.IsOpen())
     {
         readInfo = {};
@@ -696,7 +722,7 @@ bool DaoEngineCore::ReadDaoAdcOnce(
         return false;
     }
 
-    // ½ÇÁ¦ Process Data ¿Õº¹°ú 24¹ÙÀÌÆ® º¹»ç´Â Master¿¡¼­ ¼öÇà
+    // ï¿½ï¿½ï¿½ï¿½ Process Data ï¿½Õºï¿½ï¿½ï¿½ 24ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ Masterï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     return master_.ReadDaoAdcOnce(
         physicalSlaveIndex,
         readInfo);
@@ -706,7 +732,7 @@ bool DaoEngineCore::GetDaoAdcRuntimeInfo(
     int physicalSlaveIndex,
     DaoInternalAdcRuntimeInfo& runtimeInfo) const
 {
-    // ¿£ÁøÀÌ ÃÊ±âÈ­µÇÁö ¾Ê¾Ò´Ù¸é Á¶È¸ÇÏÁö ¾Ê½À´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò´Ù¸ï¿½ ï¿½ï¿½È¸ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (!IsInitialized())
     {
         runtimeInfo = {};
@@ -716,7 +742,7 @@ bool DaoEngineCore::GetDaoAdcRuntimeInfo(
         return false;
     }
 
-    // ¾î´ðÅÍ°¡ ¿­·Á ÀÖÁö ¾Ê´Ù¸é Á¶È¸ÇÏÁö ¾Ê½À´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê´Ù¸ï¿½ ï¿½ï¿½È¸ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     if (!master_.IsOpen())
     {
         runtimeInfo = {};
@@ -1158,7 +1184,26 @@ bool DaoEngineCore::GetIoRuntimeInfo(
         runtimeInfo);
 }
 
+bool DaoEngineCore::GetEncoderRuntimeInfo(
+    int logicalEncoderIndex,
+    DaoInternalEncoderRuntimeInfo& runtimeInfo) const
+{
+    runtimeInfo = {};
 
+    int physicalSlaveIndex = 0;
+
+    if (!GetPhysicalSlaveIndex(
+        DAO_DEVICE_ENCODER,
+        logicalEncoderIndex,
+        physicalSlaveIndex))
+    {
+        return false;
+    }
+
+    return master_.GetEncoderRuntimeInfo(
+        physicalSlaveIndex,
+        runtimeInfo);
+}
 
 bool DaoEngineCore::ServoOn(
     int logicalServoIndex)
@@ -1250,7 +1295,7 @@ bool DaoEngineCore::ServoMoveAbsolute(
     unsigned int profileVelocity,
     unsigned int profileAcceleration,
     unsigned int profileDeceleration,
-	unsigned int timeoutMs)    // ³í¸® Servo¸¦ Àý´ë À§Ä¡·Î ÀÌµ¿ÇÕ´Ï´Ù.
+	unsigned int timeoutMs)    // ï¿½ï¿½ï¿½ï¿½ Servoï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½Ìµï¿½ï¿½Õ´Ï´ï¿½.
 {
     if (!IsInitialized())
     {
@@ -1420,8 +1465,8 @@ bool DaoEngineCore::SetServoOperationMode(
         return false;
     }
 
-    // SDO¿Í 2ms PDO Åë½ÅÀÌ µ¿½Ã¿¡ °°Àº SOEM Context¸¦
-    // »ç¿ëÇÏÁö ¾Êµµ·Ï ¼øÈ¯Åë½Å Áß¿¡´Â ¸ðµå º¯°æÀ» °ÅºÎÇÕ´Ï´Ù.
+    // SDOï¿½ï¿½ 2ms PDO ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ã¿ï¿½ ï¿½ï¿½ï¿½ï¿½ SOEM Contextï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Êµï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½ï¿½ï¿½ ï¿½ß¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Åºï¿½ï¿½Õ´Ï´ï¿½.
     if (master_.IsCommunicationRunning())
     {
         return false;

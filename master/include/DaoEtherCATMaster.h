@@ -41,7 +41,7 @@ struct DaoInternalSlavePdoInfo
     unsigned int inputBytes;
 };
 
-// DAO ADC PDO ¾ÈÀü °ËÁõ °á°ú
+// DAO ADC PDO ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
 struct DaoInternalAdcValidationInfo
 {
     int physicalSlaveIndex = 0;
@@ -60,8 +60,8 @@ struct DaoInternalAdcValidationInfo
     unsigned int actualInputBytes = 0;
 };
 
-// SAFE-OP »óÅÂ¿¡¼­ ¼öÇàÇÑ
-// ´ÜÀÏ Process Data ¿Õº¹ °á°ú
+// SAFE-OP ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+// ï¿½ï¿½ï¿½ï¿½ Process Data ï¿½Õºï¿½ ï¿½ï¿½ï¿½
 struct DaoInternalProcessExchangeInfo
 {
     int physicalSlaveIndex = 0;
@@ -75,7 +75,7 @@ struct DaoInternalProcessExchangeInfo
     bool wkcValid = false;
 };
 
-// SAFE-OP »óÅÂ¿¡¼­ ¼öÇàÇÑ Process Data Priming °á°ú
+// SAFE-OP ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Process Data Priming ï¿½ï¿½ï¿½
 struct DaoInternalPrimingInfo
 {
     int physicalSlaveIndex = 0;
@@ -96,7 +96,7 @@ struct DaoInternalPrimingInfo
     bool allRoundsValid = false;
 };
 
-// SAFE-OP¿¡¼­ OP »óÅÂ·Î ÀüÈ¯ÇÑ °á°ú
+// SAFE-OPï¿½ï¿½ï¿½ï¿½ OP ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½ï¿½ ï¿½ï¿½ï¿½
 struct DaoInternalOperationalInfo
 {
     int physicalSlaveIndex = 0;
@@ -122,7 +122,7 @@ struct DaoInternalOperationalInfo
 
 #pragma pack(push, 1)
 
-// DAO ADCÀÇ °ËÁõµÈ 24¹ÙÀÌÆ® Input PDO
+// DAO ADCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 24ï¿½ï¿½ï¿½ï¿½Æ® Input PDO
 struct DaoInternalAdcInputPdo
 {
     std::uint32_t testCounter;
@@ -146,7 +146,7 @@ static_assert(
 
 // ------------------------------------------------------------
 // LS Mecapion L7NH RxPDO 0x1601
-// Master ¡æ Servo
+// Master ï¿½ï¿½ Servo
 //
 // 0x6040 : Controlword
 // 0x6060 : Modes of Operation
@@ -180,7 +180,7 @@ struct DaoInternalLsServoOutputPdo
 
 // ------------------------------------------------------------
 // LS Mecapion L7NH TxPDO 0x1A01
-// Servo ¡æ Master
+// Servo ï¿½ï¿½ Master
 //
 // 0x6041 : Statusword
 // 0x6061 : Modes of Operation Display
@@ -237,6 +237,77 @@ struct DaoInternalFastechIo16InputPdo
     unsigned short inputs;
 };
 
+
+// ------------------------------------------------------------
+// FASTECH Ezi-IO EtherCAT CNT02
+//
+// RxPDO : Master -> CNT02
+//
+// 0x1600 : Counter Command                  8 bit
+// 0x1601 : Latch / External Reset Command 32 bit
+// 0x1602 : Preset Value CH1 / CH2          64 bit
+//
+// Total : 13 bytes
+// ------------------------------------------------------------
+struct DaoInternalFastechEncoderOutputPdo
+{
+    std::uint8_t counterCommand;          // 3030h : 8 bits
+    std::uint32_t latchResetCommand;      // 3031h : 32 bits
+
+    std::uint32_t presetValueCh1;         // 3032:01
+    std::uint32_t presetValueCh2;         // 3032:02
+};
+
+
+// ------------------------------------------------------------
+// FASTECH Ezi-IO EtherCAT CNT02
+//
+// TxPDO : CNT02 -> Master
+//
+// 0x1A00 : Counter Status                 32 bit
+// 0x1A01 : Latch / Reset Status           32 bit
+//
+// 0x1A02 :
+//   CH1 Present Counter
+//   CH1 Latch A
+//   CH1 Latch B
+//   CH1 Phase Z Latch
+//   CH2 Present Counter
+//   CH2 Latch A
+//   CH2 Latch B
+//   CH2 Phase Z Latch
+//
+// 0x1A03 :
+//   CH1 Pulse Rate
+//   CH1 Comparison Reference
+//   CH2 Pulse Rate
+//   CH2 Comparison Reference
+//
+// Total : 56 bytes
+// ------------------------------------------------------------
+struct DaoInternalFastechEncoderInputPdo
+{
+    std::uint32_t counterStatus;          // 3020h
+    std::uint32_t latchResetStatus;       // 3021h
+
+    std::uint32_t presentCounterCh1;      // 3022:01
+    std::uint32_t latchACh1;              // 3023:01
+    std::uint32_t latchBCh1;              // 3024:01
+    std::uint32_t phaseZLatchCh1;         // 3025:01
+
+    std::uint32_t presentCounterCh2;      // 3022:02
+    std::uint32_t latchACh2;              // 3023:02
+    std::uint32_t latchBCh2;              // 3024:02
+    std::uint32_t phaseZLatchCh2;         // 3025:02
+
+    std::uint32_t pulseRateCh1;           // 3026:01
+    std::uint32_t comparisonReferenceCh1; // 3027:01
+
+    std::uint32_t pulseRateCh2;           // 3026:02
+    std::uint32_t comparisonReferenceCh2; // 3027:02
+};
+
+
 #pragma pack(pop)
 static_assert(
     sizeof(DaoInternalLsServoOutputPdo) == 29,
@@ -262,13 +333,21 @@ static_assert(
     sizeof(DaoInternalFastechIo16InputPdo) == 2,
     "FASTECH IO16 Input PDO size must be 2 bytes.");
 
+static_assert(
+    sizeof(DaoInternalFastechEncoderOutputPdo) == 13,
+    "FASTECH CNT02 Output PDO size must be 13 bytes.");
+
+static_assert(
+    sizeof(DaoInternalFastechEncoderInputPdo) == 56,
+    "FASTECH CNT02 Input PDO size must be 56 bytes.");    
+
 
 
 // ------------------------------------------------------------
 // Servo Command Type
 //
-// ÀåºñÀÇ ½ÃÇè ¸ñÀûÀÌ ¾Æ´Ï¶ó
-// Servo Ãà ÀÚÃ¼°¡ ¼öÇà ÁßÀÎ ¸í·É Á¾·ù¸¸ Ç¥ÇöÇÕ´Ï´Ù.
+// ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Æ´Ï¶ï¿½
+// Servo ï¿½ï¿½ ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 // ------------------------------------------------------------
 enum DaoInternalServoCommandType
 {
@@ -289,15 +368,15 @@ enum DaoInternalServoCommandType
     DAO_SERVO_COMMAND_QUICK_STOP = 9,
 
     DAO_SERVO_COMMAND_ALARM_RESET = 10,
-	DAO_SERVO_COMMAND_VELOCITY = 11 // ¼ÓµµÁ¦¾î¸ðµå ¿îÀü
+	DAO_SERVO_COMMAND_VELOCITY = 11 // ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 };
 
 
 // ------------------------------------------------------------
 // Servo Command State
 //
-// UI´Â ÀÌ »óÅÂ¸¦ ÁÖ±âÀûÀ¸·Î Á¶È¸ÇÏ¿©
-// ´ÙÀ½ Àåºñ ½ÃÄö½º¸¦ °áÁ¤ÇÕ´Ï´Ù.
+// UIï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¸ï¿½Ï¿ï¿½
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 // ------------------------------------------------------------
 enum DaoInternalServoCommandState
 {
@@ -316,9 +395,9 @@ enum DaoInternalServoCommandState
 // ------------------------------------------------------------
 // Servo Internal Command Step
 //
-// commandState´Â ¿ÜºÎ UI°¡ º¸´Â Å« »óÅÂÀÌ°í,
-// commandStepÀº ¿£Áø ³»ºÎ¿¡¼­ ¸í·ÉÀ» ÁøÇàÇÏ±â À§ÇÑ
-// ¼¼ºÎ ´Ü°èÀÔ´Ï´Ù.
+// commandStateï¿½ï¿½ ï¿½Üºï¿½ UIï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Å« ï¿½ï¿½ï¿½ï¿½ï¿½Ì°ï¿½,
+// commandStepï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Î¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½
+// ï¿½ï¿½ï¿½ï¿½ ï¿½Ü°ï¿½ï¿½Ô´Ï´ï¿½.
 // ------------------------------------------------------------
 enum DaoInternalServoCommandStep
 {
@@ -362,9 +441,9 @@ enum DaoInternalServoCommandStep
 // ------------------------------------------------------------
 // Servo Mailbox Request
 //
-// EtherCAT ¼øÈ¯ PDO¿Í º°µµ·Î Ã³¸®ÇØ¾ß ÇÏ´Â
-// SDO ÀÛ¾÷ÀÇ ¿äÃ» »óÅÂ¸¸ º¸°üÇÕ´Ï´Ù.
-// ÀÌ¹ø ´Ü°è¿¡¼­´Â ½ÇÁ¦ SDO¸¦ Àü¼ÛÇÏÁö ¾Ê½À´Ï´Ù.
+// EtherCAT ï¿½ï¿½È¯ PDOï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Ø¾ï¿½ ï¿½Ï´ï¿½
+// SDO ï¿½Û¾ï¿½ï¿½ï¿½ ï¿½ï¿½Ã» ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+// ï¿½Ì¹ï¿½ ï¿½Ü°è¿¡ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ SDOï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
 // ------------------------------------------------------------
 enum DaoInternalServoMailboxRequestType
 {
@@ -387,11 +466,11 @@ enum DaoInternalServoMailboxRequestState
 // ------------------------------------------------------------
 // LS Servo Runtime Information
 //
-// ¹°¸® Slaveº°·Î:
-// - ÇöÀç ¼Û½ÅÇÒ ¸í·É PDO
-// - ÃÖ±Ù ¼ö½ÅÇÑ »óÅÂ PDO
-// - Åë½Å »óÅÂ¿Í WKC Åë°è
-// ¸¦ º¸°üÇÕ´Ï´Ù.
+// ï¿½ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ï¿½ï¿½:
+// - ï¿½ï¿½ï¿½ï¿½ ï¿½Û½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ PDO
+// - ï¿½Ö±ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ PDO
+// - ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ WKC ï¿½ï¿½ï¿½
+// ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 // ------------------------------------------------------------
 struct DaoInternalServoRuntimeInfo
 {
@@ -401,7 +480,7 @@ struct DaoInternalServoRuntimeInfo
     bool communicationRunning = false;
     bool hasValidInputData = false;
 
-    // CiA402 StatusWord ÇØ¼® °á°ú
+    // CiA402 StatusWord ï¿½Ø¼ï¿½ ï¿½ï¿½ï¿½
     unsigned short cia402State = 0;
 
     bool fault = false;
@@ -409,7 +488,7 @@ struct DaoInternalServoRuntimeInfo
     bool targetReached = false;
 
     // --------------------------------------------------------
-    // LS L7NH 0x60FD Digital Inputs ÇØ¼® »óÅÂ
+    // LS L7NH 0x60FD Digital Inputs ï¿½Ø¼ï¿½ ï¿½ï¿½ï¿½ï¿½
     // --------------------------------------------------------
     bool negativeLimit = false;   // bit 0 : NOT
     bool positiveLimit = false;   // bit 1 : POT
@@ -421,12 +500,12 @@ struct DaoInternalServoRuntimeInfo
 
     std::uint64_t commandStartFrameCount = 0; 
 
-    // Homing ½ÇÁ¦ ½ÃÀÛ ½ÃÁ¡°ú ¿ÜºÎ¿¡¼­ ¹ÞÀº Á¦ÇÑ½Ã°£
+    // Homing ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ÜºÎ¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ñ½Ã°ï¿½
     std::uint64_t homingStartFrameCount = 0;
     unsigned int homingTimeoutMs = 60000;
 
 
-    // Move Absolute ¸í·É ÆÄ¶ó¹ÌÅÍ
+    // Move Absolute ï¿½ï¿½ï¿½ï¿½ ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½
     int moveTargetPosition = 0;
 
     unsigned int moveProfileVelocity = 1000;
@@ -436,36 +515,36 @@ struct DaoInternalServoRuntimeInfo
     unsigned int moveTimeoutMs = 60000;
 
     // --------------------------------------------------------
-    // Profile Velocity ¸í·É ÆÄ¶ó¹ÌÅÍ ¼ÓµµÁ¦¾î¸ðµåÀÔ´Ï´Ù.
+    // Profile Velocity ï¿½ï¿½ï¿½ï¿½ ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     // --------------------------------------------------------
     int velocityTarget = 0;
 
     unsigned int velocityAcceleration = 1000;
     unsigned int velocityDeceleration = 1000;
 
-    // MoveAbs ½ÇÁ¦ ÀÌµ¿ ½ÃÀÛ ½ÃÁ¡ÀÇ À§Ä¡
+    // MoveAbs ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡
     int moveStartPosition = 0;
 
-    // MoveAbs ½ÇÁ¦ ÀÌµ¿ ½ÃÀÛ Frame
+    // MoveAbs ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ Frame
     std::uint64_t moveStartFrameCount = 0;
 
-    // MoveAbs ½ÃÀÛ ÈÄ Target Reached°¡
-    // ½ÇÁ¦·Î ÇÑ¹ø OFF µÈ °ÍÀ» È®ÀÎÇß´ÂÁö Ç¥½Ã
+    // MoveAbs ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Target Reachedï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ñ¹ï¿½ OFF ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½ß´ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
     bool moveTargetReachedWentLow = false;
 
-    // Homing Áß ½ÇÁ¦ À§Ä¡ º¯È­ °¨½Ã¿ë
+    // Homing ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½È­ ï¿½ï¿½ï¿½Ã¿ï¿½
     int homingLastPosition = 0;
 
-    // ¸¶Áö¸·À¸·Î À§Ä¡ º¯È­°¡ È®ÀÎµÈ Frame
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½È­ï¿½ï¿½ È®ï¿½Îµï¿½ Frame
     std::uint64_t homingLastMoveFrameCount = 0;
 
-    // À§Ä¡ °¨½Ã°¡ ½ÃÀÛµÇ¾ú´ÂÁö Ç¥½Ã
+    // ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ÛµÇ¾ï¿½ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
     bool homingPositionMonitorStarted = false;
-	// Homing Attained°¡ ½ÇÁ¦·Î ÇÑ¹ø OFF µÈ °ÍÀ» È®ÀÎÇß´ÂÁö Ç¥½Ã
-	bool homingAttainedWentLow = false; // Homing Attained°¡ ½ÇÁ¦·Î ÇÑ¹ø OFF µÈ °ÍÀ» È®ÀÎÇß´ÂÁö Ç¥½Ã
+	// Homing Attainedï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ñ¹ï¿½ OFF ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½ß´ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
+	bool homingAttainedWentLow = false; // Homing Attainedï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ñ¹ï¿½ OFF ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½ß´ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
 
 
-    // ÇöÀç Servo ÃàÀÌ ¼öÇà ÁßÀÎ ¿£Áø ¸í·É »óÅÂ
+    // ï¿½ï¿½ï¿½ï¿½ Servo ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     std::uint64_t commandId = 0;
 
     int commandType =
@@ -475,7 +554,7 @@ struct DaoInternalServoRuntimeInfo
         DAO_SERVO_COMMAND_STATE_IDLE;
 
     int commandStep =
-		DAO_SERVO_STEP_NONE; // ¿£Áø ³»ºÎ¿¡¼­ ¸í·ÉÀ» ÁøÇàÇÏ±â À§ÇÑ ¼¼ºÎ ´Ü°è
+		DAO_SERVO_STEP_NONE; // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Î¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ü°ï¿½
 
     int commandResult = 0;
 
@@ -490,7 +569,7 @@ struct DaoInternalServoRuntimeInfo
 
     int mailboxResult = 0;
 
-    // HomingÀÌ Á¤»ó ¿Ï·áµÈ ÀûÀÌ ÀÖ´ÂÁö Ç¥½Ã
+    // Homingï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
     bool homed = false;
 
     int lastWkc = 0;
@@ -501,10 +580,10 @@ struct DaoInternalServoRuntimeInfo
     uint64_t badWkcFrameCount = 0;
     uint64_t inputUpdateCount = 0;
 
-    // UI ¶Ç´Â °ø°³ DLL ¸í·ÉÀÌ ¼öÁ¤ÇÒ Ãâ·Â PDO ¿øº»
+    // UI ï¿½Ç´ï¿½ ï¿½ï¿½ï¿½ï¿½ DLL ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ PDO ï¿½ï¿½ï¿½ï¿½
     DaoInternalLsServoOutputPdo outputCommand{};
 
-    // Åë½Å ½º·¹µå°¡ ÃÖ±Ù ¼ö½ÅÇÑ ÀÔ·Â PDO
+    // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å°¡ ï¿½Ö±ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ PDO
     DaoInternalLsServoInputPdo latestInput{};
 };
 
@@ -512,9 +591,9 @@ struct DaoInternalServoRuntimeInfo
 // ------------------------------------------------------------
 // FASTECH IO Runtime Information
 //
-// IN8OUT8°ú IN16OUT16À» °øÅë ±¸Á¶·Î Ã³¸®ÇÏ±â À§ÇØ
-// ÀÔ·Â°ú Ãâ·Â°ªÀº ÃÖ´ë 16ºñÆ®·Î ÀúÀåÇÕ´Ï´Ù.
-// ½ÇÁ¦ PDO Å©±â´Â inputBytes/outputBytes·Î ±¸ºÐÇÕ´Ï´Ù.
+// IN8OUT8ï¿½ï¿½ IN16OUT16ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½
+// ï¿½Ô·Â°ï¿½ ï¿½ï¿½Â°ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ 16ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+// ï¿½ï¿½ï¿½ï¿½ PDO Å©ï¿½ï¿½ï¿½ inputBytes/outputBytesï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 // ------------------------------------------------------------
 struct DaoInternalIoRuntimeInfo
 {
@@ -534,14 +613,40 @@ struct DaoInternalIoRuntimeInfo
     uint64_t badWkcFrameCount = 0;
     uint64_t inputUpdateCount = 0;
 
-    // ¿ÜºÎ¿¡¼­ ¿äÃ»ÇÑ Ãâ·Â°ª
+    // ï¿½ÜºÎ¿ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½ï¿½Â°ï¿½
     unsigned short outputCommand = 0;
 
-    // Åë½Å ½º·¹µå°¡ ÃÖ±Ù ¼ö½ÅÇÑ ÀÔ·Â°ª
+    // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å°¡ ï¿½Ö±ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·Â°ï¿½
     unsigned short latestInput = 0;
 };
 
-// OP »óÅÂ¿¡¼­ ¼öÇàÇÑ DAO ADC 1È¸ ÀÐ±â °á°ú
+// ------------------------------------------------------------
+// FASTECH CNT02 Encoder Runtime Information
+// ------------------------------------------------------------
+struct DaoInternalEncoderRuntimeInfo
+{
+    int physicalSlaveIndex = 0;
+
+    bool configured = false;
+    bool communicationRunning = false;
+    bool hasValidInputData = false;
+
+    int lastWkc = 0;
+    int expectedWkc = 0;
+
+    std::uint64_t totalFrameCount = 0;
+    std::uint64_t goodWkcFrameCount = 0;
+    std::uint64_t badWkcFrameCount = 0;
+    std::uint64_t inputUpdateCount = 0;
+
+    // Master -> CNT02
+    DaoInternalFastechEncoderOutputPdo outputCommand{};
+
+    // CNT02 -> Master
+    DaoInternalFastechEncoderInputPdo latestInput{};
+};
+
+// OP ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DAO ADC 1È¸ ï¿½Ð±ï¿½ ï¿½ï¿½ï¿½
 struct DaoInternalAdcReadInfo
 {
     int physicalSlaveIndex = 0;
@@ -570,7 +675,7 @@ enum class DaoInternalAdcPowerLineFilterMode
     HZ_60_120 = 5
 };
 
-enum class DaoInternalAdcStableCaptureType // ¾ÈÁ¤ Æò±Õ Ãëµæ¿ë
+enum class DaoInternalAdcStableCaptureType // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 {
     NONE = 0,
     ZERO = 1,
@@ -593,7 +698,7 @@ struct DaoInternalAdcDiagnosticSample
     double filteredValue = 0.0;
 };
 
-//¸µ¹öÆÛ¸¦ À§ÇÑ ±¸Á¶Ã¼ ¼±¾ð========================================
+//ï¿½ï¿½ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ ï¿½ï¿½ï¿½ï¿½========================================
 struct DaoInternalAdcBufferedSample
 {
     std::uint64_t sampleIndex = 0;
@@ -603,85 +708,85 @@ struct DaoInternalAdcBufferedSample
 // ------------------------------------------------------------
 // ADC Signal Processing State
 //
-// ÇÏ³ªÀÇ ³í¸® ADC ÃøÁ¤°èÅëÀÌ »ç¿ëÇÏ´Â
-// ÇÊÅÍ / Zero / Calibration »óÅÂ¸¦ º¸°üÇÕ´Ï´Ù.
+// ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ADC ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½
+// ï¿½ï¿½ï¿½ï¿½ / Zero / Calibration ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 // ------------------------------------------------------------
 struct DaoInternalAdcProcessingState
 {
-    // °¡Àå ÃÖ±Ù ADC ¿ø½Ã°ª
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½Ö±ï¿½ ADC ï¿½ï¿½ï¿½Ã°ï¿½
     std::int32_t latestRaw = 0;
 
-    // Àú¼öÁØ ±âº» Filter Ã³¸® ÈÄ °ª
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½âº» Filter Ã³ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½
     double lowLevelFiltered = 0.0;
 
-    // Àú¼öÁØ Filter°¡ Ã¹ »ùÇÃ·Î ÃÊ±âÈ­µÇ¾ú´ÂÁö Ç¥½Ã
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Filterï¿½ï¿½ Ã¹ ï¿½ï¿½ï¿½Ã·ï¿½ ï¿½Ê±ï¿½È­ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
     bool lowLevelFilterInitialized = false;
 
 
     // ------------------------------------------------------------
     // Power Line Notch Filter
     //
-    // OFF      : »ç¿ë ¾È ÇÔ
-    // HZ_50    : 50Hz Á¦°Å
-    // HZ_60    : 60Hz Á¦°Å
-    // HZ_50_60 : 50Hz + 60Hz Á¦°Å
+    // OFF      : ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½
+    // HZ_50    : 50Hz ï¿½ï¿½ï¿½ï¿½
+    // HZ_60    : 60Hz ï¿½ï¿½ï¿½ï¿½
+    // HZ_50_60 : 50Hz + 60Hz ï¿½ï¿½ï¿½ï¿½
     // ------------------------------------------------------------
     DaoInternalAdcPowerLineFilterMode powerLineFilterMode =
         DaoInternalAdcPowerLineFilterMode::OFF;
 
-    // 50Hz Notch ³»ºÎ »óÅÂ
+    // 50Hz Notch ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     double notch50X1 = 0.0;
     double notch50X2 = 0.0;
     double notch50Y1 = 0.0;
     double notch50Y2 = 0.0;
 
-    // 60Hz Notch ³»ºÎ »óÅÂ
+    // 60Hz Notch ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     double notch60X1 = 0.0;
     double notch60X2 = 0.0;
     double notch60Y1 = 0.0;
     double notch60Y2 = 0.0;
 
-    // 120Hz Notch ³»ºÎ »óÅÂ
+    // 120Hz Notch ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     double notch120X1 = 0.0;
     double notch120X2 = 0.0;
     double notch120Y1 = 0.0;
     double notch120Y2 = 0.0;
 
-    // Notch Àû¿ë ÈÄ °ª
+    // Notch ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½
     double powerLineFiltered = 0.0;
 
     // Zero Offset
     double zeroOffset = 0.0;
 
-    // Zero°¡ »ç¿ëÀÚ ¿äÃ»À¸·Î ¼³Á¤µÇ¾ú´ÂÁö Ç¥½Ã
+    // Zeroï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
     bool zeroInitialized = false;
 
-    // Zero Àû¿ë ÈÄ °ª
+    // Zero ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½
     double zeroedValue = 0.0;
 
 
 
-    // »ç¿ëÀÚ Calibration Scale
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ Calibration Scale
     double calibrationScale = 1.0;
 
-    // Calibration Àû¿ë ÈÄ °ª
+    // Calibration ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½
     double calibratedValue = 0.0;
 
     // ------------------------------------------------------------
     // 3-Sample Median Filter
     //
-    // ¼ø°£ÀûÀ¸·Î ÇÑ Sample¸¸ Å©°Ô Æ¢´Â °ªÀ» ¾ïÁ¦ÇÕ´Ï´Ù.
-    // Calibration Àû¿ë ÈÄ, N Moving Average Àü¿¡ »ç¿ëÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Sampleï¿½ï¿½ Å©ï¿½ï¿½ Æ¢ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+    // Calibration ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½, N Moving Average ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // ------------------------------------------------------------
     double medianBuffer[3] = { 0.0, 0.0, 0.0 };
 
     unsigned int medianIndex = 0;
     unsigned int medianCount = 0;
 
-    // Median 3 Àû¿ë ÈÄ °ª
+    // Median 3 ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½
     double medianFilteredValue = 0.0;
 
-    // Zero / Calibration ¾ÈÁ¤ Æò±Õ Ãëµæ¿ë
+    // Zero / Calibration ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     bool stableCaptureActive = false;
 
 
@@ -699,7 +804,7 @@ struct DaoInternalAdcProcessingState
     unsigned int stableCaptureCollectedCount = 0;
     double stableCaptureSum = 0.0;
 
-    // »ç¿ëÀÚ N Sample Moving Average
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ N Sample Moving Average
     unsigned int filterN = 16;
 
     static constexpr unsigned int USER_FILTER_MAX_N = 64;
@@ -712,11 +817,11 @@ struct DaoInternalAdcProcessingState
 
     double userFilterSum = 0.0;
 
-    // ÃÖÁ¾ »ç¿ëÀÚ Ç¥½Ã°ª
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½Ã°ï¿½
     double filteredValue = 0.0;
 };
 
-// 2ms ¼øÈ¯Åë½Å¿¡¼­ À¯ÁöÇÒ ÃÖ½Å DAO ADC »óÅÂ
+// 2ms ï¿½ï¿½È¯ï¿½ï¿½Å¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö½ï¿½ DAO ADC ï¿½ï¿½ï¿½ï¿½
 struct DaoInternalAdcRuntimeInfo
 {
     int physicalSlaveIndex = 0;
@@ -739,8 +844,8 @@ struct DaoInternalAdcRuntimeInfo
     // ------------------------------------------------------------
     // ADC Diagnostic Capture
     //
-    // Noise ºÐ¼®¿ë ¿¬¼Ó Sample ÀúÀå »óÅÂÀÔ´Ï´Ù.
-    // ½ÇÁ¦ ÀúÀåÀº ProcessAdcSample()¿¡¼­ ¼öÇàÇÕ´Ï´Ù.
+    // Noise ï¿½Ð¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Sample ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ProcessAdcSample()ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // ------------------------------------------------------------
     bool diagnosticCaptureActive = false;
 
@@ -754,8 +859,8 @@ struct DaoInternalAdcRuntimeInfo
     // ------------------------------------------------------------
     // ADC Runtime Ring Buffer
     //
-    // ½ÇÁ¦ UI / ÀúÀå¿ë ÃÖÁ¾ FilteredValue SampleÀ»
-    // ¼øÈ¯ ¹æ½ÄÀ¸·Î º¸°üÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ UI / ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ FilteredValue Sampleï¿½ï¿½
+    // ï¿½ï¿½È¯ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     // ------------------------------------------------------------
     static constexpr std::size_t ADC_RING_BUFFER_SIZE = 8192;
 
@@ -769,8 +874,8 @@ struct DaoInternalAdcRuntimeInfo
 
     std::uint64_t ringBufferNextSampleIndex = 0;
 
-    // Buffer°¡ °¡µæ Âù »óÅÂ¿¡¼­ »õ SampleÀÌ µé¾î¿Í
-    // °¡Àå ¿À·¡µÈ SampleÀ» µ¤¾î¾´ È½¼öÀÔ´Ï´Ù.
+    // Bufferï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ ï¿½ï¿½ Sampleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Sampleï¿½ï¿½ ï¿½ï¿½ï¿½î¾´ È½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     std::uint64_t ringBufferOverflowCount = 0;
 
 };
@@ -793,14 +898,14 @@ public:
     bool GetSlaveInfo(
         int slaveListIndex,
         DaoInternalSlaveInfo& slaveInfo) const;
-    // °Ë»öµÈ ¸ðµç Slave¸¦ PRE-OP »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
-	bool RequestAllSlavesPreOp(); // °Ë»öµÈ ¸ðµç Slave¸¦ PRE-OP »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+    // ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ PRE-OP ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
+	bool RequestAllSlavesPreOp(); // ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ PRE-OP ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 
-    bool RequestAllSlavesSafeOp(); // °Ë»öµÈ ¸ðµç Slave¸¦ SAFE-OP »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+    bool RequestAllSlavesSafeOp(); // ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ SAFE-OP ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 
-	bool RequestAllSlavesOperational();// °Ë»öµÈ ¸ðµç Slave¸¦ OP »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+	bool RequestAllSlavesOperational();// ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ OP ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 
-    bool RequestAllSlavesInit(); // °Ë»öµÈ ¸ðµç Slave¸¦ INIT »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+    bool RequestAllSlavesInit(); // ï¿½Ë»ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Slaveï¿½ï¿½ INIT ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 
     bool MapProcessData();
 
@@ -811,71 +916,71 @@ public:
         int slaveListIndex,
         DaoInternalSlavePdoInfo& pdoInfo) const;
 
-    // DAO ADC PDO¸¦ ÀÐ°Å³ª ¾²±â Àü¿¡ ¾ÈÀü Á¶°Ç¸¸ °Ë»çÇÕ´Ï´Ù.
+    // DAO ADC PDOï¿½ï¿½ ï¿½Ð°Å³ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ç¸ï¿½ ï¿½Ë»ï¿½ï¿½Õ´Ï´ï¿½.
 
     bool ValidateDaoAdcPdo(
         int physicalSlaveIndex,
         DaoInternalAdcValidationInfo& validationInfo) const;
 
-    // °ËÁõµÈ DAO ADC Slave¸¦ SAFE-OP »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DAO ADC Slaveï¿½ï¿½ SAFE-OP ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
     bool RequestDaoAdcSafeOp(
         int physicalSlaveIndex);
 
-    // °ËÁõµÈ DAO ADC¸¦ ´ë»óÀ¸·Î SAFE-OP »óÅÂ¿¡¼­
-    // Process Data¸¦ Á¤È®È÷ ÇÑ ¹ø¸¸ ¿Õº¹ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DAO ADCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ SAFE-OP ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½
+    // Process Dataï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Õºï¿½ï¿½Õ´Ï´ï¿½.
     bool ExchangeDaoAdcProcessDataOnce(
         int physicalSlaveIndex,
         DaoInternalProcessExchangeInfo& exchangeInfo);
 
-    // °ËÁõµÈ DAO ADC¸¦ ´ë»óÀ¸·Î SAFE-OP »óÅÂ¿¡¼­
-    // ÁöÁ¤ÇÑ È½¼ö¸¸Å­ Process Data PrimingÀ» ¼öÇàÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DAO ADCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ SAFE-OP ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È½ï¿½ï¿½ï¿½ï¿½Å­ Process Data Primingï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     bool PrimeDaoAdcProcessData(
         int physicalSlaveIndex,
         int roundCount,
         DaoInternalPrimingInfo& primingInfo);
 
-    // °ËÁõµÈ DAO ADC¸¦ SAFE-OP¿¡¼­ OP »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DAO ADCï¿½ï¿½ SAFE-OPï¿½ï¿½ï¿½ï¿½ OP ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
     //
-    // »óÅÂ ¿äÃ»Àº ÇÑ ¹ø¸¸ º¸³»°í,
-    // OP ÀüÈ¯À» ±â´Ù¸®´Â µ¿¾È Process Data¸¦ °è¼Ó ±³È¯ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,
+    // OP ï¿½ï¿½È¯ï¿½ï¿½ ï¿½ï¿½Ù¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Process Dataï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
     bool RequestDaoAdcOperational(
         int physicalSlaveIndex,
         DaoInternalOperationalInfo& operationalInfo);
 
-    // °ËÁõµÈ DAO ADC¸¦ ´ë»óÀ¸·Î OP »óÅÂ¿¡¼­
-    // Process Data¸¦ 1È¸ ¿Õº¹ÇÏ°í Input PDO 24¹ÙÀÌÆ®¸¦ º¹»çÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DAO ADCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ OP ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½
+    // Process Dataï¿½ï¿½ 1È¸ ï¿½Õºï¿½ï¿½Ï°ï¿½ Input PDO 24ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     bool ReadDaoAdcOnce(
         int physicalSlaveIndex,
         DaoInternalAdcReadInfo& readInfo);
 
-    // ÇöÀç º¸°ü ÁßÀÎ DAO ADC ÃÖ½Å »óÅÂ¸¦ ¹ÝÈ¯ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ DAO ADC ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
     bool GetDaoAdcRuntimeInfo(
         int physicalSlaveIndex,
         DaoInternalAdcRuntimeInfo& runtimeInfo) const;
 
     bool SetDaoAdcZero(
-		int physicalSlaveIndex); // DAO ADCÀÇ Zero OffsetÀ» ÇöÀç »ùÇÃ·Î ¼³Á¤ÇÕ´Ï´Ù.
+		int physicalSlaveIndex); // DAO ADCï¿½ï¿½ Zero Offsetï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ã·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     bool SetDaoAdcCalibration(
         int physicalSlaveIndex,
-		double referenceValue); // DAO ADCÀÇ Calibration ScaleÀ» ¼³Á¤ÇÕ´Ï´Ù.
+		double referenceValue); // DAO ADCï¿½ï¿½ Calibration Scaleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     bool SetDaoAdcPowerLineFilterMode(
         int physicalSlaveIndex,
-		DaoInternalAdcPowerLineFilterMode mode); // DAO ADCÀÇ Àü¿øÁÖÆÄ¼ö ÇÊÅÍ ¸ðµå¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+		DaoInternalAdcPowerLineFilterMode mode); // DAO ADCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½å¸¦ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     bool SetDaoAdcFilterN(
         int physicalSlaveIndex,
-        unsigned int filterN); //ui¿¡¼­ ÇÊÅÍ°ªÀ» ¹Þ¾Æ¼­ Ã³¸®ÇÒÇÔ¼ö¼±¾ð
+        unsigned int filterN); //uiï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Í°ï¿½ï¿½ï¿½ ï¿½Þ¾Æ¼ï¿½ Ã³ï¿½ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ï¿½ï¿½
 
     bool StartDaoAdcDiagnosticCapture(
         int physicalSlaveIndex,
-        unsigned int targetSampleCount); // DAO ADC Å×½ºÆ®¼öÁý
+        unsigned int targetSampleCount); // DAO ADC ï¿½×½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½
 
     bool GetDaoAdcRingBufferInfo(
         int physicalSlaveIndex,
         unsigned int& sampleCount,
-        unsigned long long& overflowCount) const; //ÇöÀç¹öÆÛ¿¡ ¸î°³ ½×¾Ò´ÂÁö ¿À¹öÇÃ·Î»ý±ä°ÍÀ» È®ÀÎÇÏ´Â ÇÔ¼ö ¼±¾ð
+        unsigned long long& overflowCount) const; //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Û¿ï¿½ ï¿½î°³ ï¿½×¾Ò´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ã·Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½Ô¼ï¿½ ï¿½ï¿½ï¿½ï¿½
 
     bool ReadDaoAdcRingBuffer(
         int physicalSlaveIndex,
@@ -884,7 +989,7 @@ public:
         unsigned int& readSampleCount); //
 
     bool ClearDaoAdcRingBuffer(
-        int physicalSlaveIndex); //¸µ¹öÆÛ Å¬¸®¾îÇÔ¼ö ¼±¾ð
+        int physicalSlaveIndex); //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ ï¿½ï¿½ï¿½ï¿½
 
 
     bool GetDaoAdcDiagnosticCaptureInfo(
@@ -898,25 +1003,29 @@ public:
         unsigned int sampleIndex,
         DaoInternalAdcDiagnosticSample& sample) const;
 
-    // ÇöÀç º¸°ü ÁßÀÎ LS Servo ÃÖ½Å »óÅÂ¸¦ ¹ÝÈ¯ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ LS Servo ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
     bool GetServoRuntimeInfo(
         int physicalSlaveIndex,
         DaoInternalServoRuntimeInfo& runtimeInfo) const;
 
-    // ÇöÀç º¸°ü ÁßÀÎ FASTECH IO ÃÖ½Å »óÅÂ¸¦ ¹ÝÈ¯ÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ FASTECH IO ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
     bool GetIoRuntimeInfo(
         int physicalSlaveIndex,
         DaoInternalIoRuntimeInfo& runtimeInfo) const;
 
+    bool GetEncoderRuntimeInfo(
+        int physicalSlaveIndex,
+        DaoInternalEncoderRuntimeInfo& runtimeInfo) const;
+
     bool RequestServoOn(
-		int physicalSlaveIndex); // LS Servo¸¦ On »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù. ºñµ¿±â
+		int physicalSlaveIndex); // LS Servoï¿½ï¿½ On ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½. ï¿½ñµ¿±ï¿½
 
     bool RequestServoOff(
-		int physicalSlaveIndex); // LS Servo¸¦ Off »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù. ºñµ¿±â
+		int physicalSlaveIndex); // LS Servoï¿½ï¿½ Off ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½. ï¿½ñµ¿±ï¿½
 
     bool RequestServoHome(
         int physicalSlaveIndex,
-		unsigned int timeoutMs); // LS Servo¸¦ Homing »óÅÂ·Î ÀüÈ¯ÇÕ´Ï´Ù. ºñµ¿±â ¿ÜºÎ½Ã°£ Àû¿ë
+		unsigned int timeoutMs); // LS Servoï¿½ï¿½ Homing ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½. ï¿½ñµ¿±ï¿½ ï¿½ÜºÎ½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½
 
     bool RequestServoMoveAbsolute(
         int physicalSlaveIndex,
@@ -924,18 +1033,18 @@ public:
         unsigned int profileVelocity,
         unsigned int profileAcceleration,
         unsigned int profileDeceleration,
-		unsigned int timeoutMs);  // LS Servo¸¦ Àý´ë À§Ä¡·Î ÀÌµ¿ÇÕ´Ï´Ù. ºñµ¿±â ¿ÜºÎ½Ã°£ Àû¿ë
+		unsigned int timeoutMs);  // LS Servoï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½Ìµï¿½ï¿½Õ´Ï´ï¿½. ï¿½ñµ¿±ï¿½ ï¿½ÜºÎ½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½
 
     bool RequestServoVelocity(
         int physicalSlaveIndex,
         int targetVelocity,
         unsigned int acceleration,
-		unsigned int deceleration); // LS Servo¸¦ ¼ÓµµÁ¦¾î¸ðµå·Î ¿îÀüÇÕ´Ï´Ù. ºñµ¿±â
+		unsigned int deceleration); // LS Servoï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½. ï¿½ñµ¿±ï¿½
 
     bool RequestServoStop(
-		int physicalSlaveIndex); // LS Servo¸¦ Á¤ÁöÇÕ´Ï´Ù. ºñµ¿±â
+		int physicalSlaveIndex); // LS Servoï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½. ï¿½ñµ¿±ï¿½
 
-    // LS Servo¿¡ ¼Û½ÅÇÒ Output PDO ¸í·ÉÀ» ÀúÀåÇÕ´Ï´Ù.
+    // LS Servoï¿½ï¿½ ï¿½Û½ï¿½ï¿½ï¿½ Output PDO ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     bool SetServoOutputCommand(
         int physicalSlaveIndex,
         const DaoInternalLsServoOutputPdo& command);
@@ -953,25 +1062,25 @@ public:
 
 
 
-    // FASTECH IO¿¡ ¼Û½ÅÇÒ Ãâ·Â°ªÀ» ÀúÀåÇÕ´Ï´Ù.
+    // FASTECH IOï¿½ï¿½ ï¿½Û½ï¿½ï¿½ï¿½ ï¿½ï¿½Â°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     bool SetIoOutputCommand(
         int physicalSlaveIndex,
         unsigned short outputValue);
     
-	void StopCommunication(); // Åë½Å ½º·¹µå Á¾·á ¿äÃ»
+	void StopCommunication(); // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»
 
-	bool IsCommunicationRunning() const; // Åë½Å ½º·¹µå°¡ ½ÇÇà ÁßÀÎÁö È®ÀÎ
+	bool IsCommunicationRunning() const; // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å°¡ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
 
-	bool StartCommunication();// Åë½Å ½º·¹µå ½ÃÀÛ
+	bool StartCommunication();// ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-    // ¹Ýµå½Ã PRE-OP »óÅÂ¿¡¼­ È£ÃâÇÕ´Ï´Ù.
+    // ï¿½Ýµï¿½ï¿½ PRE-OP ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ È£ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     bool ConfigureLsL7nhProfilePositionMode(
         int physicalSlaveIndex,
         unsigned int profileVelocity,
         unsigned int profileAcceleration,
         unsigned int profileDeceleration);
 
-    // LS L7NHÀÇ CiA402 ¿îÀü¸ðµå 0x6060À» ¼³Á¤ÇÕ´Ï´Ù.
+    // LS L7NHï¿½ï¿½ CiA402 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 0x6060ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     //
     // mode:
     // 1 = Profile Position
@@ -998,23 +1107,31 @@ private:
     void ResetAdcRuntimeInfo();
     void ResetServoRuntimeInfo();
     void ResetIoRuntimeInfo();
- 
+    void ResetEncoderRuntimeInfo();
 
-	void ConfigureServoAndIoRuntimeInfo(); // Servo¿Í EtherCAT IOÀÇ ·±Å¸ÀÓ Á¤º¸¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+	void ConfigureServoAndIoRuntimeInfo(); // Servoï¿½ï¿½ EtherCAT IOï¿½ï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
 
-	void PrepareServoAndIoOutputs(); // Servo¿Í EtherCAT IOÀÇ Ãâ·Â PDO¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+	void PrepareServoAndIoOutputs(); // Servoï¿½ï¿½ EtherCAT IOï¿½ï¿½ ï¿½ï¿½ï¿½ PDOï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
 
     void CaptureServoAndIoInputs(
-		int actualWkc);   // Servo¿Í EtherCAT IOÀÇ ÀÔ·Â PDO¸¦ Ä¸Ã³ÇÕ´Ï´Ù.
+		int actualWkc);   // Servoï¿½ï¿½ EtherCAT IOï¿½ï¿½ ï¿½Ô·ï¿½ PDOï¿½ï¿½ Ä¸Ã³ï¿½Õ´Ï´ï¿½.
 
-	void ProcessServoCommands(); // Servo ¸í·É »óÅÂ¸¦ °»½ÅÇÏ°í, ¿Ï·áµÈ ¸í·ÉÀ» Á¤¸®ÇÕ´Ï´Ù.
+	void ProcessServoCommands(); // Servo ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½, ï¿½Ï·ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     void UpdateServoDerivedState(
-		DaoInternalServoRuntimeInfo& runtimeInfo); // ServoÀÇ CiA402 »óÅÂ¸¦ ÇØ¼®ÇÏ¿© derived state¸¦ °»½ÅÇÕ´Ï´Ù.
+		DaoInternalServoRuntimeInfo& runtimeInfo); // Servoï¿½ï¿½ CiA402 ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½Ø¼ï¿½ï¿½Ï¿ï¿½ derived stateï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     void ProcessAdcSample(
         DaoInternalAdcRuntimeInfo& runtimeInfo,
-		std::int32_t rawSample); // DAO ADC ¿ø½Ã »ùÇÃÀ» Ã³¸®ÇÏ¿© ÇÊÅÍ/Zero/CalibrationÀ» Àû¿ëÇÏ°í ÃÖÁ¾ Ç¥½Ã°ªÀ» °»½ÅÇÕ´Ï´Ù.
+		std::int32_t rawSample); // DAO ADC ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½ï¿½/Zero/Calibrationï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½Ã°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+
+    void ConfigureEncoderRuntimeInfo(); // FASTECH CNT02 Encoderï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
+    
+    void PrepareEncoderOutputs();
+
+    void CaptureEncoderInputs(int actualWkc);
+
+
 
     double ApplyAdcNotchFilter(
         double inputValue,
@@ -1023,26 +1140,29 @@ private:
         double& x1,
         double& x2,
         double& y1,
-		double& y2); // Notch Filter¸¦ Àû¿ëÇÕ´Ï´Ù.
+		double& y2); // Notch Filterï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     bool IsDaoAdcSlave(
-		const ec_slavet& slave) const; // DAO ADC SlaveÀÎÁö È®ÀÎÇÕ´Ï´Ù.
+		const ec_slavet& slave) const; // DAO ADC Slaveï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
     bool IsLsL7nhServo(
-		int physicalSlaveIndex) const; // LS L7NH ServoÀÎÁö È®ÀÎÇÕ´Ï´Ù.
+		int physicalSlaveIndex) const; // LS L7NH Servoï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
    
     bool ConfigureLsL7nhBasicPdo(
         int physicalSlaveIndex);
 
-    // LS L7NH Profile Position ±âº» ¿îÀü¸ðµå¿Í
-    // ¼Óµµ/°¡¼Ó/°¨¼ÓÀ» SDO·Î ¼³Á¤ÇÕ´Ï´Ù.
+    // LS L7NH Profile Position ï¿½âº» ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // ï¿½Óµï¿½/ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ SDOï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     //
   
 
 
 
     bool IsFastechIo(
-		int physicalSlaveIndex) const; // Fastech EtherCAT IOÀÎÁö È®ÀÎÇÕ´Ï´Ù.
+		int physicalSlaveIndex) const; // Fastech EtherCAT IOï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+
+    bool IsFastechEncoder(
+        int physicalSlaveIndex) const;
 
     // EtherCAT cyclic communication thread
     std::thread communicationThread_;
@@ -1050,7 +1170,7 @@ private:
     std::atomic<bool> communicationRunning_{ false };
     std::atomic<bool> communicationStopRequested_{ false };
 
-	void CommunicationThreadMain(); // Åë½Å ½º·¹µå ¸ÞÀÎ ·çÇÁ
+	void CommunicationThreadMain(); // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
 
 private:
@@ -1067,21 +1187,23 @@ private:
     int expectedWkc_;
     bool processDataMapped_;
 
-    // ¹°¸® Slave ¹øÈ£¸¦ ÀÎµ¦½º·Î »ç¿ëÇÕ´Ï´Ù.
-    // 0¹øÀº ÀüÃ¼ Slave¿ëÀÌ¹Ç·Î »ç¿ëÇÏÁö ¾Ê°í,
-    // ½ÇÁ¦ Slave 1¹øºÎÅÍ ÀúÀåÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½È£ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+    // 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ Slaveï¿½ï¿½ï¿½Ì¹Ç·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê°ï¿½,
+    // ï¿½ï¿½ï¿½ï¿½ Slave 1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     std::vector<DaoInternalAdcRuntimeInfo>
         adcRuntimeInfoBySlave_;
-    // ¹°¸® Slave ¹øÈ£¸¦ ±×´ë·Î ÀÎµ¦½º·Î »ç¿ëÇÕ´Ï´Ù.
-// index 0Àº EtherCAT¿¡¼­ »ç¿ëÇÏÁö ¾Ê½À´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ Slave ï¿½ï¿½È£ï¿½ï¿½ ï¿½×´ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+// index 0ï¿½ï¿½ EtherCATï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê½ï¿½ï¿½Ï´ï¿½.
     std::vector<DaoInternalServoRuntimeInfo>
         servoRuntimeInfoBySlave_;
 
     std::vector<DaoInternalIoRuntimeInfo>
         ioRuntimeInfoBySlave_;
 
-	std::atomic<std::uint64_t> nextServoCommandId_{ 1 }; // Servo ¸í·É ID¸¦ ¼øÂ÷ÀûÀ¸·Î »ý¼ºÇÕ´Ï´Ù.
+	std::atomic<std::uint64_t> nextServoCommandId_{ 1 }; // Servo ï¿½ï¿½ï¿½ï¿½ IDï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 
+    std::vector<DaoInternalEncoderRuntimeInfo>
+    encoderRuntimeInfoBySlave_;
     // Protects ADC runtime information accessed by
     // the communication thread and external API calls.
     mutable std::mutex adcRuntimeMutex_;
@@ -1090,6 +1212,6 @@ private:
     // the communication thread and external API calls.
     mutable std::mutex servoRuntimeMutex_;
     mutable std::mutex ioRuntimeMutex_;
+    mutable std::mutex encoderRuntimeMutex_;
 
 };
-

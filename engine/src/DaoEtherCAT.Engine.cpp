@@ -1296,6 +1296,77 @@ int DaoEngine_GetIoRuntimeInfo(
 }
 
 
+int DaoEngine_GetEncoderRuntimeInfo(
+    int logicalEncoderIndex,
+    DaoEncoderRuntimeInfo* runtimeInfo)
+{
+    if (runtimeInfo == nullptr)
+    {
+        return 0;
+    }
+
+    DaoInternalEncoderRuntimeInfo
+        internalInfo{};
+
+    const bool result =
+        g_engine.GetEncoderRuntimeInfo(
+            logicalEncoderIndex,
+            internalInfo);
+
+    std::memset(
+        runtimeInfo,
+        0,
+        sizeof(DaoEncoderRuntimeInfo));
+
+    runtimeInfo->physicalSlaveIndex =
+        internalInfo.physicalSlaveIndex;
+
+    runtimeInfo->configured =
+        internalInfo.configured ? 1 : 0;
+
+    runtimeInfo->communicationRunning =
+        internalInfo.communicationRunning ? 1 : 0;
+
+    runtimeInfo->hasValidInputData =
+        internalInfo.hasValidInputData ? 1 : 0;
+
+    runtimeInfo->lastWkc =
+        internalInfo.lastWkc;
+
+    runtimeInfo->expectedWkc =
+        internalInfo.expectedWkc;
+
+    runtimeInfo->totalFrameCount =
+        internalInfo.totalFrameCount;
+
+    runtimeInfo->goodWkcFrameCount =
+        internalInfo.goodWkcFrameCount;
+
+    runtimeInfo->badWkcFrameCount =
+        internalInfo.badWkcFrameCount;
+
+    runtimeInfo->inputUpdateCount =
+        internalInfo.inputUpdateCount;
+
+    runtimeInfo->presentCounterCh1 =
+        internalInfo.latestInput.presentCounterCh1;
+
+    runtimeInfo->presentCounterCh2 =
+        internalInfo.latestInput.presentCounterCh2;
+
+    runtimeInfo->pulseRateCh1 =
+        internalInfo.latestInput.pulseRateCh1;
+
+    runtimeInfo->pulseRateCh2 =
+        internalInfo.latestInput.pulseRateCh2;
+
+    runtimeInfo->counterCommand =
+        internalInfo.outputCommand.counterCommand;
+
+    return result ? 1 : 0;
+}
+
+
 int DaoEngine_ServoOn(
     int logicalServoIndex)
 {

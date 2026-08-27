@@ -357,13 +357,42 @@ struct DaoIoRuntimeInfo
     unsigned short latestInput;
 };
 
+// ------------------------------------------------------------
+// FASTECH CNT02 Encoder Runtime Information
+// ------------------------------------------------------------
+struct DaoEncoderRuntimeInfo
+{
+    int physicalSlaveIndex;
+
+    int configured;
+    int communicationRunning;
+    int hasValidInputData;
+
+    int lastWkc;
+    int expectedWkc;
+
+    unsigned long long totalFrameCount;
+    unsigned long long goodWkcFrameCount;
+    unsigned long long badWkcFrameCount;
+    unsigned long long inputUpdateCount;
+
+    unsigned int presentCounterCh1;
+    unsigned int presentCounterCh2;
+
+    unsigned int pulseRateCh1;
+    unsigned int pulseRateCh2;
+
+    unsigned char counterCommand;
+};
+
 // �������� ����ϴ� ���� ��ġ ����
 enum DaoDeviceType
 {
     DAO_DEVICE_UNKNOWN = 0,
     DAO_DEVICE_SERVO   = 1,
     DAO_DEVICE_ADC     = 2,
-    DAO_DEVICE_IO      = 3
+    DAO_DEVICE_IO      = 3,
+    DAO_DEVICE_ENCODER = 4
 };
 
 
@@ -643,6 +672,10 @@ extern "C"
     DAO_ENGINE_API int DaoEngine_GetIoRuntimeInfo(
         int logicalIoIndex,
         DaoIoRuntimeInfo* runtimeInfo);
+
+    DAO_ENGINE_API int DaoEngine_GetEncoderRuntimeInfo(
+        int logicalEncoderIndex,
+        DaoEncoderRuntimeInfo* runtimeInfo);
 
     DAO_ENGINE_API int DaoEngine_ServoOn( 
 		int logicalServoIndex); // ������ ���� Servo�� On ���·� ��ȯ�մϴ�. �񵿱�

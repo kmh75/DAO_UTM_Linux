@@ -3154,17 +3154,24 @@ namespace
         const int ioCount =
             DaoEngine_GetLogicalDeviceCount(
                 DAO_DEVICE_IO);
+        
+        const int encoderCount =
+            DaoEngine_GetLogicalDeviceCount(
+                DAO_DEVICE_ENCODER);
 
         std::cout
             << "Logical devices\n"
-            << "  Servo : "
+            << "  Servo   : "
             << servoCount
             << '\n'
-            << "  ADC   : "
+            << "  ADC     : "
             << adcCount
             << '\n'
-            << "  IO    : "
+            << "  IO      : "
             << ioCount
+            << '\n'
+            << "  Encoder : "
+            << encoderCount
             << "\n\n";
 
        
@@ -3263,6 +3270,7 @@ namespace
             << " 19. ADC Long-Term Drift 30min\n"
 
             << " 20. ADC Ring Buffer Test\n"
+            << " 21. Encoder status\n"
             << " 0. Exit\n"
             << "----------------------------------------\n"
             << "Select: ";
@@ -3465,6 +3473,58 @@ int main()
             TestAdcRingBuffer(
                 adcPhysicalSlaveIndex);
             break;
+        
+        case 21:
+        {
+            DaoEncoderRuntimeInfo encoderInfo{};
+
+            const int result =
+            DaoEngine_GetEncoderRuntimeInfo(
+                0, &encoderInfo);
+
+            std::cout
+            << "\nEncoder Runtime\n"
+            << "  Read result       : "
+            << result
+            << '\n'
+            << "  Physical Slave    : "
+            << encoderInfo.physicalSlaveIndex
+            << '\n'
+            << "  Configured        : "
+            << encoderInfo.configured
+            << '\n'
+            << "  Communication     : "
+            << encoderInfo.communicationRunning
+            << '\n'
+            << "  Valid input       : "
+            << encoderInfo.hasValidInputData
+            << '\n'
+            << "  CH1 Raw Count     : "
+            << encoderInfo.presentCounterCh1
+            << '\n'
+            << "  CH2 Raw Count     : "
+            << encoderInfo.presentCounterCh2
+            << '\n'
+            << "  CH1 Pulse Rate    : "
+            << encoderInfo.pulseRateCh1
+            << '\n'
+            << "  CH2 Pulse Rate    : "
+            << encoderInfo.pulseRateCh2
+            << '\n'
+            << "  Counter Command   : 0x"
+            << std::hex
+            << static_cast<int>(
+                encoderInfo.counterCommand)
+            << std::dec
+            << '\n'
+            << "  Last / Expected WKC: "
+            << encoderInfo.lastWkc
+            << " / "
+            << encoderInfo.expectedWkc
+            << "\n\n";
+
+            break;
+        }
 
         default:
             std::cout
