@@ -57,13 +57,13 @@ public:
         int logicalIndex,
         DaoInternalLogicalDeviceInfo& deviceInfo) const;
 
-	bool RequestAllSlavesPreOp(); // �˻��� ��� Slave�� PRE-OP ���·� ��ȯ�մϴ�.
+	bool RequestAllSlavesPreOp(); // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
    
-	bool RequestAllSlavesSafeOp(); // �˻��� ��� Slave�� SAFE-OP ���·� ��ȯ�մϴ�.
+	bool RequestAllSlavesSafeOp(); // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
 
-	bool RequestAllSlavesOperational(); // �˻��� ��� Slave�� OP ���·� ��ȯ�մϴ�.
+	bool RequestAllSlavesOperational(); // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
 
-    bool RequestAllSlavesInit(); // �˻��� ��� Slave�� INIT ���·� ��ȯ�մϴ�.
+    bool RequestAllSlavesInit(); // 검색된 모든 Slave를 OP 상태로 전환합니다.
 
     bool MapProcessData();
 
@@ -166,7 +166,7 @@ public:
 
     bool SetServoOutputCommand(
         int logicalServoIndex,
-		const DaoInternalLsServoOutputPdo& command);  // ���� Servo�� �۽��� Output PDO ������ �����մϴ�.
+		const DaoInternalLsServoOutputPdo& command);  // Servo ON 명령을 등록하고 CiA 402 활성화 절차를 시작합니다.
 
     bool ServoOn(
         int logicalServoIndex);
@@ -176,7 +176,7 @@ public:
 
     bool ServoHome(
         int logicalServoIndex,
-        unsigned int timeoutMs); // ���� Servo�� Homing ���·� ��ȯ�մϴ�.
+        unsigned int timeoutMs); // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
 
     bool ServoMoveAbsolute(
         int logicalServoIndex,
@@ -184,13 +184,13 @@ public:
         unsigned int profileVelocity,
         unsigned int profileAcceleration,
         unsigned int profileDeceleration,
-		unsigned int timeoutMs); // ���� Servo�� ���� ��ġ�� �̵��մϴ�.
+		unsigned int timeoutMs); // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
 
     bool ServoVelocity(
         int logicalServoIndex,
         int targetVelocity,
         unsigned int acceleration,
-		unsigned int deceleration); // ���� Servo�� �ӵ�������� �����մϴ�.
+		unsigned int deceleration); // 목표 속도와 가감속 값을 설정해 속도 운전을 요청합니다.
     
    
 
@@ -198,29 +198,29 @@ public:
         int logicalServoIndex,
         int speed,
         unsigned int acceleration,
-		unsigned int deceleration); // ���� Servo�� ������ jog �ӵ�������� �����մϴ�.
+		unsigned int deceleration); // 이 값은 해당 처리의 실행 상태와 결과를 나타냅니다.
 
     bool ServoJogNegative(
         int logicalServoIndex,
         int speed,
         unsigned int acceleration,
-		unsigned int deceleration); // ���� Servo�� ������ jog �ӵ�������� �����մϴ�.
+		unsigned int deceleration); // 현재 Servo 운전 명령을 정지 상태로 전환합니다.
 
     bool ServoStop(
-		int logicalServoIndex); // ���� Servo�� ������ŵ�ϴ�.
+		int logicalServoIndex); // 현재 Servo 운전 명령을 정지 상태로 전환합니다.
 
 
 
 
-    // ���� Servo ��ȣ�� ���� Slave ��ȣ�� ��ȯ�� ��
-    // LS L7NH�� CiA402 ������带 �����մϴ�.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+    // Servo Homing 명령과 제한 시간을 설정합니다.
     //
     // mode:
     // 1 = Profile Position
     // 3 = Profile Velocity
     // 6 = Homing
     //
-    // SDO ����� ����ϹǷ� ��ȯ����� ������ ���¿��� ȣ���մϴ�.
+    // Servo의 운전 모드를 SDO로 설정합니다.
     bool SetServoOperationMode(
         int logicalServoIndex,
         signed char mode);
@@ -239,11 +239,11 @@ public:
         int logicalIoIndex,
         unsigned short outputValue);
 
-	bool StartCommunication(); // ��� ������ ����
+	bool StartCommunication(); // 통신 스레드의 실행 상태를 확인합니다.
 
-	void StopCommunication(); // ��� ������ ���� ��û
+	void StopCommunication(); // 통신 스레드의 실행 상태를 확인합니다.
 
-	bool IsCommunicationRunning() const; // ��� �����尡 ���� ������ Ȯ��
+	bool IsCommunicationRunning() const; // 통신 스레드의 실행 상태를 확인합니다.
 
 private:
     bool RefreshAdapterList();

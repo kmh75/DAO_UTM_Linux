@@ -31,7 +31,7 @@ DaoEtherCATMaster::DaoEtherCATMaster()
 
 DaoEtherCATMaster::~DaoEtherCATMaster()
 {
-	StopCommunication(); // ��� ������ ���� ��û
+	StopCommunication(); // 주기 통신 스레드의 중지를 요청합니다.
     Close();
 }
 
@@ -48,14 +48,14 @@ bool DaoEtherCATMaster::Open(
         return false;
     }
 
-    // ���� ��� ������ ���� �ʵ��� ���ؽ�Ʈ�� �ʱ�ȭ�մϴ�.
+    // 출력 PDO 영역을 안전한 초기값인 0으로 설정합니다.
     std::memset(
         &context_,
         0,
         sizeof(context_));
 
     context_.manualstatechange = 1;
-	slaveCount_ = 0; // ��ĵ �������� �����̺� ���� 0���� �ʱ�ȭ�մϴ�.
+	slaveCount_ = 0; // PDO 구조체는 EtherCAT 매핑 크기와 일치하도록 바이트 단위로 정렬합니다.
     ResetAdcRuntimeInfo();
     ResetServoRuntimeInfo();
     ResetIoRuntimeInfo();
@@ -76,7 +76,7 @@ bool DaoEtherCATMaster::Open(
 void DaoEtherCATMaster::Close()
 {
     // --------------------------------------------------------
-    // 1. ��ȯ��� �����带 ���� ������ ����
+    // 주기 통신 스레드의 중지를 요청합니다.
     // --------------------------------------------------------
     StopCommunication();
 
@@ -93,12 +93,12 @@ void DaoEtherCATMaster::Close()
     }
 
     // --------------------------------------------------------
-    // 2. �˻��� Slave�� �ִٸ� �����ϰ� ���¸� �����ϴ�.
+    // 통신을 중지하고 열린 네트워크 어댑터를 닫습니다.
     //
-    // OP �� SAFE-OP �� INIT
+    // 통신을 중지하고 열린 네트워크 어댑터를 닫습니다.
     //
-    // ���� ��ȯ ���а� �ִ���
-    // ���� ecx_close()�� �ݵ�� �����մϴ�.
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     // --------------------------------------------------------
     if (slaveCount_ > 0)
     {
@@ -107,7 +107,7 @@ void DaoEtherCATMaster::Close()
     }
 
     // --------------------------------------------------------
-    // 3. EtherCAT ����� ����
+    // 통신을 중지하고 열린 네트워크 어댑터를 닫습니다.
     // --------------------------------------------------------
     ecx_close(&context_);
 
@@ -142,21 +142,21 @@ bool DaoEtherCATMaster::IsCommunicationRunning() const
 
 bool DaoEtherCATMaster::StartCommunication()
 {
-    // �̹� ���� ���̸� �ߺ����� �������� �ʽ��ϴ�.
+    // 통신 스레드의 실행 상태를 확인합니다.
     if (communicationRunning_.load())
     {
         return false;
     }
 
-    // ���� ������ ��ü�� ���� join ������ ���¶��
-    // ���� ������ �����մϴ�.
+    // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
+    // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
     if (communicationThread_.joinable())
     {
         communicationThread_.join();
     }
 
-    // EtherCAT ����Ϳ� PDO ������ �غ���� �ʾҴٸ�
-    // ��� �����带 �������� �ʽ��ϴ�.
+    // Process Data 매핑이 완료된 경우에만 다음 처리를 수행합니다.
+    // Process Data 매핑이 완료된 경우에만 다음 처리를 수행합니다.
     if (!isOpen_ ||
         slaveCount_ <= 0 ||
         !processDataMapped_)
@@ -186,11 +186,11 @@ bool DaoEtherCATMaster::StartCommunication()
 
 void DaoEtherCATMaster::StopCommunication()
 {
-    // �����尡 ����ǵ��� ��û�մϴ�.
+    // 주기 통신 스레드의 중지를 요청합니다.
     communicationStopRequested_.store(true);
 
-    // ���� ��� �����尡 ������ �ִٸ�
-    // ������ ���� ������ ��ٸ��ϴ�.
+    // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
+    // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
     if (communicationThread_.joinable())
     {
         communicationThread_.join();
@@ -205,12 +205,12 @@ int DaoEtherCATMaster::ScanSlaves()
     {
         slaveCount_ = 0;
         ResetProcessDataMap();
-		ResetAdcRuntimeInfo();// DAO ADC �ֽ� ���¸� �ʱ�ȭ�մϴ�.
+		ResetAdcRuntimeInfo();// PDO 매핑 결과와 입출력 크기를 초기화합니다.
         return 0;
     }
 
     ResetProcessDataMap();
-	ResetAdcRuntimeInfo();// DAO ADC �ֽ� ���¸� �ʱ�ȭ�մϴ�.
+	ResetAdcRuntimeInfo();// 연결된 EtherCAT Slave를 검색합니다.
 
     slaveCount_ =
         ecx_config_init(&context_);
@@ -225,8 +225,8 @@ int DaoEtherCATMaster::ScanSlaves()
     slaveCount_ =
         context_.slavecount;
 
-    // ���� �˻��� ���� Slave ������ ����
-    // ��Ÿ�� ��������� �ٽ� �����մϴ�.
+    // ADC 런타임 상태를 초기값으로 되돌립니다.
+    // ADC 런타임 상태를 초기값으로 되돌립니다.
     ResetAdcRuntimeInfo();
     ResetServoRuntimeInfo();
     ResetIoRuntimeInfo();
@@ -241,23 +241,23 @@ int DaoEtherCATMaster::GetSlaveCount() const
 }
 bool DaoEtherCATMaster::RequestAllSlavesPreOp()
 {
-    // ����Ͱ� ���� ���� ������ ���� ��ȯ �Ұ�
+    // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
     if (!isOpen_)
     {
         return false;
     }
 
-    // �˻��� Slave�� ������ ���� ��ȯ �Ұ�
+    // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
     if (slaveCount_ <= 0)
     {
         return false;
     }
 
-    // Slave 0���� SOEM���� ��ü Slave�� �ǹ��մϴ�.
+    // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
     context_.slavelist[0].state =
         EC_STATE_PRE_OP;
 
-    // PRE-OP ���� ��û�� �� �� �����մϴ�.
+    // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
     const int writeResult =
         ecx_writestate(
             &context_,
@@ -268,7 +268,7 @@ bool DaoEtherCATMaster::RequestAllSlavesPreOp()
         return false;
     }
 
-    // ��� Slave�� PRE-OP�� ������ ������ ��ٸ��ϴ�.
+    // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
     const uint16 reachedState =
         ecx_statecheck(
             &context_,
@@ -276,7 +276,7 @@ bool DaoEtherCATMaster::RequestAllSlavesPreOp()
             EC_STATE_PRE_OP,
             EC_TIMEOUTSTATE);
 
-    // �ֽ� ���¸� �ٽ� �н��ϴ�.
+    // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
     ecx_readstate(&context_);
 
     return reachedState == EC_STATE_PRE_OP;
@@ -297,8 +297,8 @@ bool DaoEtherCATMaster::GetSlaveInfo(
         return false;
     }
 
-    // �ܺ� ����� 0���� ����������
-    // SOEM�� Slave ��ȣ�� 1���� �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     const int physicalSlaveIndex =
         slaveListIndex + 1;
 
@@ -340,7 +340,7 @@ bool DaoEtherCATMaster::GetSlaveInfo(
 bool DaoEtherCATMaster::RequestAllSlavesSafeOp()
 {
     // --------------------------------------------------------
-    // 1. �⺻ ���� ���� Ȯ��
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     // --------------------------------------------------------
     if (!isOpen_)
     {
@@ -352,14 +352,14 @@ bool DaoEtherCATMaster::RequestAllSlavesSafeOp()
         return false;
     }
 
-    // ���� ��ȯ �߿��� ��ȯ��� �����尡 ����� �մϴ�.
+    // 통신 스레드의 실행 상태를 확인합니다.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 2. �ֽ� EtherCAT ���� Ȯ��
+    // Slave의 현재 상태와 AL 상태 코드를 갱신합니다.
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -367,16 +367,16 @@ bool DaoEtherCATMaster::RequestAllSlavesSafeOp()
         static_cast<std::uint16_t>(
             context_.slavelist[0].state & 0x000F);
 
-    // ��� Slave�� �̹� SAFE-OP�̸� �����Դϴ�.
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     if (currentBaseState == EC_STATE_SAFE_OP)
     {
         return true;
     }
 
     // --------------------------------------------------------
-    // 3. ��ü Slave�� SAFE-OP ���� ��û
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     //
-    // SOEM�� Slave 0���� ��ü Slave�� �ǹ��մϴ�.
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     // --------------------------------------------------------
     context_.slavelist[0].state =
         EC_STATE_SAFE_OP;
@@ -392,7 +392,7 @@ bool DaoEtherCATMaster::RequestAllSlavesSafeOp()
     }
 
     // --------------------------------------------------------
-    // 4. ��� Slave�� SAFE-OP�� ������ ������ ���
+    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
     // --------------------------------------------------------
     constexpr int SAFE_OP_TIMEOUT_US =
         5 * 1000 * 1000;
@@ -418,7 +418,7 @@ bool DaoEtherCATMaster::RequestAllSlavesSafeOp()
 bool DaoEtherCATMaster::RequestAllSlavesOperational()
 {
     // --------------------------------------------------------
-    // 1. �⺻ ���� Ȯ��
+    // 검색된 모든 Slave를 OP 상태로 전환합니다.
     // --------------------------------------------------------
     if (!isOpen_)
     {
@@ -441,7 +441,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
     }
 
     // --------------------------------------------------------
-    // 2. ��ü Slave�� SAFE-OP���� Ȯ��
+    // Slave의 현재 상태와 AL 상태 코드를 갱신합니다.
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -460,7 +460,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
     }
 
     // --------------------------------------------------------
-    // 3. OP ��û �� Process Data 10ȸ Priming
+    // OP 전환 전에 여러 차례 Process Data를 교환해 통신을 안정화합니다.
     // --------------------------------------------------------
     constexpr int PRIMING_ROUNDS = 10;
 
@@ -468,7 +468,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
         round < PRIMING_ROUNDS;
         ++round)
     {
-        // DAO ADC Output PDO�� �׻� 0���� �����մϴ�.
+        // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
         for (int physicalSlaveIndex = 1;
             physicalSlaveIndex <= slaveCount_;
             ++physicalSlaveIndex)
@@ -495,7 +495,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
                     slave.Obytes));
         }
 
-        // Servo�� IO�� ���� ��� ������ PDO�� �ݿ��մϴ�.
+        // Process Data를 송신하고 수신 WKC를 확인합니다.
         PrepareServoAndIoOutputs();
 
         ecx_send_processdata(
@@ -513,7 +513,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
     }
 
     // --------------------------------------------------------
-    // 4. ��ü Slave�� OP ���� ��û
+    // 검색된 모든 Slave를 OP 상태로 전환합니다.
     // --------------------------------------------------------
     context_.slavelist[0].state =
         EC_STATE_OPERATIONAL;
@@ -529,7 +529,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
     }
 
     // --------------------------------------------------------
-    // 5. Process Data�� ��� ��ȯ�ϸ鼭 OP ���� ���
+    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
     // --------------------------------------------------------
     constexpr int OP_TIMEOUT_MS = 12000;
 
@@ -552,7 +552,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
             break;
         }
 
-        // ADC ��� 0 ����
+        // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
         for (int physicalSlaveIndex = 1;
             physicalSlaveIndex <= slaveCount_;
             ++physicalSlaveIndex)
@@ -628,7 +628,7 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
 bool DaoEtherCATMaster::RequestAllSlavesInit()
 {
     // --------------------------------------------------------
-    // 1. �⺻ ���� ���� Ȯ��
+    // 검색된 모든 Slave를 INIT 상태로 전환합니다.
     // --------------------------------------------------------
     if (!isOpen_)
     {
@@ -646,7 +646,7 @@ bool DaoEtherCATMaster::RequestAllSlavesInit()
     }
 
     // --------------------------------------------------------
-    // 2. �ֽ� ���� Ȯ��
+    // Slave의 현재 상태와 AL 상태 코드를 갱신합니다.
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -654,14 +654,14 @@ bool DaoEtherCATMaster::RequestAllSlavesInit()
         static_cast<std::uint16_t>(
             context_.slavelist[0].state & 0x000F);
 
-    // �̹� INIT�̸� �����Դϴ�.
+    // 검색된 모든 Slave를 INIT 상태로 전환합니다.
     if (currentBaseState == EC_STATE_INIT)
     {
         return true;
     }
 
     // --------------------------------------------------------
-    // 3. ��ü Slave�� INIT ���� ��û
+    // 검색된 모든 Slave를 INIT 상태로 전환합니다.
     // --------------------------------------------------------
     context_.slavelist[0].state =
         EC_STATE_INIT;
@@ -677,7 +677,7 @@ bool DaoEtherCATMaster::RequestAllSlavesInit()
     }
 
     // --------------------------------------------------------
-    // 4. ��� Slave�� INIT�� ������ ������ ���
+    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
     // --------------------------------------------------------
     constexpr int INIT_TIMEOUT_US =
         5 * 1000 * 1000;
@@ -729,7 +729,7 @@ bool DaoEtherCATMaster::IsDaoAdcSlave(
 bool DaoEtherCATMaster::IsLsL7nhServo(
     int physicalSlaveIndex) const
 {
-    // SOEM�� ���� Slave ��ȣ�� 1���� �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (physicalSlaveIndex <= 0 ||
         physicalSlaveIndex > slaveCount_)
     {
@@ -758,7 +758,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     int physicalSlaveIndex)
 {
     // --------------------------------------------------------
-    // 1. LS L7NH ���ο� Slave ��ȣ Ȯ��
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     if (!IsLsL7nhServo(
         physicalSlaveIndex))
@@ -766,7 +766,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
         return false;
     }
 
-    // PDO Mapping / Assignment�� PRE-OP���� �����մϴ�.
+    // Slave의 현재 상태와 AL 상태 코드를 갱신합니다.
     ecx_readstate(&context_);
 
     const ec_slavet& slave =
@@ -810,7 +810,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     // Total = 29 bytes
     // ========================================================
 
-    // RxPDO Assignment ��Ȱ��ȭ
+    // LS L7NH Servo의 RxPDO와 TxPDO 매핑을 SDO로 설정합니다.
     std::uint8_t rxAssignmentCount = 0;
 
     writeWkc =
@@ -830,7 +830,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // RxPDO 0x1601 Mapping ��Ȱ��ȭ
+    // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
     std::uint8_t rxMappingCount = 0;
 
     writeWkc =
@@ -892,7 +892,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // RxPDO Mapping Entry ���� Ȯ��
+    // LS L7NH Servo의 RxPDO와 TxPDO 매핑을 SDO로 설정합니다.
     rxMappingCount =
         RX_MAPPING_COUNT;
 
@@ -913,7 +913,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // RxPDO 0x1601�� SM2�� �Ҵ�
+    // 이 구조체는 장치의 PDO 및 런타임 정보를 저장합니다.
     std::uint16_t rxPdoIndex =
         0x1601;
 
@@ -968,7 +968,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     // Total = 21 bytes
     // ========================================================
 
-    // TxPDO Assignment ��Ȱ��ȭ
+    // LS L7NH Servo의 RxPDO와 TxPDO 매핑을 SDO로 설정합니다.
     std::uint8_t txAssignmentCount = 0;
 
     writeWkc =
@@ -988,7 +988,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // TxPDO 0x1A01 Mapping ��Ȱ��ȭ
+    // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
     std::uint8_t txMappingCount = 0;
 
     writeWkc =
@@ -1048,7 +1048,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // TxPDO Mapping Entry ���� Ȯ��
+    // LS L7NH Servo의 RxPDO와 TxPDO 매핑을 SDO로 설정합니다.
     txMappingCount =
         TX_MAPPING_COUNT;
 
@@ -1069,7 +1069,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhBasicPdo(
     }
 
 
-    // TxPDO 0x1A01�� SM3�� �Ҵ�
+    // 이 구조체는 장치의 PDO 및 런타임 정보를 저장합니다.
     std::uint16_t txPdoIndex =
         0x1A01;
 
@@ -1130,7 +1130,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhProfilePositionMode(
     }
 
     // --------------------------------------------------------
-    // LS L7NH Profile Position ����
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     //
     // 0x6060:00 = 1    Profile Position Mode
     // 0x6081:00        Profile Velocity
@@ -1223,7 +1223,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhOperationMode(
         return false;
     }
 
-    // �����ϴ� CiA402 ������常 ����մϴ�.
+    // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
     if (mode != 1 &&
         mode != 3 &&
         mode != 6)
@@ -1257,7 +1257,7 @@ bool DaoEtherCATMaster::ConfigureLsL7nhOperationMode(
 bool DaoEtherCATMaster::IsFastechIo(
     int physicalSlaveIndex) const
 {
-    // SOEM�� ���� Slave ��ȣ�� 1���� �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (physicalSlaveIndex <= 0 ||
         physicalSlaveIndex > slaveCount_)
     {
@@ -1314,30 +1314,30 @@ bool DaoEtherCATMaster::IsFastechEncoder(
 
 bool DaoEtherCATMaster::MapProcessData()
 {
-    // ����Ͱ� ������ ���� ���¿����� ������ �� �����ϴ�.
+    // 전체 Slave의 Process Data 영역을 IO Map에 매핑합니다.
     if (!isOpen_)
     {
         ResetProcessDataMap();
         return false;
     }
 
-    // �˻��� Slave�� ������ ������ �� �����ϴ�.
+    // PDO 매핑 결과와 입출력 크기를 초기화합니다.
     if (slaveCount_ <= 0)
     {
         ResetProcessDataMap();
         return false;
     }
 
-    // ���� ���� ����� ��� �ʱ�ȭ�մϴ�.
+    // PDO 매핑 결과와 입출력 크기를 초기화합니다.
     ResetProcessDataMap();
 
 
     // --------------------------------------------------------
-    // LS L7NH Servo PDO Assignment ����
+    // LS L7NH Servo의 RxPDO와 TxPDO 매핑을 SDO로 설정합니다.
     //
-    // Process Data�� �����ϱ� ����
-    // RxPDO�� 0x1601 �ϳ�,
-    // TxPDO�� 0x1A01 �ϳ��� ����ϵ��� �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     for (int physicalSlaveIndex = 1;
         physicalSlaveIndex <= slaveCount_;
@@ -1360,17 +1360,17 @@ bool DaoEtherCATMaster::MapProcessData()
 
     }
 
-    // DAO ADC�� ���� CoE ���� ������ �ӽ� �����մϴ�.
+    // 요청된 정보를 출력 구조체에 복사합니다.
     std::vector<SavedCoeInfo> savedCoeInfoList;
 
-    // Slave �ִ� ������ŭ �̸� Ȯ���մϴ�.
+    // 요청된 정보를 출력 구조체에 복사합니다.
     savedCoeInfoList.reserve(
         static_cast<std::size_t>(slaveCount_));
 
     // --------------------------------------------------------
-    // DAO ADC���� CoE PDO ���Ǹ� �ӽ� �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     //
-    // LS Servo�� EtherCAT IO���� �� ó���� �������� �ʽ��ϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     for (int physicalSlaveIndex = 1;
         physicalSlaveIndex <= slaveCount_;
@@ -1379,7 +1379,7 @@ bool DaoEtherCATMaster::MapProcessData()
         ec_slavet& slave =
             context_.slavelist[physicalSlaveIndex];
 
-        // DAO ADC�� �ƴϸ� ���� SOEM ���� ����� �״�� ����մϴ�.
+        // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
         if (!IsDaoAdcSlave(slave))
         {
             continue;
@@ -1399,7 +1399,7 @@ bool DaoEtherCATMaster::MapProcessData()
         savedCoeInfoList.push_back(
             savedInfo);
 
-        // CoE �������� ��Ʈ�� �ӽ÷� �����մϴ�.
+        // 요청된 정보를 출력 구조체에 복사합니다.
         const std::uint16_t coeMask =
             static_cast<std::uint16_t>(
                 ECT_MBXPROT_COE);
@@ -1415,7 +1415,7 @@ bool DaoEtherCATMaster::MapProcessData()
 
 
     // --------------------------------------------------------
-    // ��ü Slave�� Process Data�� IO Map�� ��ġ�մϴ�.
+    // 전체 Slave의 Process Data 영역을 IO Map에 매핑합니다.
     // --------------------------------------------------------
 
     mappedBytes_ =
@@ -1425,8 +1425,8 @@ bool DaoEtherCATMaster::MapProcessData()
             0);
 
     // --------------------------------------------------------
-    // ���� ���� ���ο� �������
-    // DAO ADC�� Mailbox/CoE ������ �ݵ�� ���󺹱��մϴ�.
+    // 요청된 정보를 출력 구조체에 복사합니다.
+    // 요청된 정보를 출력 구조체에 복사합니다.
     // --------------------------------------------------------
     for (const SavedCoeInfo& savedInfo :
         savedCoeInfoList)
@@ -1442,14 +1442,14 @@ bool DaoEtherCATMaster::MapProcessData()
             savedInfo.coeDetails;
     }
 
-    // ���ο� ������ ��� ��� ����� �ʱ�ȭ�մϴ�.
+    // PDO 매핑 결과와 입출력 크기를 초기화합니다.
     if (mappedBytes_ <= 0)
     {
         ResetProcessDataMap();
         return false;
     }
 
-    // Group 0�� WKC ������ �����մϴ�.
+    // PDO 메모리 포인터가 유효한지 확인합니다.
     const ec_groupt& group =
         context_.grouplist[0];
 
@@ -1465,8 +1465,8 @@ bool DaoEtherCATMaster::MapProcessData()
 
     processDataMapped_ = true;
 
-    // PDO ���� �Ŀ��� Expected WKC�� Ȯ���ǹǷ�,
-    // ���� Slave�� ��Ÿ�� �������� �� ���� �ݿ��մϴ�.
+    // Process Data 매핑이 완료된 경우에만 다음 처리를 수행합니다.
+    // Process Data 매핑이 완료된 경우에만 다음 처리를 수행합니다.
     ResetAdcRuntimeInfo();
     ResetServoRuntimeInfo();
     ResetIoRuntimeInfo();
@@ -1544,7 +1544,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
     DaoInternalAdcValidationInfo& validationInfo) const
 {
     // --------------------------------------------------------
-    // 1. ���� ���� ���� �ʵ��� ��� ����ü �ʱ�ȭ
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     validationInfo = {};
 
@@ -1552,7 +1552,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
         physicalSlaveIndex;
 
     // --------------------------------------------------------
-    // 2. Process Data ���� �Ϸ� ���� Ȯ��
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     validationInfo.processDataMapped =
         processDataMapped_;
@@ -1563,9 +1563,9 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
     }
 
     // --------------------------------------------------------
-    // 3. ���� Slave ��ȣ ���� Ȯ��
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     //
-    // SOEM�� ���� Slave ��ȣ�� 1���� �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     validationInfo.slaveIndexValid =
         physicalSlaveIndex >= 1 &&
@@ -1581,7 +1581,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
             physicalSlaveIndex];
 
     // --------------------------------------------------------
-    // 4. DAO ADC Identity ��Ȯ��
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     validationInfo.identityValid =
         IsDaoAdcSlave(slave);
@@ -1592,7 +1592,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
     }
 
     // --------------------------------------------------------
-    // 5. ���� PDO ũ�� ����
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     // --------------------------------------------------------
     validationInfo.actualOutputBytes =
         static_cast<unsigned int>(
@@ -1602,7 +1602,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
         static_cast<unsigned int>(
             slave.Ibytes);
 
-    // DAO ADC�� ������ PDO ũ��
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     constexpr unsigned int
         DAO_ADC_OUTPUT_BYTES = 4;
 
@@ -1624,10 +1624,10 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
     }
 
     // --------------------------------------------------------
-    // 6. PDO ������ ��ȿ�� Ȯ��
+    // PDO 메모리 포인터가 유효한지 확인합니다.
     //
-    // ������ �ּҸ� Ȯ���մϴ�.
-    // ���� �ش� �޸𸮸� �аų� ���� �ʽ��ϴ�.
+    // PDO 메모리 포인터가 유효한지 확인합니다.
+    // PDO 메모리 포인터가 유효한지 확인합니다.
     // --------------------------------------------------------
     validationInfo.outputPointerValid =
         slave.outputs != nullptr;
@@ -1642,7 +1642,7 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
     }
 
     // --------------------------------------------------------
-    // ��� ���� ���� ���
+    // ADC Slave를 SAFE-OP 상태로 전환합니다.
     // --------------------------------------------------------
     return true;
 }
@@ -1650,14 +1650,14 @@ bool DaoEtherCATMaster::ValidateDaoAdcPdo(
 bool DaoEtherCATMaster::RequestDaoAdcSafeOp(
     int physicalSlaveIndex)
 {
-    // ��ȯ��� �߿��� EtherCAT ���� ��ȯ�� ������� �ʽ��ϴ�.
+    // 통신 스레드의 실행 상태를 확인합니다.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 1. ���� DAO ADC PDO ���� ������ �ٽ� �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     DaoInternalAdcValidationInfo validationInfo{};
 
@@ -1669,30 +1669,30 @@ bool DaoEtherCATMaster::RequestDaoAdcSafeOp(
     }
 
     // --------------------------------------------------------
-    // 2. ���� Slave ��ü�� �����ɴϴ�.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     //
-    // �� �������� Slave ��ȣ ������ Identity,
-    // PDO ũ�� �� �����ͱ��� ��� Ȯ�εƽ��ϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     ec_slavet& slave =
         context_.slavelist[
             physicalSlaveIndex];
 
-    // �ֽ� ���¸� �н��ϴ�.
+    // Slave의 현재 상태와 AL 상태 코드를 갱신합니다.
     ecx_readstate(&context_);
 
     const std::uint16_t currentBaseState =
         static_cast<std::uint16_t>(
             slave.state & 0x000F);
 
-    // �̹� SAFE-OP�̸� �������� ó���մϴ�.
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     if (currentBaseState ==
         EC_STATE_SAFE_OP)
     {
         return true;
     }
 
-    // PRE-OP ���°� �ƴϸ� SAFE-OP ��û�� ������ �ʽ��ϴ�.
+    // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
     if (currentBaseState !=
         EC_STATE_PRE_OP)
     {
@@ -1700,9 +1700,9 @@ bool DaoEtherCATMaster::RequestDaoAdcSafeOp(
     }
 
     // --------------------------------------------------------
-    // 3. SAFE-OP ���� ��û�� �� ���� �����մϴ�.
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     //
-    // LAN9252 ó�� �� ���� ���� ������ �ݺ��ؼ� ���� �ʽ��ϴ�.
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     // --------------------------------------------------------
     slave.state =
         EC_STATE_SAFE_OP;
@@ -1719,10 +1719,10 @@ bool DaoEtherCATMaster::RequestDaoAdcSafeOp(
     }
 
     // --------------------------------------------------------
-    // 4. ���� ��û�� �ݺ����� �ʰ� SAFE-OP ���޸� ��ٸ��ϴ�.
+    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
     //
-    // ���� ���� ������Ʈ�� SAFE-OP ���ð��� �����ϰ�
-    // �ִ� 12�ʸ� ����մϴ�.
+    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
+    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
     // --------------------------------------------------------
     constexpr int SAFE_OP_TIMEOUT_US =
         12 * 1000 * 1000;
@@ -1735,14 +1735,14 @@ bool DaoEtherCATMaster::RequestDaoAdcSafeOp(
             EC_STATE_SAFE_OP,
             SAFE_OP_TIMEOUT_US);
 
-    // �ֽ� ���¿� AL Status Code�� �ٽ� �н��ϴ�.
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     ecx_readstate(&context_);
 
     const std::uint16_t finalBaseState =
         static_cast<std::uint16_t>(
             slave.state & 0x000F);
 
-    // SAFE-OP ���ް� ���� �������� ��� Ȯ���մϴ�.
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     return
         reachedState == EC_STATE_SAFE_OP &&
         finalBaseState == EC_STATE_SAFE_OP &&
@@ -1754,7 +1754,7 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     DaoInternalProcessExchangeInfo& exchangeInfo)
 {
     // --------------------------------------------------------
-    // 1. ���� ��� �ʱ�ȭ
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     exchangeInfo = {};
 
@@ -1764,15 +1764,15 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     exchangeInfo.expectedWkc =
         expectedWkc_;
 
-    // ��� �����尡 Process Data�� ��ȯ ���̸�
-    // �ܺ��� �ܹ� �ۼ����� ������� �ʽ��ϴ�.
+    // 통신 스레드의 실행 상태를 확인합니다.
+    // 통신 스레드의 실행 상태를 확인합니다.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 2. Process Data ���� ���� Ȯ��
+    // Process Data 매핑이 완료된 경우에만 다음 처리를 수행합니다.
     // --------------------------------------------------------
     if (!processDataMapped_)
     {
@@ -1780,7 +1780,7 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     }
 
     // --------------------------------------------------------
-    // 3. DAO ADC PDO ���� ���� �����
+    // DAO ADC의 PDO 구성과 메모리 매핑 상태를 검증합니다.
     // --------------------------------------------------------
     DaoInternalAdcValidationInfo validationInfo{};
 
@@ -1795,7 +1795,7 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     }
 
     // --------------------------------------------------------
-    // 4. �ֽ� EtherCAT ���� Ȯ��
+    // Slave의 현재 상태와 AL 상태 코드를 갱신합니다.
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -1816,14 +1816,14 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     }
 
     // --------------------------------------------------------
-    // 5. ������ Output PDO 4����Ʈ�� 0���� �ʱ�ȭ
+    // DAO ADC 장치의 Vendor ID와 Product Code를 확인합니다.
     //
-    // ValidateDaoAdcPdo()���� ������ �̹� Ȯ���߽��ϴ�.
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     // - DAO ADC Identity
     // - Output Bytes = 4
-    // - Output ������ ��ȿ
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     //
-    // ���� Obytes ���� ����ϹǷ� �� �̻��� �ǵ帮�� �ʽ��ϴ�.
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     // --------------------------------------------------------
     std::memset(
         slave.outputs,
@@ -1834,7 +1834,7 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
     exchangeInfo.outputCleared = true;
 
     // --------------------------------------------------------
-    // 6. Process Data ��Ȯ�� 1ȸ �ۼ���
+    // Process Data를 송신하고 수신 WKC를 확인합니다.
     // --------------------------------------------------------
     ecx_send_processdata(&context_);
 
@@ -1844,10 +1844,10 @@ bool DaoEtherCATMaster::ExchangeDaoAdcProcessDataOnce(
             EC_TIMEOUTRET);
 
     // --------------------------------------------------------
-    // 7. WKC �˻�
+    // 정상 통신 여부를 판단하기 위한 예상 WKC 값입니다.
     //
-    // ���� DAO ADC �ܵ� ������ ���� WKC�� 3�Դϴ�.
-    // ���� ���������� ����� expectedWkc_�� ���մϴ�.
+    // Process Data를 송신하고 수신 WKC를 확인합니다.
+    // Process Data를 송신하고 수신 WKC를 확인합니다.
     // --------------------------------------------------------
     exchangeInfo.wkcValid =
         exchangeInfo.actualWkc >=
@@ -1862,7 +1862,7 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
     DaoInternalPrimingInfo& primingInfo)
 {
     // --------------------------------------------------------
-    // 1. ��� �ʱ�ȭ
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     primingInfo = {};
 
@@ -1875,17 +1875,17 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
     primingInfo.expectedWkc =
         expectedWkc_;
 
-    // ��� ������� Priming �ۼ����� ��ġ�� �ʵ��� �����մϴ�.
+    // 통신 스레드의 실행 상태를 확인합니다.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 2. Priming Ƚ�� ���� �˻�
+    // OP 전환 전에 여러 차례 Process Data를 교환해 통신을 안정화합니다.
     //
-    // �߸��� ���̳� ������ �ݺ��� �����ϴ�.
-    // ���� ���迡���� 10ȸ�� ����մϴ�.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+    // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
     // --------------------------------------------------------
     constexpr int MIN_PRIMING_ROUNDS = 1;
     constexpr int MAX_PRIMING_ROUNDS = 100;
@@ -1897,7 +1897,7 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
     }
 
     // --------------------------------------------------------
-    // 3. ADC ���� ����
+    // DAO ADC의 PDO 구성과 메모리 매핑 상태를 검증합니다.
     // --------------------------------------------------------
     DaoInternalAdcValidationInfo validationInfo{};
 
@@ -1912,7 +1912,7 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
     }
 
     // --------------------------------------------------------
-    // 4. SAFE-OP ���� Ȯ��
+    // Slave의 현재 상태와 AL 상태 코드를 갱신합니다.
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -1933,7 +1933,7 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
     }
 
     // --------------------------------------------------------
-    // 5. ������ Ƚ����ŭ Process Data �պ�
+    // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
     // --------------------------------------------------------
     for (int round = 0;
         round < roundCount;
@@ -1950,7 +1950,7 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
         primingInfo.lastWkc =
             exchangeInfo.actualWkc;
 
-        // ù ��° ����� �ּ�/�ִ밪 �ʱ�ȭ
+        // Process Data를 송신하고 수신 WKC를 확인합니다.
         if (primingInfo.completedRounds == 0)
         {
             primingInfo.minimumWkc =
@@ -1987,13 +1987,13 @@ bool DaoEtherCATMaster::PrimeDaoAdcProcessData(
         {
             ++primingInfo.badWkcCount;
 
-            // �� ���̶� �����ϸ� ��� �ߴ��մϴ�.
+            // OP 전환 전에 여러 차례 Process Data를 교환해 통신을 안정화합니다.
             break;
         }
     }
 
     // --------------------------------------------------------
-    // 6. ��ü Priming ���� ���� �Ǵ�
+    // OP 전환 전에 여러 차례 Process Data를 교환해 통신을 안정화합니다.
     // --------------------------------------------------------
     primingInfo.allRoundsValid =
         primingInfo.completedRounds ==
@@ -2010,7 +2010,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     DaoInternalOperationalInfo& operationalInfo)
 {
     // --------------------------------------------------------
-    // 1. ��� ����ü �ʱ�ȭ
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     operationalInfo = {};
 
@@ -2020,14 +2020,14 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     operationalInfo.expectedWkc =
         expectedWkc_;
 
-    // �̹� ��ȯ��� ���̶�� ���� ��ȯ �� Priming�� �������� �ʽ��ϴ�.
+    // 통신 스레드의 실행 상태를 확인합니다.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 2. DAO ADC PDO ���� ����
+    // DAO ADC의 PDO 구성과 메모리 매핑 상태를 검증합니다.
     // --------------------------------------------------------
     DaoInternalAdcValidationInfo validationInfo{};
 
@@ -2042,7 +2042,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     }
 
     // --------------------------------------------------------
-    // 3. ���� Slave ���� Ȯ��
+    // Slave의 현재 상태와 AL 상태 코드를 갱신합니다.
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -2054,7 +2054,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
         static_cast<std::uint16_t>(
             slave.state & 0x000F);
 
-    // �̹� OP ���¶�� �������� ó���մϴ�.
+    // 검색된 모든 Slave를 OP 상태로 전환합니다.
     if (baseState == EC_STATE_OPERATIONAL)
     {
         operationalInfo.safeOpStateValid = true;
@@ -2073,7 +2073,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
         return slave.ALstatuscode == 0;
     }
 
-    // OP ��ȯ�� SAFE-OP ���¿����� ����մϴ�.
+    // 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
     operationalInfo.safeOpStateValid =
         baseState == EC_STATE_SAFE_OP;
 
@@ -2091,10 +2091,10 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     }
 
     // --------------------------------------------------------
-    // 4. OP ��û �� 10ȸ Priming ��Ȯ��
+    // OP 전환 전에 여러 차례 Process Data를 교환해 통신을 안정화합니다.
     //
-    // �� ���̶� WKC�� ���󺸴� ������
-    // OP ��û ��ü�� ������ �ʽ��ϴ�.
+    // OP 전환 전에 여러 차례 Process Data를 교환해 통신을 안정화합니다.
+    // OP 전환 전에 여러 차례 Process Data를 교환해 통신을 안정화합니다.
     // --------------------------------------------------------
     constexpr int PRIMING_ROUNDS = 10;
 
@@ -2132,7 +2132,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     }
 
     // --------------------------------------------------------
-    // 5. OP ���� ��û�� ��Ȯ�� �� ���� ����
+    // 검색된 모든 Slave를 OP 상태로 전환합니다.
     // --------------------------------------------------------
     slave.state =
         EC_STATE_OPERATIONAL;
@@ -2162,10 +2162,10 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     }
 
     // --------------------------------------------------------
-    // 6. OP ��ȯ ���
+    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
     //
-    // ���� ��û�� �ٽ� ���� �ʽ��ϴ�.
-    // ��ٸ��� ���� Process Data�� ��� ��ȯ�մϴ�.
+    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
+    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
     // --------------------------------------------------------
     constexpr int OP_TIMEOUT_MS = 12000;
 
@@ -2189,12 +2189,12 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
         }
 
         // ----------------------------------------------------
-        // ������ DAO ADC Output PDO ũ�⸸ŭ�� 0���� �ʱ�ȭ
+        // DAO ADC 장치의 Vendor ID와 Product Code를 확인합니다.
         //
-        // ValidateDaoAdcPdo()���� ������ Ȯ���߽��ϴ�.
+        // 출력 PDO 영역을 안전한 초기값인 0으로 설정합니다.
         // - DAO ADC Identity
         // - Output Bytes = 4
-        // - Output ������ ��ȿ
+        // PDO 메모리 포인터가 유효한지 확인합니다.
         // ----------------------------------------------------
         std::memset(
             slave.outputs,
@@ -2202,7 +2202,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
             static_cast<std::size_t>(
                 slave.Obytes));
 
-        // Process Data 1ȸ �պ�
+        // Process Data를 송신하고 수신 WKC를 확인합니다.
         ecx_send_processdata(&context_);
 
         const int processWkc =
@@ -2224,8 +2224,8 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
             ++operationalInfo.badWkcCount;
         }
 
-        // ���� ���¸� Ȯ���մϴ�.
-        // ���� ������ �ٽ� �������� �ʽ��ϴ�.
+        // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
+        // 검색된 모든 Slave를 OP 상태로 전환합니다.
         (void)ecx_statecheck(
             &context_,
             static_cast<std::uint16_t>(
@@ -2247,7 +2247,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
             static_cast<unsigned short>(
                 slave.ALstatuscode);
 
-        // OP ���� Ȯ��
+        // 검색된 모든 Slave를 OP 상태로 전환합니다.
         if (baseState ==
             EC_STATE_OPERATIONAL)
         {
@@ -2258,7 +2258,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
                 operationalInfo.operationalReached;
         }
 
-        // EtherCAT Error ���°� ������ ��� �ߴ�
+        // 요청된 정보를 출력 구조체에 복사합니다.
         if ((slave.state &
             EC_STATE_ERROR) != 0)
         {
@@ -2270,7 +2270,7 @@ bool DaoEtherCATMaster::RequestDaoAdcOperational(
     }
 
     // --------------------------------------------------------
-    // 7. �ð� �ʰ� �� ���� ���� ����
+    // Slave의 현재 상태와 AL 상태 코드를 갱신합니다.
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -2292,7 +2292,7 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     DaoInternalAdcReadInfo& readInfo)
 {
     // --------------------------------------------------------
-    // 1. ��� ����ü �ʱ�ȭ
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     readInfo = {};
 
@@ -2302,24 +2302,24 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     readInfo.expectedWkc =
         expectedWkc_;
 
-    // ��ȯ��� �����尡 ���� ���� ����
-    // ������ Process Data �պ��� ������� �ʽ��ϴ�.
-    // �ֽ� ADC ���� Runtime ��ȸ API�� �о�� �մϴ�.
+    // 통신 스레드의 실행 상태를 확인합니다.
+    // 통신 스레드의 실행 상태를 확인합니다.
+    // 통신 스레드의 실행 상태를 확인합니다.
     if (communicationRunning_.load())
     {
         return false;
     }
 
     // --------------------------------------------------------
-    // 2. DAO ADC PDO ���� ����
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     //
-    // ���� ������ �ٽ� Ȯ���մϴ�.
-    // - PDO ���� �Ϸ�
-    // - Slave ��ȣ ��ȿ
-    // - DAO ADC Identity ��ġ
-    // - Output 4����Ʈ
-    // - Input 24����Ʈ
-    // - ����� ������ ��ȿ
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+    // DAO ADC의 PDO 구성과 메모리 매핑 상태를 검증합니다.
+    // DAO ADC의 PDO 구성과 메모리 매핑 상태를 검증합니다.
+    // DAO ADC의 PDO 구성과 메모리 매핑 상태를 검증합니다.
+    // DAO ADC의 PDO 구성과 메모리 매핑 상태를 검증합니다.
     // --------------------------------------------------------
     DaoInternalAdcValidationInfo validationInfo{};
 
@@ -2334,7 +2334,7 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     }
 
     // --------------------------------------------------------
-    // 3. �ֽ� EtherCAT ���� Ȯ��
+    // Slave의 현재 상태와 AL 상태 코드를 갱신합니다.
     // --------------------------------------------------------
     ecx_readstate(&context_);
 
@@ -2355,9 +2355,9 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     }
 
     // --------------------------------------------------------
-    // 4. ������ Output PDO 4����Ʈ�� 0���� �ʱ�ȭ
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     //
-    // slave.Obytes�� ��Ȯ�� 4���� �տ��� Ȯ���߽��ϴ�.
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     // --------------------------------------------------------
     std::memset(
         slave.outputs,
@@ -2368,7 +2368,7 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     readInfo.outputCleared = true;
 
     // --------------------------------------------------------
-    // 5. Process Data ��Ȯ�� 1ȸ �պ�
+    // Process Data를 송신하고 수신 WKC를 확인합니다.
     // --------------------------------------------------------
     ecx_send_processdata(&context_);
 
@@ -2387,14 +2387,14 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     }
 
     // --------------------------------------------------------
-    // 6. Input PDO 24����Ʈ�� �����ϰ� ����
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     //
-    // ValidateDaoAdcPdo()���� ������ Ȯ���߽��ϴ�.
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     // - slave.inputs != nullptr
     // - slave.Ibytes == 24
     //
-    // �����͸� ����ü�� ���� ĳ�������� �ʰ�
-    // memcpy�� ���� ����ü�� ��Ȯ�� 24����Ʈ�� �����մϴ�.
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     // --------------------------------------------------------
     std::memcpy(
         &readInfo.data,
@@ -2404,10 +2404,10 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
     readInfo.inputCopied = true;
 
     // --------------------------------------------------------
-    // 7. ���� Slave�� ADC ��Ÿ�� ���� ����
+    // 요청된 정보를 출력 구조체에 복사합니다.
     //
-    // ������ 2ms ��� ������� �ܺ� ��ȸ API��
-    // ���ÿ� ������ �� �����Ƿ� mutex�� ��ȣ�մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     // --------------------------------------------------------
     const std::size_t runtimeIndex =
         static_cast<std::size_t>(
@@ -2430,7 +2430,7 @@ bool DaoEtherCATMaster::ReadDaoAdcOnce(
         runtimeInfo.physicalSlaveIndex =
             physicalSlaveIndex;
 
-        // ����� �ݺ� ��� �����尡 �ƴϹǷ� false�Դϴ�.
+        // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
         runtimeInfo.communicationRunning =
             false;
 
@@ -2520,13 +2520,13 @@ bool DaoEtherCATMaster::SetDaoAdcZero(
     }
 
     // ----------------------------------------------------
-    // �Ϲ� Zero�� Stable Capture ����
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     //
-    // ��ȿ ADC Sample�� ��Ȯ�� 600�� �����մϴ�.
-    // ���� �� 2000 sample/sec �������� �� 0.3���Դϴ�.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+    // 안정된 ADC 샘플을 모아 영점 오프셋을 계산합니다.
     //
-    // �ð����� �������� �ʰ� ���� ���� Sample ������
-    // Zero ��հ��� �����մϴ�.
+    // 안정된 ADC 샘플을 모아 영점 오프셋을 계산합니다.
+    // 안정된 ADC 샘플을 모아 영점 오프셋을 계산합니다.
     // ----------------------------------------------------
     constexpr unsigned int ZERO_CAPTURE_SAMPLES = 600;
 
@@ -2539,8 +2539,8 @@ bool DaoEtherCATMaster::SetDaoAdcZero(
     runtimeInfo.processing.stableCaptureReferenceValue =
         0.0;
 
-    // �Ϲ� Zero�� ���� ����ȭ ��� ����
-    // �ٷ� 600 Sample ����� �����մϴ�.
+    // 요청된 정보를 출력 구조체에 복사합니다.
+    // 안정된 ADC 샘플을 모아 영점 오프셋을 계산합니다.
     runtimeInfo.processing.stableCaptureWaitSamples =
         0;
 
@@ -2602,15 +2602,15 @@ bool DaoEtherCATMaster::SetDaoAdcCalibration(
     }
 
     // ----------------------------------------------------
-    // Calibration Stable Capture ����
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     //
-    // �� 2000 sample/sec ����:
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     //
-    // 1) ���� 2000 Sample�� ����ȭ �������� �����ϴ�.
-    // 2) ���� ��ȿ Sample�� ��Ȯ�� 4000�� �����մϴ�.
-    // 3) 4000�� ��հ����� Calibration Scale�� ����մϴ�.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+    // 기준값과 안정된 ADC 샘플을 이용해 보정 계수를 계산합니다.
+    // 기준값과 안정된 ADC 샘플을 이용해 보정 계수를 계산합니다.
     //
-    // ���� �Ϸ� �Ǵ��� �ð��� �ƴ϶� Sample �����Դϴ�.
+    // 기준값과 안정된 ADC 샘플을 이용해 보정 계수를 계산합니다.
     // ----------------------------------------------------
     constexpr unsigned int CALIBRATION_WAIT_SAMPLES =
         2000;
@@ -2674,7 +2674,7 @@ bool DaoEtherCATMaster::SetDaoAdcPowerLineFilterMode(
         return false;
     }
 
-    // �����ϴ� Mode�� ����մϴ�.
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     if (mode != DaoInternalAdcPowerLineFilterMode::OFF &&
         mode != DaoInternalAdcPowerLineFilterMode::HZ_50 &&
         mode != DaoInternalAdcPowerLineFilterMode::HZ_60 &&
@@ -2688,10 +2688,10 @@ bool DaoEtherCATMaster::SetDaoAdcPowerLineFilterMode(
         mode;
 
     // ----------------------------------------------------
-    // Notch Mode�� ����Ǹ� ���� Filter History�� ����մϴ�.
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     //
-    // �ٸ� Mode���� ����ϴ� x/y ���¸� �״�� ����
-    // �������� ���������� ���� �� �ֽ��ϴ�.
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     // ----------------------------------------------------
     runtimeInfo.processing.notch50X1 = 0.0;
     runtimeInfo.processing.notch50X2 = 0.0;
@@ -2708,7 +2708,7 @@ bool DaoEtherCATMaster::SetDaoAdcPowerLineFilterMode(
     runtimeInfo.processing.notch120Y1 = 0.0;
     runtimeInfo.processing.notch120Y2 = 0.0;
 
-    // ���� ������ �ٽ� �����մϴ�.
+    // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
     runtimeInfo.processing.powerLineFiltered =
         runtimeInfo.processing.lowLevelFiltered;
 
@@ -2751,7 +2751,7 @@ bool DaoEtherCATMaster::SetDaoAdcFilterN(
     runtimeInfo.processing.filterN =
         filterN;
 
-    // N���� ����Ǹ� ���� Moving Average �̷��� ����մϴ�.
+    // 설정된 N개 샘플의 이동 평균을 계산합니다.
     runtimeInfo.processing.userFilterBuffer.fill(0.0);
 
     runtimeInfo.processing.userFilterIndex =
@@ -2806,12 +2806,12 @@ bool DaoEtherCATMaster::StartDaoAdcDiagnosticCapture(
         return false;
     }
 
-    // ���� Diagnostic Capture ����� ������
-    // �� Capture�� �����մϴ�.
+    // ADC 진단 캡처 상태와 수집된 샘플 수를 관리합니다.
+    // ADC 진단 캡처 상태와 수집된 샘플 수를 관리합니다.
     runtimeInfo.diagnosticSamples.clear();
 
-    // ���� �� vector ���Ҵ��� �߻����� �ʵ���
-    // �ʿ��� Sample ����ŭ �̸� �޸𸮸� Ȯ���մϴ�.
+    // ADC 진단 캡처 상태와 수집된 샘플 수를 관리합니다.
+    // ADC 진단 캡처 상태와 수집된 샘플 수를 관리합니다.
     runtimeInfo.diagnosticSamples.reserve(
         static_cast<std::size_t>(
             targetSampleCount));
@@ -2973,7 +2973,7 @@ bool DaoEtherCATMaster::ReadDaoAdcRingBuffer(
         : requestedCount;
 
     // ----------------------------------------------------
-    // ���� ������ Sample���� ������� �н��ϴ�.
+    // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
     // ----------------------------------------------------
     for (std::size_t i = 0;
         i < actualReadCount;
@@ -3104,8 +3104,8 @@ bool DaoEtherCATMaster::GetServoRuntimeInfo(
         servoRuntimeInfoBySlave_[
             runtimeIndex];
 
-    // LS Servo Identity�� PDO ������ �����
-    // Runtime�� �ܺο� ��ȯ�մϴ�.
+    // Servo 런타임 정보를 동기화하여 복사합니다.
+    // 요청된 정보를 출력 구조체에 복사합니다.
     if (!runtimeInfo.configured)
     {
         return false;
@@ -3143,8 +3143,8 @@ bool DaoEtherCATMaster::GetIoRuntimeInfo(
         ioRuntimeInfoBySlave_[
             runtimeIndex];
 
-    // FASTECH IO Identity�� PDO ������ �����
-    // Runtime�� �ܺο� ��ȯ�մϴ�.
+    // FASTECH Ezi-IO 장치의 식별 정보와 입출력 크기를 확인합니다.
+    // FASTECH Ezi-IO 장치의 식별 정보와 입출력 크기를 확인합니다.
     if (!runtimeInfo.configured)
     {
         return false;
@@ -3232,7 +3232,7 @@ bool DaoEtherCATMaster::RequestServoOn(
         return false;
     }
 
-    // Fault ���¿����� Servo ON ������ �������� �ʽ��ϴ�.
+    // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
     if (runtimeInfo.fault)
     {
         return false;
@@ -3243,8 +3243,8 @@ bool DaoEtherCATMaster::RequestServoOn(
         return false;
     }
 
-    // �ٸ� ������ ���� ���̸� �� Servo ON ������
-    // ����� �ʽ��ϴ�.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
     if (runtimeInfo.commandState ==
         DAO_SERVO_COMMAND_STATE_ACCEPTED ||
         runtimeInfo.commandState ==
@@ -3270,8 +3270,8 @@ bool DaoEtherCATMaster::RequestServoOn(
     runtimeInfo.commandStartFrameCount =
         runtimeInfo.totalFrameCount;
 
-    // �̹� Operation Enabled���
-    // ���ʿ��� CiA402 ��ȯ�� �ٽ� �������� �ʽ��ϴ�.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
     if (runtimeInfo.operationEnabled)
     {
         runtimeInfo.commandState =
@@ -3324,8 +3324,8 @@ bool DaoEtherCATMaster::RequestServoOff(
         return false;
     }
 
-    // �ٸ� �Ϲ� ������ ���� ���̸�
-    // �̹� �ܰ迡���� Servo OFF ��û�� ����� �ʽ��ϴ�.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
     if (runtimeInfo.commandState ==
         DAO_SERVO_COMMAND_STATE_ACCEPTED ||
         runtimeInfo.commandState ==
@@ -3351,8 +3351,8 @@ bool DaoEtherCATMaster::RequestServoOff(
     runtimeInfo.commandStartFrameCount =
         runtimeInfo.totalFrameCount;
 
-    // �̹� Ready To Switch On�̸�
-    // �츮�� ������ Servo OFF �����Դϴ�.
+    // Statusword에서 CiA 402 상태를 추출합니다.
+    // Statusword에서 CiA 402 상태를 추출합니다.
     if (runtimeInfo.cia402State == 0x0021)
     {
         runtimeInfo.commandState =
@@ -3411,18 +3411,18 @@ bool DaoEtherCATMaster::RequestServoHome(
         return false;
     }
 
-    // Fault ���¿����� Homing�� �������� �ʽ��ϴ�.
+    // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
     if (runtimeInfo.fault)
     {
         return false;
     }
 
-	if (runtimeInfo.stoActive) // STO�� Ȱ��ȭ�Ǿ� ������ Homing�� �������� �ʽ��ϴ�.
+	if (runtimeInfo.stoActive) // Servo Homing 명령과 제한 시간을 설정합니다.
     {
         return false;
     }
 
-    // �ٸ� ������ ���� ���̸� Home ������ ����� �ʽ��ϴ�.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
     if (runtimeInfo.commandState ==
         DAO_SERVO_COMMAND_STATE_ACCEPTED ||
         runtimeInfo.commandState ==
@@ -3464,7 +3464,7 @@ bool DaoEtherCATMaster::RequestServoHome(
     runtimeInfo.mailboxResult = 0;
 
 
-    // �� Homing�� �����ϹǷ� ���� �Ϸ� ���´� �����մϴ�.
+    // Servo Homing 명령과 제한 시간을 설정합니다.
     runtimeInfo.homed = false;
 
     return true;
@@ -3473,7 +3473,7 @@ bool DaoEtherCATMaster::RequestServoHome(
 
 
 // --------------------------------------------------------
-//��ġ���� ����� Output Command�� �����մϴ�.
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 bool DaoEtherCATMaster::RequestServoMoveAbsolute(
     int physicalSlaveIndex,
     int targetPosition,
@@ -3499,7 +3499,7 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
     {
         return false;
     }
-	// Profile Velocity�� 0�̸� ��ġ�̵��� �������� �ʽ��ϴ�.
+	// 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
     if (profileVelocity == 0)
     {
         return false;
@@ -3522,7 +3522,7 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
 
     const std::size_t runtimeIndex =
         static_cast<std::size_t>(
-			physicalSlaveIndex);  // 0���� EtherCAT Master �ڽ��̹Ƿ� 1���� �����մϴ�.
+			physicalSlaveIndex);  // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     if (runtimeIndex >=
         servoRuntimeInfoBySlave_.size())
@@ -3540,19 +3540,19 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
         return false;
     }
 
-    // Fault ���¿����� ��ġ�̵��� �������� �ʽ��ϴ�.
+    // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
     if (runtimeInfo.fault)
     {
         return false;
     }
 
-	if (runtimeInfo.stoActive) // STO�� Ȱ��ȭ�Ǿ� ������ ��ġ�̵��� �������� �ʽ��ϴ�.
+	if (runtimeInfo.stoActive) // Servo 입력값에서 Limit, Home, STOP 및 STO 신호를 해석합니다.
     {
         return false;
     }
 
-    // �ٸ� Servo ������ ���� ���̸�
-    // �� MoveAbs �������� ����� �ʽ��ϴ�.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
     if (runtimeInfo.commandState ==
         DAO_SERVO_COMMAND_STATE_ACCEPTED ||
         runtimeInfo.commandState ==
@@ -3579,7 +3579,7 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
         runtimeInfo.totalFrameCount;
 
     // --------------------------------------------------------
-    // Move Absolute ���� �Ķ���� ����
+    // 목표 위치와 프로파일 값을 설정해 절대 위치 이동을 요청합니다.
     // --------------------------------------------------------
     runtimeInfo.moveTargetPosition =
         targetPosition;
@@ -3588,10 +3588,10 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
         profileVelocity;
 
     runtimeInfo.moveProfileAcceleration =
-		safeAcceleration;  // 0�̸� �⺻������ ��ü
+		safeAcceleration;  // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
 
     runtimeInfo.moveProfileDeceleration =
-		safeDeceleration; // 0�̸� �⺻������ ��ü
+		safeDeceleration; // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
 
     if (timeoutMs == 0)
     {
@@ -3612,19 +3612,19 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
                 ? positionDifference
                 : -positionDifference);
 
-        // �Ÿ� / �ӵ� ���� �̵��ð�
-        // ���� Position, Velocity�� ���� User Unit �迭�̶�� �����Դϴ�.
+        // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+        // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
         const unsigned long long baseMoveTimeMs =
             (moveDistance * 1000ULL +
                 static_cast<unsigned long long>(profileVelocity) - 1ULL)
             /
             static_cast<unsigned long long>(profileVelocity);
 
-        // ����ð��� 2�� + 2�� ����
+        // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
         unsigned long long calculatedTimeoutMs =
             (baseMoveTimeMs * 2ULL) + 2000ULL;
 
-        // �ʹ� ª�� �̵��� �ּ� 3�ʴ� Ȯ��
+        // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
         if (calculatedTimeoutMs < 3000ULL)
         {
             calculatedTimeoutMs = 3000ULL;
@@ -3658,8 +3658,8 @@ bool DaoEtherCATMaster::RequestServoMoveAbsolute(
 
 
 // --------------------------------------------------------
-// Profile Velocity ���� ������ �����մϴ�.
-// ���� �ӵ� ����� ProcessServoCommands()���� ó���մϴ�.
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 // --------------------------------------------------------
 bool DaoEtherCATMaster::RequestServoVelocity(
     int physicalSlaveIndex,
@@ -3705,13 +3705,13 @@ bool DaoEtherCATMaster::RequestServoVelocity(
         return false;
     }
 
-    // Fault ���¿����� �ӵ������� �������� �ʽ��ϴ�.
+    // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
     if (runtimeInfo.fault)
     {
         return false;
     }
 
-    // STO ���¿����� ��� �ӵ������� �������� �ʽ��ϴ�.
+    // Servo 입력값에서 Limit, Home, STOP 및 STO 신호를 해석합니다.
     if (runtimeInfo.stoActive)
     {
         return false;
@@ -3731,12 +3731,12 @@ bool DaoEtherCATMaster::RequestServoVelocity(
         : deceleration;
 
     // --------------------------------------------------------
-    // �̹� Velocity ���� ���̶��
-    // ���ο� �ӵ������� ������ �� �ֽ��ϴ�.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     //
-    // +�� : ������
-    // -�� : ������
-    //  0  : ���� ����
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
     // --------------------------------------------------------
     if (runtimeInfo.commandType ==
         DAO_SERVO_COMMAND_VELOCITY &&
@@ -3755,8 +3755,8 @@ bool DaoEtherCATMaster::RequestServoVelocity(
         return true;
     }
 
-    // �ٸ� Servo ������ ���� ���̸�
-    // �� �ӵ��������� ����� �ʽ��ϴ�.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
+    // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
     if (runtimeInfo.commandState ==
         DAO_SERVO_COMMAND_STATE_ACCEPTED ||
         runtimeInfo.commandState ==
@@ -3796,9 +3796,9 @@ bool DaoEtherCATMaster::RequestServoVelocity(
 }
 // --------------------------------------------------------
 // --------------------------------------------------------
-// ���� Servo ������ ���� �������� ��ȯ�մϴ�.
-// ���� ���� ������ ProcessServoCommands()���� ó���մϴ�.
-// Servo OFF�� �ƴ϶� ���� ���� + ��ũ �����Դϴ�.
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 // --------------------------------------------------------
 bool DaoEtherCATMaster::RequestServoStop(
     int physicalSlaveIndex)
@@ -3841,8 +3841,8 @@ bool DaoEtherCATMaster::RequestServoStop(
         return false;
     }
 
-    // Fault / STO ���¿����� �Ϲ� Stop ��������
-    // ���¸� ����� �ʽ��ϴ�.
+    // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
+    // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
     if (runtimeInfo.fault ||
         runtimeInfo.stoActive)
     {
@@ -4024,14 +4024,14 @@ bool DaoEtherCATMaster::SetIoOutputCommand(
         return false;
     }
 
-    // IN8OUT8�� ���� 8��Ʈ�� ����մϴ�.
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     if (runtimeInfo.outputBytes == 1)
     {
         outputValue =
             static_cast<unsigned short>(
                 outputValue & 0x00FF);
     }
-    // IN16OUT16�� 16��Ʈ ��ü�� ����մϴ�.
+    // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
     else if (runtimeInfo.outputBytes != 2)
     {
         return false;
@@ -4045,20 +4045,20 @@ bool DaoEtherCATMaster::SetIoOutputCommand(
 void DaoEtherCATMaster::ResetAdcRuntimeInfo()
 {
     // --------------------------------------------------------
-    // ADC ��Ÿ�� ������� ��ü�� �����ϹǷ�
-    // �ܺ� ��ȸ �Ǵ� ��� ������ ���ٰ� �浹���� �ʰ�
-    // mutex�� ��ȣ�մϴ�.
+    // ADC 런타임 상태를 초기값으로 되돌립니다.
+    // ADC 런타임 정보를 동기화하여 복사합니다.
+    // ADC 런타임 정보를 동기화하여 복사합니다.
     // --------------------------------------------------------
     std::lock_guard<std::mutex> lock(
         adcRuntimeMutex_);
 
-    // ���� ���� Slave�� ADC ��Ÿ�� ������ ��� �����մϴ�.
+    // ADC 런타임 정보를 동기화하여 복사합니다.
     adcRuntimeInfoBySlave_.clear();
 
-    // SOEM�� ���� Slave ��ȣ�� 1���� �����մϴ�.
-    // 0���� ��ü Slave���̹Ƿ� ������� ������,
-    // ���� ��ȣ�� �״�� vector index�� ����ϱ� ����
-    // slaveCount + 1 ũ��� Ȯ���մϴ�.
+    // ADC 런타임 정보를 동기화하여 복사합니다.
+    // ADC 런타임 정보를 동기화하여 복사합니다.
+    // ADC 런타임 정보를 동기화하여 복사합니다.
+    // ADC 런타임 정보를 동기화하여 복사합니다.
     if (slaveCount_ > 0)
     {
         adcRuntimeInfoBySlave_.resize(
@@ -4085,7 +4085,7 @@ void DaoEtherCATMaster::ResetAdcRuntimeInfo()
     }
 }
 
-void DaoEtherCATMaster::ResetServoRuntimeInfo() // ���� ��Ÿ�� ���� �ʱ�ȭ
+void DaoEtherCATMaster::ResetServoRuntimeInfo() // Servo 런타임 상태와 출력 명령을 초기화합니다.
 {
     std::lock_guard<std::mutex> lock(
         servoRuntimeMutex_);
@@ -4119,7 +4119,7 @@ void DaoEtherCATMaster::ResetServoRuntimeInfo() // ���� ��Ÿ�� �
 }
 
 
-void DaoEtherCATMaster::ResetIoRuntimeInfo() //��Ÿ��IO���� �ʱ�ȭ
+void DaoEtherCATMaster::ResetIoRuntimeInfo() // IO 입력 PDO를 읽어 최신 입력 상태를 갱신합니다.
 {
     std::lock_guard<std::mutex> lock(
         ioRuntimeMutex_);
@@ -4186,10 +4186,10 @@ void DaoEtherCATMaster::ResetEncoderRuntimeInfo()
 }
 
 
-void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� ������ ���� ����
+void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT 주기 통신 스레드의 본체입니다.
 {
     // --------------------------------------------------------
-    // EtherCAT ��ȯ��� ��ǥ �ֱ�
+    // EtherCAT 주기 통신 스레드의 본체입니다.
     //
     // 2ms = 500Hz
     // --------------------------------------------------------
@@ -4205,10 +4205,10 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
             COMMUNICATION_PERIOD;
 
         // ----------------------------------------------------
-        // 1. ������ ��� DAO ADC Output PDO�� 0���� ����
+        // 통신 주기와 다음 실행 시각을 기준으로 루프를 유지합니다.
         //
-        // ���� Servo�� IO�� ��ϵ��� �ʾ����Ƿ�
-        // ����� ADC Output 4����Ʈ�� ó���մϴ�.
+        // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+        // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
         // ----------------------------------------------------
         for (int physicalSlaveIndex = 1;
             physicalSlaveIndex <= slaveCount_;
@@ -4223,7 +4223,7 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
                 continue;
             }
 
-            // ������ DAO ADC PDO ũ��� �����͸� ����մϴ�.
+            // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
             if (slave.Obytes != 4 ||
                 slave.Ibytes != 24 ||
                 slave.outputs == nullptr ||
@@ -4240,15 +4240,15 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
         }
 
         // ----------------------------------------------------
-        // LS Servo�� FASTECH IO�� �ֽ� ��� ������
-        // ���� Output PDO �޸𸮿� �ݿ��մϴ�.
+        // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
+        // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
         // ----------------------------------------------------
         PrepareServoAndIoOutputs();
 
         PrepareEncoderOutputs();
 
         // ----------------------------------------------------
-        // 2. ��ü EtherCAT Process Data�� ��Ȯ�� �� �� �ۼ���
+        // Process Data를 송신하고 수신 WKC를 확인합니다.
         // ----------------------------------------------------
         ecx_send_processdata(
             &context_);
@@ -4259,8 +4259,8 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
                 EC_TIMEOUTRET);
 
         // ----------------------------------------------------
-        // �̹� �������� LS Servo�� FASTECH IO �Է� PDO��
-        // �� ��ġ�� Runtime ��������� �ݿ��մϴ�.
+        // Process Data를 송신하고 수신 WKC를 확인합니다.
+        // Process Data를 송신하고 수신 WKC를 확인합니다.
         // ----------------------------------------------------
         CaptureServoAndIoInputs(
             actualWkc);
@@ -4269,15 +4269,15 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
         CaptureEncoderInputs(
             actualWkc);
 
-        // �ֽ� Servo ���¸� ��������
-        // �� ���� �񵿱� ���� ���¸ӽ��� �����մϴ�.
+        // Process Data를 송신하고 수신 WKC를 확인합니다.
+        // Process Data를 송신하고 수신 WKC를 확인합니다.
         ProcessServoCommands();
 
         const bool wkcValid =
             actualWkc >= expectedWkc_;
 
         // ----------------------------------------------------
-        // 3. �� DAO ADC�� Input PDO�� ��Ÿ�� ��������� �ݿ�
+        // Process Data를 송신하고 수신 WKC를 확인합니다.
         // ----------------------------------------------------
         for (int physicalSlaveIndex = 1;
             physicalSlaveIndex <= slaveCount_;
@@ -4302,7 +4302,7 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
 
             DaoInternalAdcInputPdo latestData{};
 
-            // WKC�� ������ ���� �� ADC �����͸� �����մϴ�.
+            // PDO 메모리 포인터가 유효한지 확인합니다.
             if (wkcValid)
             {
                 std::memcpy(
@@ -4378,12 +4378,12 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
         }
 
         // ----------------------------------------------------
-        // 4. ���� 2ms ����ð����� ���
+        // 통신 주기와 다음 실행 시각을 기준으로 루프를 유지합니다.
         // ----------------------------------------------------
         std::this_thread::sleep_until(
             nextWakeTime);
 
-        // PC�� ���� ������ ��� �и� �ֱ⸦ ���� �������� �ʽ��ϴ�.
+        // 통신 주기와 다음 실행 시각을 기준으로 루프를 유지합니다.
         const auto now =
             std::chrono::steady_clock::now();
 
@@ -4395,7 +4395,7 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
     }
 
     // --------------------------------------------------------
-    // ������ ���� �� ��� ADC Runtime�� ���� ���¸� false�� ����
+    // ADC 런타임 정보를 동기화하여 복사합니다.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4413,8 +4413,8 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
     }
 
     // --------------------------------------------------------
-    // ������ ���� �� ��� Servo Runtime��
-    // ���� ���¸� false�� ����
+    // Servo 런타임 정보를 동기화하여 복사합니다.
+    // Servo 런타임 정보를 동기화하여 복사합니다.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4432,8 +4432,8 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
     }
 
     // --------------------------------------------------------
-    // ������ ���� �� ��� IO Runtime��
-    // ���� ���¸� false�� ����
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4472,7 +4472,7 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT ��ȯ��� 
 void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
 {
     // --------------------------------------------------------
-    // LS Servo Runtime ����
+    // Servo 런타임 상태와 출력 명령을 초기화합니다.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4494,7 +4494,7 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
                     static_cast<std::size_t>(
                         physicalSlaveIndex)];
 
-            // �⺻������ �ٽ� �ʱ�ȭ
+            // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
             runtimeInfo = {};
 
             runtimeInfo.physicalSlaveIndex =
@@ -4503,7 +4503,7 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
             runtimeInfo.expectedWkc =
                 expectedWkc_;
 
-            // LS L7NH�� �ƴϸ� ��������� ����
+            // 정상 통신 여부를 판단하기 위한 예상 WKC 값입니다.
             if (!IsLsL7nhServo(
                 physicalSlaveIndex))
             {
@@ -4514,7 +4514,7 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
                 context_.slavelist[
                     physicalSlaveIndex];
 
-            // PDO ũ�Ⱑ ��Ȯ�� �´� ��츸 Ȱ��ȭ
+            // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
             const bool outputSizeValid =
                 slave.Obytes ==
                 sizeof(
@@ -4542,12 +4542,12 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
             runtimeInfo.configured = true;
 
             // ----------------------------------------------------
-            // Servo �ʱ� Output PDO �⺻��
+            // 요청된 정보를 출력 구조체에 복사합니다.
             //
-            // ���� ��ġ�� ���� ù Input PDO�� �ޱ� ���̹Ƿ�
-            // Target Position�� 0���� �����մϴ�.
-            // ù ���� �Է��� ���� �� ���¸ӽſ���
-            // ���� ���� ��ġ�� �ٽ� ����ϴ�.
+            // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
+            // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
+            // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
+            // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
             // ----------------------------------------------------
             runtimeInfo.outputCommand = {};
 
@@ -4579,7 +4579,7 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
                 0;
 
 
-            // �Է��� ���� ��ȿ���� ����
+            // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
             runtimeInfo.latestInput = {};
             runtimeInfo.hasValidInputData = false;
         }
@@ -4590,7 +4590,7 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
 
 
     // --------------------------------------------------------
-    // FASTECH IO Runtime ����
+    // FASTECH Ezi-IO 장치의 식별 정보와 입출력 크기를 확인합니다.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4657,7 +4657,7 @@ void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
                 continue;
             }
 
-			runtimeInfo.configured = true; // FASTECH IO�� ������
+			runtimeInfo.configured = true; // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
             runtimeInfo.outputBytes =
                 outputBytes;
 
@@ -4752,10 +4752,10 @@ void DaoEtherCATMaster::ConfigureEncoderRuntimeInfo()
 void DaoEtherCATMaster::PrepareServoAndIoOutputs()
 {
     // --------------------------------------------------------
-    // LS Servo ��� PDO �غ�
+    // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
     //
-    // �ܺ� API�� ������ outputCommand��
-    // ���� EtherCAT Output PDO �޸𸮷� �����մϴ�.
+    // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
+    // Servo 런타임 정보를 동기화하여 복사합니다.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4779,8 +4779,8 @@ void DaoEtherCATMaster::PrepareServoAndIoOutputs()
                 servoRuntimeInfoBySlave_[
                     runtimeIndex];
 
-            // PDO ũ��� ������ ������ �����
-            // LS Servo�� ó���մϴ�.
+            // Servo 런타임 정보를 동기화하여 복사합니다.
+            // 요청된 정보를 출력 구조체에 복사합니다.
             if (!runtimeInfo.configured)
             {
                 continue;
@@ -4790,9 +4790,9 @@ void DaoEtherCATMaster::PrepareServoAndIoOutputs()
                 context_.slavelist[
                     physicalSlaveIndex];
 
-            // ConfigureServoAndIoRuntimeInfo()����
-            // �̹� 12����Ʈ�� �����͸� ����������,
-            // ���� ���� �������� �� �� �� Ȯ���մϴ�.
+            // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+            // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+            // Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
             if (slave.outputs == nullptr ||
                 slave.Obytes !=
                 sizeof(
@@ -4810,10 +4810,10 @@ void DaoEtherCATMaster::PrepareServoAndIoOutputs()
     }
 
     // --------------------------------------------------------
-    // FASTECH IO ��� PDO �غ�
+    // FASTECH Ezi-IO 장치의 식별 정보와 입출력 크기를 확인합니다.
     //
-    // IN8OUT8�� 1����Ʈ,
-    // IN16OUT16�� 2����Ʈ�� �����մϴ�.
+    // FASTECH Ezi-IO 장치의 식별 정보와 입출력 크기를 확인합니다.
+    // FASTECH Ezi-IO 장치의 식별 정보와 입출력 크기를 확인합니다.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -4936,7 +4936,7 @@ void DaoEtherCATMaster::CaptureServoAndIoInputs(
         actualWkc >= expectedWkc_;
 
     // --------------------------------------------------------
-    // LS Servo �Է� PDO ����
+    // Process Data를 송신하고 수신 WKC를 확인합니다.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -5004,7 +5004,7 @@ void DaoEtherCATMaster::CaptureServoAndIoInputs(
 
             runtimeInfo.hasValidInputData = true;
 
-            // �ֽ� StatusWord�� ���� ���� ���·� �ؼ��մϴ�.
+            // Statusword에서 CiA 402 상태를 추출합니다.
             UpdateServoDerivedState(
                 runtimeInfo);
 
@@ -5013,7 +5013,7 @@ void DaoEtherCATMaster::CaptureServoAndIoInputs(
     }
 
     // --------------------------------------------------------
-    // FASTECH IO �Է� PDO ����
+    // FASTECH Ezi-IO 장치의 식별 정보와 입출력 크기를 확인합니다.
     // --------------------------------------------------------
     {
         std::lock_guard<std::mutex> lock(
@@ -5221,7 +5221,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
 
         // ====================================================
-        // ���� ���� ���� ���� ���� Ȯ��
+        // Servo ON 명령을 등록하고 CiA 402 활성화 절차를 시작합니다.
         // ====================================================
         const bool isServoOnCommand =
             runtimeInfo.commandType ==
@@ -5248,7 +5248,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             DAO_SERVO_COMMAND_STOP;
 
 
-        // ���� ���¸ӽſ��� ó���ϴ� ������ �ƴϸ� ����
+        // Servo ON 명령을 등록하고 CiA 402 활성화 절차를 시작합니다.
         if (!isServoOnCommand &&
             !isServoOffCommand &&
             !isHomingCommand &&
@@ -5259,7 +5259,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             continue;
         }
 
-        // ACCEPTED �Ǵ� RUNNING ������ ���ɸ� ����
+        // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
         if (runtimeInfo.commandState !=
             DAO_SERVO_COMMAND_STATE_ACCEPTED &&
             runtimeInfo.commandState !=
@@ -5275,7 +5275,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
         if (isHomingCommand)
         {
             // ------------------------------------------------
-            // Fault ���¿����� Homing ���� ����
+            // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
             // ------------------------------------------------
             if (runtimeInfo.fault) 
             {
@@ -5289,7 +5289,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 continue;
             }
 
-			if (runtimeInfo.stoActive) // STO Active ���¿����� Homing ���� ����
+			if (runtimeInfo.stoActive) // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
             {
                 runtimeInfo.outputCommand.controlWord =
                     0x000F;
@@ -5314,8 +5314,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 runtimeInfo.outputCommand;
 
 
-            // Homing ���¸ӽ� ��ü���� ��������
-            // ������ ��°��� �����մϴ�.
+            // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
+            // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
             command.targetPosition =
                 runtimeInfo.latestInput.actualPosition;
 
@@ -5329,8 +5329,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 1. HOMING_PREPARE
             //
-            // Servo�� Ready To Switch On(0x21) ���·�
-            // ���� �� Homing Mode ������ �غ��մϴ�.
+            // Servo Homing 명령과 제한 시간을 설정합니다.
+            // Servo Homing 명령과 제한 시간을 설정합니다.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_HOMING_PREPARE)
@@ -5338,18 +5338,18 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 runtimeInfo.commandState =
                     DAO_SERVO_COMMAND_STATE_RUNNING;
 
-                // Ready To Switch On ���°� �ƴϸ�
-                // Shutdown ������ �����մϴ�.
+                // Statusword에서 CiA 402 상태를 추출합니다.
+                // Statusword에서 CiA 402 상태를 추출합니다.
                 if (runtimeInfo.cia402State != 0x0021)
                 {
                     command.controlWord = 0x0006;
                     continue;
                 }
 
-                // Servo OFF ���� Ȯ�� �Ϸ�
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.controlWord = 0x0006;
 
-                // Homing Mode ��û
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.operationMode = 6;
 
                 runtimeInfo.commandStep =
@@ -5363,7 +5363,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // 2. HOMING_MODE_REQUEST
             //
             // 0x6060 = 6
-            // 0x6061 Mode Display = 6 Ȯ��
+            // 요청된 정보를 출력 구조체에 복사합니다.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_HOMING_MODE_REQUEST)
@@ -5372,8 +5372,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 command.operationMode = 6;
 
-                // Drive�� ���� Homing Mode��
-                // ����� ������ ��ٸ��ϴ�.
+                // Servo의 운전 모드를 SDO로 설정합니다.
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 if (runtimeInfo.latestInput.operationModeDisplay != 6)
                 {
                     continue;
@@ -5389,7 +5389,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 3. HOMING_SERVO_ON
             //
-            // Homing Mode ���¿��� Servo ON
+            // Servo의 운전 모드를 SDO로 설정합니다.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_HOMING_SERVO_ON)
@@ -5397,7 +5397,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.operationMode = 6;
 
 
-                // �̹� Operation Enabled
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 if (runtimeInfo.cia402State == 0x0027)
                 {
                     command.controlWord = 0x000F;
@@ -5427,8 +5427,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
 
-                // �������� ���� ���¿�����
-                // ���Ƿ� ���� �ܰ�� �������� �ʽ��ϴ�.
+                // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+                // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
                 continue;
             }
 
@@ -5436,7 +5436,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 4. HOMING_START
             //
-            // Homing Start bit�� �ø��ϴ�.
+            // Servo Homing 명령과 제한 시간을 설정합니다.
             //
             // 0x001F =
             // Operation Enabled + Homing Start
@@ -5449,11 +5449,11 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.controlWord = 0x001F;
 
 
-                // ���� Homing ������ ���۵Ǵ� ����
+                // Servo Homing 명령과 제한 시간을 설정합니다.
                 runtimeInfo.homingStartFrameCount =
                     runtimeInfo.totalFrameCount;
 
-                // Homing ��ġ ��ȭ ���� �ʱ�ȭ
+                // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
                 runtimeInfo.homingLastPosition =
                     runtimeInfo.latestInput.actualPosition;
 
@@ -5464,13 +5464,13 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     true;
 
                 runtimeInfo.homingAttainedWentLow =
-					false; // Homing Attained Bit�� Low�� ������ ���� �ִ���
+					false; // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
 
-                // ���� Move ���� ��ġ ����
+                // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
                 runtimeInfo.moveStartPosition =
                     runtimeInfo.latestInput.actualPosition;
 
-                // ���� Move ���� Frame ����
+                // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
                 runtimeInfo.moveStartFrameCount =
                     runtimeInfo.totalFrameCount;
 
@@ -5484,8 +5484,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 5. HOMING_RUNNING
             //
-            // Drive�� ������ Homing Method�� ����
-            // ��ü Homing ���μ����� �����մϴ�.
+            // Statusword에서 CiA 402 상태를 추출합니다.
+            // Statusword에서 CiA 402 상태를 추출합니다.
             //
             // StatusWord
             // Bit 12 : Homing Attained
@@ -5500,7 +5500,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     runtimeInfo.latestInput.statusWord;
 
                 // ----------------------------------------------------
-                // Homing �� ���� ��ġ ��ȭ ����
+                // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
                 // ----------------------------------------------------
                 if (runtimeInfo.homingPositionMonitorStarted)
                 {
@@ -5517,8 +5517,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                         ? positionDifference
                         : -positionDifference;
 
-                    // ��5 count ������ ���� ��ġ ��鸲��
-                    // ���� �̵����� �Ǵ����� �ʽ��ϴ�.
+                    // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
+                    // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
                     constexpr long long
                         HOMING_POSITION_CHANGE_THRESHOLD = 5;
 
@@ -5534,10 +5534,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
                 // ----------------------------------------------------
-                // ������ ��ġ ��ȭ ���� ��� Frame ���
+                // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
                 //
-                // EtherCAT �ֱ� = 2ms
-                // ���� ���� ������ ���� �ʽ��ϴ�.
+                // Servo Homing 명령과 제한 시간을 설정합니다.
+                // Servo Homing 명령과 제한 시간을 설정합니다.
                 // ----------------------------------------------------
                 const std::uint64_t noMoveFrames =
                     runtimeInfo.totalFrameCount -
@@ -5550,8 +5550,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 const bool homingError =
                     (statusWord & 0x2000) != 0;
 
-                // �� Homing�� ������ ���۵� ��
-                // Homing Attained Bit�� �ѹ� LOW�� �Ǵ� ���� Ȯ���մϴ�.
+                // Statusword에서 CiA 402 상태를 추출합니다.
+                // Statusword에서 CiA 402 상태를 추출합니다.
                 if (!homingAttained)
                 {
                     runtimeInfo.homingAttainedWentLow =
@@ -5559,10 +5559,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
                 // ------------------------------------------------
-                // Homing Timeout �˻�
+                // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
                 //
-                // EtherCAT �ֱ� = 2ms
-                // timeoutMs�� �ʿ��� PDO Frame ���� ��ȯ�մϴ�.
+                // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
+                // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
                 // ------------------------------------------------
                 const std::uint64_t elapsedHomingFrames =
                     runtimeInfo.totalFrameCount -
@@ -5578,7 +5578,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 // ---------------------------------------------
                 if (homingError)
                 {
-                    // Homing Start bit ����
+                    // Servo Homing 명령과 제한 시간을 설정합니다.
                     command.controlWord = 0x000F;
 
                     runtimeInfo.commandState =
@@ -5592,7 +5592,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
                 // ---------------------------------------------
-               // Homing �Ϸ� 
+               // Servo Homing 명령과 제한 시간을 설정합니다.
                // ---------------------------------------------
                 if (runtimeInfo.homingAttainedWentLow &&
                     homingAttained &&
@@ -5612,10 +5612,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 // ------------------------------------------------
                 if (elapsedHomingFrames >= timeoutFrames)
                 {
-                    // Homing Start bit ����
+                    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
                     command.controlWord = 0x000F;
 
-                    // ���� PDO���� Profile Position Mode�� ���� ��û
+                    // Servo의 운전 모드를 SDO로 설정합니다.
                     command.operationMode = 1;
 
                     command.targetPosition =
@@ -5637,7 +5637,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                
 
 
-                // ���� Homing ���� ��
+                // Servo Homing 명령과 제한 시간을 설정합니다.
                 command.controlWord = 0x001F;
 
                 continue;
@@ -5647,8 +5647,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 6. HOMING_FINISH
             //
-            // Homing �Ϸ� �� Start bit�� �����ϰ�
-            // Profile Position Mode(1) ���͸� ��û�մϴ�.
+            // Servo Homing 명령과 제한 시간을 설정합니다.
+            // Servo Homing 명령과 제한 시간을 설정합니다.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_HOMING_FINISH)
@@ -5672,10 +5672,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 7. HOMING_RESTORE_MODE
             //
-            // 0x6060 = 1�� �����ϸ鼭
-            // 0x6061 Mode Display�� ���� 1���� Ȯ���մϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 요청된 정보를 출력 구조체에 복사합니다.
             //
-            // �̹� �ܰ迡���� ���� COMPLETED ó������ �ʽ��ϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_HOMING_RESTORE_MODE)
@@ -5690,8 +5690,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.targetVelocity = 0;
 
 
-                // Drive�� ���� Profile Position Mode��
-                // ������ ������ ��ٸ��ϴ�.
+                // Servo의 운전 모드를 SDO로 설정합니다.
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 if (runtimeInfo.latestInput.operationModeDisplay != 1)
                 {
                     continue;
@@ -5699,10 +5699,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
 
                 // ====================================================
-                // Homing ��ü ���μ��� ���� �Ϸ�
+                // Servo Homing 명령과 제한 시간을 설정합니다.
                 //
-                // Drive�� Profile Position Mode(1)��
-                // ���� ������ �ͱ��� Ȯ���� �� �Ϸ� ó���մϴ�.
+                // Servo Homing 명령과 제한 시간을 설정합니다.
+                // Servo Homing 명령과 제한 시간을 설정합니다.
                 // ====================================================
 
                 runtimeInfo.homed = true;
@@ -5716,8 +5716,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             }
 
 
-            // �������� ���� Homing Step������
-            // ���� ������ ������ �ʽ��ϴ�.
+            // Servo Homing 명령과 제한 시간을 설정합니다.
+            // Servo Homing 명령과 제한 시간을 설정합니다.
             continue;
         }
 
@@ -5728,7 +5728,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
         // ====================================================
 		if (isMoveAbsoluteCommand) // Profile Position Mode(1) + Servo ON + Move Start
         {
-			if (runtimeInfo.fault) // Fault ���¿����� �̵� ����
+			if (runtimeInfo.fault) // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
             {
                 runtimeInfo.commandState =
                     DAO_SERVO_COMMAND_STATE_ERROR;
@@ -5738,7 +5738,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 continue;
             }
 
-			if (runtimeInfo.stoActive) // STO Active ���¿����� �̵� ����
+			if (runtimeInfo.stoActive) // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
             {
                 runtimeInfo.outputCommand.targetVelocity = 0;
 
@@ -5758,8 +5758,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 1. MOVE_ABS_PREPARE
             //
-            // ���� �̵� ������ ���� �ʽ��ϴ�.
-            // Profile Position Mode(1) ��û�� �غ��մϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_MOVE_ABS_PREPARE)
@@ -5771,8 +5771,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 command.operationMode = 1;
 
-                // ���� ���� ��ǥ��ġ�� ������ �ʰ�
-                // ���� ��ġ�� �����մϴ�.
+                // Servo의 운전 모드를 SDO로 설정합니다.
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.targetPosition =
                     runtimeInfo.latestInput.actualPosition;
 
@@ -5787,10 +5787,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 2. MOVE_ABS_MODE_REQUEST
             //
-            // Profile Position Mode(1)�� ��� ��û�ϸ鼭
-            // Drive�� Mode Display(0x6061)�� ���� 1���� Ȯ���մϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 요청된 정보를 출력 구조체에 복사합니다.
             //
-            // ���� ��ǥ ��ġ �̵��� �������� �ʽ��ϴ�.
+            // Servo의 운전 모드를 SDO로 설정합니다.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_MOVE_ABS_MODE_REQUEST)
@@ -5799,21 +5799,21 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 command.controlWord = 0x000F;
 
-                // ���� ���� ��ǥ��ġ�� ������ �ʰ�
-                // ���� ��ġ�� �����մϴ�.
+                // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
+                // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
                 command.targetPosition =
                     runtimeInfo.latestInput.actualPosition;
 
                 command.targetVelocity = 0;
 
-                // Drive�� ���� Profile Position Mode�� �� ������ ���
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 if (runtimeInfo.latestInput.operationModeDisplay != 1)
                 {
                     continue;
                 }
 
-                // Mode 1 Ȯ�� �Ϸ�.
-                // ���� �ܰ�� Servo ON Ȯ��/��ȯ�Դϴ�.
+                // 요청된 정보를 출력 구조체에 복사합니다.
+                // 요청된 정보를 출력 구조체에 복사합니다.
                 runtimeInfo.commandStep =
                     DAO_SERVO_STEP_MOVE_ABS_SERVO_ON;
 
@@ -5823,25 +5823,25 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 3. MOVE_ABS_SERVO_ON
             //
-            // Profile Position Mode(1) Ȯ�� ��
-            // Servo�� Operation Enabled(0x27)���� �ø��ϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 요청된 정보를 출력 구조체에 복사합니다.
             //
-            // ���� ��ǥ ��ġ �̵��� �������� �ʽ��ϴ�.
+            // Servo의 운전 모드를 SDO로 설정합니다.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_MOVE_ABS_SERVO_ON)
             {
                 command.operationMode = 1;
 
-                // ���� ���� ��ǥ��ġ�� ���� �ʰ�
-                // ���� ��ġ�� �����մϴ�.
+                // Servo의 운전 모드를 SDO로 설정합니다.
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.targetPosition =
                     runtimeInfo.latestInput.actualPosition;
 
                 command.targetVelocity = 0;
 
-                // �̹� Operation Enabled�̸�
-                // ���� Move Start �غ� �ܰ�� �̵�
+                // Statusword에서 CiA 402 상태를 추출합니다.
+                // Statusword에서 CiA 402 상태를 추출합니다.
                 if (runtimeInfo.cia402State == 0x0027)
                 {
                     command.controlWord = 0x000F;
@@ -5876,19 +5876,19 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // �������� ���� ���¿�����
-                // ���Ƿ� ���� �ܰ�� �������� �ʽ��ϴ�.
+                // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+                // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
                 continue;
             }
 
             // =================================================
             // 4. MOVE_ABS_START
             //
-            // Profile Position Mode(1) + Servo ON Ȯ�� ��
-            // ��ǥ ��ġ / �ӵ� / ���� / ���� ���� PDO�� �غ��մϴ�.
+            // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+            // 요청된 정보를 출력 구조체에 복사합니다.
             //
-            // ���� New Set-point bit�� �ø��� �ʽ��ϴ�.
-            // ���� �̹� �ܰ迡���� ���� �̵��� �������� �ʽ��ϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // Servo의 운전 모드를 SDO로 설정합니다.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_MOVE_ABS_START)
@@ -5912,10 +5912,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.touchProbeFunction = 0;
 
                 // Profile Position New Set-point
-                // Bit 4�� �÷� ���� ������ġ �̵��� �����մϴ�.
+                // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
                 command.controlWord = 0x001F;
 
-                // ���� Move Absolute ���� ���� ���
+                // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
                 runtimeInfo.moveStartPosition =
                     runtimeInfo.latestInput.actualPosition;
 
@@ -5947,12 +5947,12 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 command.targetVelocity = 0;
 
-                // New Set-point bit�� ���� ���� ����
+                // 목표 속도와 가감속 값을 설정해 속도 운전을 요청합니다.
                 command.controlWord = 0x000F;
 
                 // ------------------------------------------------
-                // 1. �̵� ���� �� Target Reached��
-                //    �ѹ� LOW�� �Ǿ����� Ȯ��
+                // 요청된 정보를 출력 구조체에 복사합니다.
+                // 요청된 정보를 출력 구조체에 복사합니다.
                 // ------------------------------------------------
                 if (!runtimeInfo.targetReached)
                 {
@@ -5961,8 +5961,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
                 // ------------------------------------------------
-                // 2. LOW Ȯ�� �� �ٽ� HIGH�� �Ǹ�
-                //    ���� �̵� �Ϸ�
+                // 요청된 정보를 출력 구조체에 복사합니다.
+                // 요청된 정보를 출력 구조체에 복사합니다.
                 // ------------------------------------------------
                 if (runtimeInfo.moveTargetReachedWentLow &&
                     runtimeInfo.targetReached)
@@ -5974,7 +5974,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
 
                 // ------------------------------------------------
-                // 3. ���� �Ϸ���� �ʾҴٸ� Timeout Ȯ��
+                // 요청된 정보를 출력 구조체에 복사합니다.
                 // ------------------------------------------------
                 const std::uint64_t elapsedFrames =
                     runtimeInfo.totalFrameCount -
@@ -5987,7 +5987,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 if (elapsedFrames >= timeoutFrames)
                 {
-                    // Timeout�� �߻��ص� Servo OFF�� ���� �ʽ��ϴ�.
+                    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
                     command.controlWord = 0x000F;
                     command.operationMode = 1;
                     command.targetVelocity = 0;
@@ -6000,7 +6000,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // ���� �̵� ��
+                // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
                 continue;
             }
 
@@ -6008,15 +6008,15 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // =================================================
             // 6. MOVE_ABS_FINISH
             //
-            // ��ǥ ��ġ ���� Ȯ�� ��
-            // Move Absolute ������ ���� �Ϸ� ó���մϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // Servo의 운전 모드를 SDO로 설정합니다.
             // =================================================
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_MOVE_ABS_FINISH)
             {
                 command.operationMode = 1;
 
-                // Servo�� ��� Operation Enabled ����
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.controlWord = 0x000F;
 
                 command.targetPosition =
@@ -6040,7 +6040,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 continue;
             }
-            // ���� �ܰ�� ���� �۾����� �����մϴ�.
+            // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
             continue;
         }
 
@@ -6056,9 +6056,9 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 300. VELOCITY_PREPARE
             //
-            // PV ���� �ٲٱ� ����
-            // Target Velocity�� �ݵ�� 0���� ����� �Ӵϴ�.
-            // �� �ܰ迡���� ���� �̵����� �ʽ��ϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_VELOCITY_PREPARE)
@@ -6066,17 +6066,17 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 runtimeInfo.commandState =
                     DAO_SERVO_COMMAND_STATE_RUNNING;
 
-                // ���� ��ġ ����
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.targetPosition =
                     runtimeInfo.latestInput.actualPosition;
 
-                // ���� ���� PP ��� ����
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.operationMode = 1;
 
-                // Servo ON ���� ����
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.controlWord = 0x000F;
 
-                // PV ��ȯ ���� �ӵ��� �ݵ�� 0
+                // 목표 속도와 가감속 값을 설정해 속도 운전을 요청합니다.
                 command.targetVelocity = 0;
 
                 command.profileAcceleration =
@@ -6094,16 +6094,16 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 310. VELOCITY_MODE_REQUEST
             //
-            // Profile Velocity Mode(3)�� ��û�մϴ�.
-            // Target Velocity�� ���� 0���� �����մϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 요청된 정보를 출력 구조체에 복사합니다.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_VELOCITY_MODE_REQUEST)
             {
-                // PV Mode ��û
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.operationMode = 3;
 
-                // ��� ��ȯ �߿��� ���� �̵� ����
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.targetVelocity = 0;
 
                 command.profileAcceleration =
@@ -6112,10 +6112,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.profileDeceleration =
                     runtimeInfo.velocityDeceleration;
 
-                // Servo ���´� ����
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.controlWord = 0x000F;
 
-                // Drive�� ������ PV Mode�� ��ȯ�ƴ��� Ȯ��
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 if (runtimeInfo.latestInput.operationModeDisplay != 3)
                 {
                     continue;
@@ -6130,16 +6130,16 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 320. VELOCITY_SERVO_ON
             //
-            // PV Mode ���¿��� CiA402 Operation Enabled��
-            // Ȯ���մϴ�.
-            // Target Velocity�� ���� 0���� �����մϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // Servo의 운전 모드를 SDO로 설정합니다.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_VELOCITY_SERVO_ON)
             {
                 command.operationMode = 3;
 
-                // ���� ���� �̵����� ����
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.targetVelocity = 0;
 
                 command.profileAcceleration =
@@ -6151,7 +6151,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 const int ciaState =
                     runtimeInfo.cia402State;
 
-                // �̹� Operation Enabled ����
+                // Statusword에서 CiA 402 상태를 추출합니다.
                 if (ciaState == 0x27)
                 {
                     command.controlWord = 0x000F;
@@ -6183,19 +6183,19 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // �𸣴� ���¿����� ���Ƿ� �������� ����
+                // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
                 continue;
             }
 
             // ----------------------------------------------------
             // 330. VELOCITY_RUNNING
             //
-            // Profile Velocity Mode���� ���� Target Velocity��
-            // 0x60FF�� ����մϴ�.
+            // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+            // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
             //
-            // +�� : ������
-            // -�� : ������
-            //  0  :  ���� ����, Servo ON ����, ��ũ ����
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // Servo의 운전 모드를 SDO로 설정합니다.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_VELOCITY_RUNNING)
@@ -6208,10 +6208,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 command.profileDeceleration =
                     runtimeInfo.velocityDeceleration;
 
-                // Servo Operation Enabled ����
+                // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
                 command.controlWord = 0x000F;
 
-                // Fault �Ǵ� STO �߻� �� �ӵ����� ����
+                // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
                 if (runtimeInfo.fault ||
                     runtimeInfo.stoActive)
                 {
@@ -6225,14 +6225,14 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // STOP �Է��� ������ �̵� ����
+                // 목표 속도와 가감속 값을 설정해 속도 운전을 요청합니다.
                 if (runtimeInfo.stopInput)
                 {
                     command.targetVelocity = 0;
                     continue;
                 }
 
-                // ������ �̵� �� Positive Limit�̸� �̵� ����
+                // 목표 속도와 가감속 값을 설정해 속도 운전을 요청합니다.
                 if (runtimeInfo.velocityTarget > 0 &&
                     runtimeInfo.positiveLimit)
                 {
@@ -6240,7 +6240,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // ������ �̵� �� Negative Limit�̸� �̵� ����
+                // 목표 속도와 가감속 값을 설정해 속도 운전을 요청합니다.
                 if (runtimeInfo.velocityTarget < 0 &&
                     runtimeInfo.negativeLimit)
                 {
@@ -6248,7 +6248,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // ���� Profile Velocity ���
+                // 목표 속도와 가감속 값을 설정해 속도 운전을 요청합니다.
                 command.targetVelocity =
                     runtimeInfo.velocityTarget;
 
@@ -6270,8 +6270,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 400. STOP_PREPARE
             //
-            // ���� ��带 Ȯ���ϰ� ���� �غ� �մϴ�.
-            // ���� ���� ������ ���� Step���� ó���մϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_STOP_PREPARE)
@@ -6279,10 +6279,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 runtimeInfo.commandState =
                     DAO_SERVO_COMMAND_STATE_RUNNING;
 
-                // Servo ON ���´� �����մϴ�.
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 command.controlWord = 0x000F;
 
-                // PV ����� �켱 Target Velocity�� 0���� �غ�
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 if (runtimeInfo.latestInput.operationModeDisplay == 3)
                 {
                     command.operationMode = 3;
@@ -6290,7 +6290,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
                 }
                 else
                 {
-                    // PP �Ǵ� ��Ÿ ��ġ�迭�� ���� ��� ����
+                    // Servo의 운전 모드를 SDO로 설정합니다.
                     command.operationMode =
                         runtimeInfo.latestInput.operationModeDisplay;
                 }
@@ -6304,8 +6304,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 410. STOPPING
             //
-            // ���� ������忡 ���� ���� ���� ������ �����մϴ�.
-            // Servo ON ���´� �����մϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 요청된 정보를 출력 구조체에 복사합니다.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_STOPPING)
@@ -6315,8 +6315,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 // ------------------------------------------------
                 // PV Mode
-                // Target Velocity�� 0���� ���� ���� �����մϴ�.
-                // Servo ON / ��ũ�� �����մϴ�.
+                // Servo의 운전 모드를 SDO로 설정합니다.
+                // Servo의 운전 모드를 SDO로 설정합니다.
                 // ------------------------------------------------
                 if (currentMode == 3)
                 {
@@ -6332,7 +6332,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
 
                 // ------------------------------------------------
                 // PP Mode
-                // CiA402 Halt bit�� ����Ͽ� ���� �����մϴ�.
+                // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
                 //
                 // 0x000F : Operation Enabled
                 // 0x010F : Operation Enabled + Halt
@@ -6349,8 +6349,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
                     continue;
                 }
 
-                // ���� ��尡 �������� ���� ���̸�
-                // ���� �������� �ʰ� Servo ON ���¸� �����մϴ�.
+                // 목표 속도와 가감속 값을 설정해 속도 운전을 요청합니다.
+                // 목표 속도와 가감속 값을 설정해 속도 운전을 요청합니다.
                 command.controlWord = 0x000F;
                 command.targetVelocity = 0;
 
@@ -6360,8 +6360,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             // ----------------------------------------------------
             // 420. STOP_FINISH
             //
-            // ���� ���� �Ϸ� ó��
-            // Servo ON ���´� �����մϴ�.
+            // 요청된 정보를 출력 구조체에 복사합니다.
+            // 목표 속도와 가감속 값을 설정해 속도 운전을 요청합니다.
             // ----------------------------------------------------
             if (runtimeInfo.commandStep ==
                 DAO_SERVO_STEP_STOP_FINISH)
@@ -6382,10 +6382,10 @@ void DaoEtherCATMaster::ProcessServoCommands()
         // Servo ON / Servo OFF COMMAND
         // ====================================================
 
-        // Servo ON�� Fault ���¿��� �������� �ʽ��ϴ�.
+        // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
         //
-        // Servo OFF�� ���� ���� �����̹Ƿ�
-        // Fault ���¿����� �Ʒ� OFF ó������ ����մϴ�.
+        // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
+        // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
         if (isServoOnCommand &&
             runtimeInfo.fault)
         {
@@ -6403,7 +6403,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             runtimeInfo.commandStartFrameCount;
 
 
-        // 2ms �� 1000 = �� 2��
+        // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
         if (elapsedFrames >=
             SERVO_ON_TIMEOUT_FRAMES)
         {
@@ -6426,7 +6426,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
         // ====================================================
         // SERVO OFF
         //
-        // ������ Servo OFF �Ϸ� ����:
+        // Servo OFF 명령을 등록하고 구동 비활성화를 요청합니다.
         // Ready To Switch On = 0x0021
         // ====================================================
         if (isServoOffCommand)
@@ -6441,7 +6441,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
             command.digitalOutputs = 0;
 
 
-            // Servo OFF �Ϸ�
+            // Statusword에서 CiA 402 상태를 추출합니다.
             if (cia402State == 0x0021)
             {
                 command.controlWord = 0x0006;
@@ -6455,8 +6455,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
             }
 
 
-            // Operation Enabled / Switched On �����
-            // Shutdown �������� 0x21���� �����ϴ�.
+            // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
+            // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
             command.controlWord = 0x0006;
 
             runtimeInfo.commandState =
@@ -6470,7 +6470,7 @@ void DaoEtherCATMaster::ProcessServoCommands()
         // SERVO ON
         // ====================================================
 
-        // ��ġ ���ɿ� ���� �������� ���� �̵� ����
+        // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
         command.targetPosition =
             runtimeInfo.latestInput.actualPosition;
 
@@ -6526,8 +6526,8 @@ void DaoEtherCATMaster::ProcessServoCommands()
         }
 
 
-        // �� ���� �������� ���� CiA402 ���¿�����
-        // ������ �߰� ������ ������ �ʽ��ϴ�.
+        // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+        // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     }
 }
 
@@ -6540,12 +6540,12 @@ void DaoEtherCATMaster::UpdateServoDerivedState(
         runtimeInfo.latestInput.statusWord;
 
     // --------------------------------------------------------
-    // CiA402 ���¸� ���� ���� ���밪���� ����ȭ�մϴ�.
+    // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
     //
-    // LS L7NH�� ���� StatusWord����
-    // Quick Stop ���� ���� ��Ʈ�� �Բ� ���ԵǹǷ�
-    // �ܼ��� 0x006F ����ũ ����� �״�� ���°�����
-    // ����ϸ� Switch On Disabled�� 0x0060���� ���� �� �ֽ��ϴ�.
+    // Statusword에서 CiA 402 상태를 추출합니다.
+    // Servo의 Fault 상태를 확인하고 명령 결과에 반영합니다.
+    // Statusword에서 CiA 402 상태를 추출합니다.
+    // Statusword에서 CiA 402 상태를 추출합니다.
     // --------------------------------------------------------
 
     // Fault
@@ -6575,8 +6575,8 @@ void DaoEtherCATMaster::UpdateServoDerivedState(
     }
     else
     {
-        // ���� �������� ���� ���´�
-        // ���� ����ũ ����� ���ܿ����� ����ϴ�.
+        // Statusword에서 CiA 402 상태를 추출합니다.
+        // Statusword에서 CiA 402 상태를 추출합니다.
         runtimeInfo.cia402State =
             static_cast<unsigned short>(
                 statusWord & 0x006F);
@@ -6592,7 +6592,7 @@ void DaoEtherCATMaster::UpdateServoDerivedState(
         (statusWord & 0x0400) != 0;
 
     // --------------------------------------------------------
-    // LS L7NH 0x60FD Digital Inputs ���� �ؼ�
+    // Servo 입력 PDO를 읽어 최신 런타임 상태를 갱신합니다.
     // --------------------------------------------------------
     const unsigned int digitalInputs =
         runtimeInfo.latestInput.digitalInputs;
@@ -6620,10 +6620,10 @@ double DaoEtherCATMaster::ApplyAdcNotchFilter(
     double& x1,
     double& x2,
     double& y1,
-	double& y2)  // 2�� IIR Notch Filter
+	double& y2)  // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
 {
     // --------------------------------------------------------
-    // �⺻ �Է°� ����
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     // --------------------------------------------------------
     if (sampleRateHz <= 0.0 ||
         notchFrequencyHz <= 0.0 ||
@@ -6633,13 +6633,13 @@ double DaoEtherCATMaster::ApplyAdcNotchFilter(
     }
 
     // --------------------------------------------------------
-    // ù Sample �ʱ�ȭ
+    // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
     //
-    // ADC ���� �� 8�鸸 count �����̹Ƿ�
-    // Filter ���� ���¸� 0���� ���۽�Ű��
-    // ó�� ���� ū ���������� �߻��� �� �ֽ��ϴ�.
+    // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
+    // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
+    // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
     //
-    // ���°� ��� 0�̸� ���� �Է°����� �ʱ�ȭ�մϴ�.
+    // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
     // --------------------------------------------------------
     if (x1 == 0.0 &&
         x2 == 0.0 &&
@@ -6655,13 +6655,13 @@ double DaoEtherCATMaster::ApplyAdcNotchFilter(
     }
 
     // --------------------------------------------------------
-    // 2�� IIR Notch Filter
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     //
     // Zero : notchFrequencyHz
-    // Pole : ���� ���ļ�, radius = r
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     //
-    // r�� 1.0�� ��������
-    // ���� �뿪�� �������� ���� ��ȣ �������� �������ϴ�.
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     // --------------------------------------------------------
     constexpr double PI =
         3.14159265358979323846;
@@ -6678,7 +6678,7 @@ double DaoEtherCATMaster::ApplyAdcNotchFilter(
         std::cos(omega);
 
     // --------------------------------------------------------
-    // DC Gain = 1�� �ǵ��� Gain ����
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     // --------------------------------------------------------
     const double numeratorDc =
         2.0 - (2.0 * cosOmega);
@@ -6708,7 +6708,7 @@ double DaoEtherCATMaster::ApplyAdcNotchFilter(
         (POLE_RADIUS * POLE_RADIUS * y2);
 
     // --------------------------------------------------------
-    // ���� Sample�� ���� ����
+    // IO 입력 PDO를 읽어 최신 입력 상태를 갱신합니다.
     // --------------------------------------------------------
     x2 = x1;
     x1 = inputValue;
@@ -6728,7 +6728,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
         rawSample;
 
     // --------------------------------------------------------
-    // ������ Filter ù ���� �ʱ�ȭ
+    // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
     // --------------------------------------------------------
     if (!runtimeInfo.processing.lowLevelFilterInitialized)
     {
@@ -6745,7 +6745,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
     }
 
     // --------------------------------------------------------
-    // ������ 1�� Low-Pass Filter
+    // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
     // --------------------------------------------------------
     constexpr double LOW_LEVEL_FILTER_ALPHA = 0.1;
 
@@ -6760,9 +6760,9 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
     // Power Line Notch Filter
     //
-    // �⺻���� Low-Level Filter ��� �״�� ����մϴ�.
-    // HZ_60 ��忡����
-    // 60Hz -> 120Hz ������ Notch�� �����ŵ�ϴ�.
+    // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
+    // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
+    // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
     // --------------------------------------------------------
     runtimeInfo.processing.powerLineFiltered =
         runtimeInfo.processing.lowLevelFiltered;
@@ -6773,14 +6773,14 @@ void DaoEtherCATMaster::ProcessAdcSample(
     switch (runtimeInfo.processing.powerLineFilterMode)
     {
     case DaoInternalAdcPowerLineFilterMode::OFF:
-        // �ƹ� Notch�� �������� �ʽ��ϴ�.
+        // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
         runtimeInfo.processing.powerLineFiltered =
             runtimeInfo.processing.lowLevelFiltered;
         break;
 
 
     case DaoInternalAdcPowerLineFilterMode::HZ_50:
-        // 50Hz�� ����
+        // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
         runtimeInfo.processing.powerLineFiltered =
             ApplyAdcNotchFilter(
                 runtimeInfo.processing.lowLevelFiltered,
@@ -6794,7 +6794,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
 
     case DaoInternalAdcPowerLineFilterMode::HZ_60:
-        // 60Hz�� ����
+        // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
         runtimeInfo.processing.powerLineFiltered =
             ApplyAdcNotchFilter(
                 runtimeInfo.processing.lowLevelFiltered,
@@ -6808,7 +6808,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
 
     case DaoInternalAdcPowerLineFilterMode::HZ_120:
-        // 120Hz�� ����
+        // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
         runtimeInfo.processing.powerLineFiltered =
             ApplyAdcNotchFilter(
                 runtimeInfo.processing.lowLevelFiltered,
@@ -6823,7 +6823,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
     case DaoInternalAdcPowerLineFilterMode::HZ_50_60:
     {
-        // 50Hz ���� �� 60Hz ����
+        // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
         const double notch50Value =
             ApplyAdcNotchFilter(
                 runtimeInfo.processing.lowLevelFiltered,
@@ -6849,7 +6849,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
     case DaoInternalAdcPowerLineFilterMode::HZ_60_120:
     {
-        // 60Hz ���� �� 120Hz ����
+        // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
         const double notch60Value =
             ApplyAdcNotchFilter(
                 runtimeInfo.processing.lowLevelFiltered,
@@ -6880,7 +6880,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
     }
 
     // --------------------------------------------------------
-    // Zero ����
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     // --------------------------------------------------------
     if (runtimeInfo.processing.zeroInitialized)
     {
@@ -6895,7 +6895,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
     }
 
     // --------------------------------------------------------
-    // Calibration ����
+    // 기준값과 안정된 ADC 샘플을 이용해 보정 계수를 계산합니다.
     // --------------------------------------------------------
     runtimeInfo.processing.calibratedValue =
         runtimeInfo.processing.zeroedValue *
@@ -6904,8 +6904,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
     // 3-Sample Median Filter
     //
-    // ���������� �� Sample�� ũ�� Ƣ�� ���� �����ϱ� ����
-    // ���� Median Filter�Դϴ�.
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     // --------------------------------------------------------
     {
         runtimeInfo.processing.medianBuffer[
@@ -6922,8 +6922,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
             if (runtimeInfo.processing.medianCount < 3)
             {
-                // �ʱ� 1~2 Sample�� Median 3 ����� �Ұ����ϹǷ�
-                // ���� Calibration ���� �״�� ����մϴ�.
+                // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
+                // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
                 runtimeInfo.processing.medianFilteredValue =
                     runtimeInfo.processing.calibratedValue;
             }
@@ -6957,11 +6957,11 @@ void DaoEtherCATMaster::ProcessAdcSample(
     }
 
     // --------------------------------------------------------
-    // ����� N Sample Moving Average Filter
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     //
-    // ����:
-    // calibratedValue�� �ƴ϶�
-    // Median 3 ó�� �� ���� medianFilteredValue�� ����մϴ�.
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     // --------------------------------------------------------
     {
         unsigned int filterN =
@@ -6980,7 +6980,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
         }
 
         // ----------------------------------------------------
-        // ���� Buffer�� N�� ä������ ���� �ʱ� ����
+        // 설정된 N개 샘플의 이동 평균을 계산합니다.
         // ----------------------------------------------------
         if (runtimeInfo.processing.userFilterCount < filterN)
         {
@@ -7005,14 +7005,14 @@ void DaoEtherCATMaster::ProcessAdcSample(
         else
         {
             // ------------------------------------------------
-            // ���� ������ Sample ����
+            // 요청된 정보를 출력 구조체에 복사합니다.
             // ------------------------------------------------
             runtimeInfo.processing.userFilterSum -=
                 runtimeInfo.processing.userFilterBuffer[
                     runtimeInfo.processing.userFilterIndex];
 
             // ------------------------------------------------
-            // ���ο� Median Filter ��� ����
+            // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
             // ------------------------------------------------
             runtimeInfo.processing.userFilterBuffer[
                 runtimeInfo.processing.userFilterIndex] =
@@ -7034,19 +7034,19 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
     // Stable Capture
     //
-    // ��ǥ Sample ������ ��Ȯ�� �����մϴ�.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     //
     // Zero:
-    //   ��Ȯ�� 600 Sample
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     //
     // Calibration:
-    //   ����ȭ Sample ����
-    //   + ��Ȯ�� ������ Sample �� ���
+    // 요청된 정보를 출력 구조체에 복사합니다.
+    // 요청된 정보를 출력 구조체에 복사합니다.
     // --------------------------------------------------------
     if (runtimeInfo.processing.stableCaptureActive)
     {
         // ----------------------------------------------------
-        // ����ȭ ��� Sample�� ��տ� �������� �ʽ��ϴ�.
+        // 요청된 정보를 출력 구조체에 복사합니다.
         // ----------------------------------------------------
         if (runtimeInfo.processing.stableCaptureWaitSamples > 0)
         {
@@ -7057,7 +7057,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
             runtimeInfo.processing.stableCaptureSampleCount)
         {
             // ------------------------------------------------
-            // ��ȿ Sample ��Ȯ�� 1�� �ջ�
+            // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
             // ------------------------------------------------
             runtimeInfo.processing.stableCaptureSum +=
                 runtimeInfo.processing.powerLineFiltered;
@@ -7065,7 +7065,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
             ++runtimeInfo.processing.stableCaptureCollectedCount;
 
             // ------------------------------------------------
-            // ��Ȯ�� ��ǥ Sample ������ ������ ��쿡�� �Ϸ�
+            // 요청된 정보를 출력 구조체에 복사합니다.
             // ------------------------------------------------
             if (runtimeInfo.processing.stableCaptureCollectedCount ==
                 runtimeInfo.processing.stableCaptureSampleCount)
@@ -7076,7 +7076,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                         runtimeInfo.processing.stableCaptureCollectedCount);
 
                 // ====================================================
-                // ZERO Capture �Ϸ�
+                // 안정된 ADC 샘플을 모아 영점 오프셋을 계산합니다.
                 // ====================================================
                 if (runtimeInfo.processing.stableCaptureType ==
                     DaoInternalAdcStableCaptureType::ZERO)
@@ -7097,8 +7097,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
                         0.0;
 
                     // --------------------------------------------
-                    // Zero ������ ����Ǿ����Ƿ�
-                    // Median 3�� ���� ���� ������ ���
+                    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
+                    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
                     // --------------------------------------------
                     runtimeInfo.processing.medianBuffer[0] = 0.0;
                     runtimeInfo.processing.medianBuffer[1] = 0.0;
@@ -7111,7 +7111,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                         0;
 
                     // --------------------------------------------
-                    // ���� Zero ������ N Filter �����͵� ���
+                    // 요청된 정보를 출력 구조체에 복사합니다.
                     // --------------------------------------------
                     runtimeInfo.processing.userFilterBuffer.fill(0.0);
 
@@ -7129,7 +7129,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                 }
 
                 // ====================================================
-                // CALIBRATION Capture �Ϸ�
+                // 기준값과 안정된 ADC 샘플을 이용해 보정 계수를 계산합니다.
                 // ====================================================
                 else if (
                     runtimeInfo.processing.stableCaptureType ==
@@ -7140,8 +7140,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
                         runtimeInfo.processing.zeroOffset;
 
                     // --------------------------------------------
-                    // Span�� ����ġ�� ������ �߸��� �����̹Ƿ�
-                    // ���� Calibration Scale�� �����մϴ�.
+                    // 안정된 ADC 샘플을 모아 영점 오프셋을 계산합니다.
+                    // 기준값과 안정된 ADC 샘플을 이용해 보정 계수를 계산합니다.
                     // --------------------------------------------
                     if (std::abs(calibrationSpan) >= 1.0)
                     {
@@ -7149,7 +7149,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                             runtimeInfo.processing.stableCaptureReferenceValue /
                             calibrationSpan;
 
-                        // ���ο� Scale�� ���� �ֽŰ��� ����
+                        // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
                         runtimeInfo.processing.calibratedValue =
                             runtimeInfo.processing.zeroedValue *
                             runtimeInfo.processing.calibrationScale;
@@ -7158,8 +7158,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
                             runtimeInfo.processing.calibratedValue;
 
                         // ----------------------------------------
-                        // Calibration Scale�� ����Ǿ����Ƿ�
-                        // Median 3�� ���� Scale ������ ���
+                        // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
+                        // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
                         // ----------------------------------------
                         runtimeInfo.processing.medianBuffer[0] = 0.0;
                         runtimeInfo.processing.medianBuffer[1] = 0.0;
@@ -7172,7 +7172,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                             0;
 
                         // ----------------------------------------
-                        // ���� Scale ������ N Filter ������ ���
+                        // 요청된 정보를 출력 구조체에 복사합니다.
                         // ----------------------------------------
                         runtimeInfo.processing.userFilterBuffer.fill(0.0);
 
@@ -7191,7 +7191,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
                 }
 
                 // ------------------------------------------------
-                // Stable Capture ����
+                // 요청된 정보를 출력 구조체에 복사합니다.
                 // ------------------------------------------------
                 runtimeInfo.processing.stableCaptureActive =
                     false;
@@ -7205,10 +7205,10 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
     // ADC Diagnostic Capture
     //
-    // Noise �м������� ���� Sample�� ó�� �ܰ躰 ����
-    // �޸𸮿� �����մϴ�.
+    // ADC 진단 캡처 상태와 수집된 샘플 수를 관리합니다.
+    // ADC 진단 캡처 상태와 수집된 샘플 수를 관리합니다.
     //
-    // ��ǥ Sample ������ ��Ȯ�� �����ϸ� �ڵ� �����մϴ�.
+    // ADC 진단 캡처 상태와 수집된 샘플 수를 관리합니다.
     // --------------------------------------------------------
     if (runtimeInfo.diagnosticCaptureActive)
     {
@@ -7258,8 +7258,8 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
 // ADC Runtime Ring Buffer Push
 //
-// ���� ����ڿ� FilteredValue��
-// ��� ó�� Sample���� Ring Buffer�� �����մϴ�.
+// 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+// 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
 // --------------------------------------------------------
     {
         DaoInternalAdcBufferedSample bufferedSample{};
@@ -7273,7 +7273,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
         ++runtimeInfo.ringBufferNextSampleIndex;
 
         // ----------------------------------------------------
-        // Buffer�� �� ������ �ִ� ���
+        // 처리된 ADC 샘플을 링 버퍼에 추가하고 넘침 횟수를 관리합니다.
         // ----------------------------------------------------
         if (runtimeInfo.ringBufferCount <
             DaoInternalAdcRuntimeInfo::ADC_RING_BUFFER_SIZE)
@@ -7291,10 +7291,10 @@ void DaoEtherCATMaster::ProcessAdcSample(
         else
         {
             // ------------------------------------------------
-            // Buffer�� ���� �� ���
+            // 처리된 ADC 샘플을 링 버퍼에 추가하고 넘침 횟수를 관리합니다.
             //
-            // ���� ������ Sample �ϳ��� ������
-            // �� Sample�� �����մϴ�.
+            // 처리된 ADC 샘플을 링 버퍼에 추가하고 넘침 횟수를 관리합니다.
+            // 처리된 ADC 샘플을 링 버퍼에 추가하고 넘침 횟수를 관리합니다.
             // ------------------------------------------------
             runtimeInfo.ringBuffer[
                 runtimeInfo.ringBufferHead] =
@@ -7310,7 +7310,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
 
                 ++runtimeInfo.ringBufferOverflowCount;
 
-                // count�� �̹� MAX �����̹Ƿ� �״�� �����մϴ�.
+                // 처리된 ADC 샘플을 링 버퍼에 추가하고 넘침 횟수를 관리합니다.
         }
     }
 

@@ -153,7 +153,7 @@ int DaoEngineCore::ScanSlaves()
     const int detectedSlaveCount =
         master_.ScanSlaves();
 
-    // ���� �˻� ����� �׻� �����մϴ�.
+    // 연결된 EtherCAT Slave를 검색합니다.
     ClearLogicalDevices();
 
     if (detectedSlaveCount <= 0)
@@ -161,7 +161,7 @@ int DaoEngineCore::ScanSlaves()
         return 0;
     }
 
-    // �˻��� ���� Slave�� ���� ��ġ�� ����մϴ�.
+    // 검색 결과를 바탕으로 논리 장치 목록을 다시 구성합니다.
     BuildLogicalDevices();
 
     return detectedSlaveCount;
@@ -303,7 +303,7 @@ void DaoEngineCore::BuildLogicalDevices()
         deviceInfo.deviceType =
             deviceType;
 
-        // ���� ��ġ ���� �ȿ��� 0���� �����մϴ�.
+        // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
         deviceInfo.logicalIndex =
             static_cast<int>(targetList->size());
 
@@ -579,19 +579,19 @@ bool DaoEngineCore::ValidateDaoAdcPdo(
 bool DaoEngineCore::RequestDaoAdcSafeOp(
     int physicalSlaveIndex)
 {
-    // ������ �ʱ�ȭ���� �ʾҴٸ� ���� ��ȯ ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!IsInitialized())
     {
         return false;
     }
 
-    // EtherCAT ����Ͱ� ������ �ʾҴٸ� ���� ��ȯ ����
+    // 아래 조건을 확인한 후 현재 처리 단계를 계속합니다.
     if (!master_.IsOpen())
     {
         return false;
     }
 
-    // ���� SAFE-OP ��ȯ�� Master �������� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     return master_.RequestDaoAdcSafeOp(
         physicalSlaveIndex);
 }
@@ -600,7 +600,7 @@ bool DaoEngineCore::ExchangeDaoAdcProcessDataOnce(
     int physicalSlaveIndex,
     DaoInternalProcessExchangeInfo& exchangeInfo)
 {
-    // ������ �ʱ�ȭ���� ���� ���¿����� ��� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!IsInitialized())
     {
         exchangeInfo = {};
@@ -610,7 +610,7 @@ bool DaoEngineCore::ExchangeDaoAdcProcessDataOnce(
         return false;
     }
 
-    // EtherCAT ����Ͱ� ������ ���� ���¿����� ��� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!master_.IsOpen())
     {
         exchangeInfo = {};
@@ -620,7 +620,7 @@ bool DaoEngineCore::ExchangeDaoAdcProcessDataOnce(
         return false;
     }
 
-    // ���� 1ȸ Process Data �պ��� Master �������� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     return master_.ExchangeDaoAdcProcessDataOnce(
         physicalSlaveIndex,
         exchangeInfo);
@@ -631,7 +631,7 @@ bool DaoEngineCore::PrimeDaoAdcProcessData(
     int roundCount,
     DaoInternalPrimingInfo& primingInfo)
 {
-    // ������ �ʱ�ȭ���� ���� ���¿����� ��� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!IsInitialized())
     {
         primingInfo = {};
@@ -644,7 +644,7 @@ bool DaoEngineCore::PrimeDaoAdcProcessData(
         return false;
     }
 
-    // EtherCAT ����Ͱ� ������ ���� ���¿����� ��� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!master_.IsOpen())
     {
         primingInfo = {};
@@ -657,7 +657,7 @@ bool DaoEngineCore::PrimeDaoAdcProcessData(
         return false;
     }
 
-    // ���� Priming�� Master �������� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     return master_.PrimeDaoAdcProcessData(
         physicalSlaveIndex,
         roundCount,
@@ -668,7 +668,7 @@ bool DaoEngineCore::RequestDaoAdcOperational(
     int physicalSlaveIndex,
     DaoInternalOperationalInfo& operationalInfo)
 {
-    // ������ �ʱ�ȭ���� ���� ���¿����� OP ��ȯ ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!IsInitialized())
     {
         operationalInfo = {};
@@ -679,7 +679,7 @@ bool DaoEngineCore::RequestDaoAdcOperational(
         return false;
     }
 
-    // EtherCAT ����Ͱ� ���� ���� ������ OP ��ȯ ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!master_.IsOpen())
     {
         operationalInfo = {};
@@ -690,7 +690,7 @@ bool DaoEngineCore::RequestDaoAdcOperational(
         return false;
     }
 
-    // ���� OP ��ȯ�� Master �������� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     return master_.RequestDaoAdcOperational(
         physicalSlaveIndex,
         operationalInfo);
@@ -700,7 +700,7 @@ bool DaoEngineCore::ReadDaoAdcOnce(
     int physicalSlaveIndex,
     DaoInternalAdcReadInfo& readInfo)
 {
-    // ������ �ʱ�ȭ���� ���� ���¿����� ADC �б� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!IsInitialized())
     {
         readInfo = {};
@@ -711,7 +711,7 @@ bool DaoEngineCore::ReadDaoAdcOnce(
         return false;
     }
 
-    // EtherCAT ����Ͱ� ���� ���� ������ ADC �б� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!master_.IsOpen())
     {
         readInfo = {};
@@ -722,7 +722,7 @@ bool DaoEngineCore::ReadDaoAdcOnce(
         return false;
     }
 
-    // ���� Process Data �պ��� 24����Ʈ ����� Master���� ����
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     return master_.ReadDaoAdcOnce(
         physicalSlaveIndex,
         readInfo);
@@ -732,7 +732,7 @@ bool DaoEngineCore::GetDaoAdcRuntimeInfo(
     int physicalSlaveIndex,
     DaoInternalAdcRuntimeInfo& runtimeInfo) const
 {
-    // ������ �ʱ�ȭ���� �ʾҴٸ� ��ȸ���� �ʽ��ϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!IsInitialized())
     {
         runtimeInfo = {};
@@ -742,7 +742,7 @@ bool DaoEngineCore::GetDaoAdcRuntimeInfo(
         return false;
     }
 
-    // ����Ͱ� ���� ���� �ʴٸ� ��ȸ���� �ʽ��ϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     if (!master_.IsOpen())
     {
         runtimeInfo = {};
@@ -1295,7 +1295,7 @@ bool DaoEngineCore::ServoMoveAbsolute(
     unsigned int profileVelocity,
     unsigned int profileAcceleration,
     unsigned int profileDeceleration,
-	unsigned int timeoutMs)    // ���� Servo�� ���� ��ġ�� �̵��մϴ�.
+	unsigned int timeoutMs)    // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
 {
     if (!IsInitialized())
     {
@@ -1465,8 +1465,8 @@ bool DaoEngineCore::SetServoOperationMode(
         return false;
     }
 
-    // SDO�� 2ms PDO ����� ���ÿ� ���� SOEM Context��
-    // ������� �ʵ��� ��ȯ��� �߿��� ��� ������ �ź��մϴ�.
+    // 통신 스레드의 실행 상태를 확인합니다.
+    // 통신 스레드의 실행 상태를 확인합니다.
     if (master_.IsCommunicationRunning())
     {
         return false;

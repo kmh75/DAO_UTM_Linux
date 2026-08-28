@@ -41,7 +41,7 @@ struct DaoInternalSlavePdoInfo
     unsigned int inputBytes;
 };
 
-// DAO ADC PDO ���� ���� ���
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 struct DaoInternalAdcValidationInfo
 {
     int physicalSlaveIndex = 0;
@@ -60,8 +60,8 @@ struct DaoInternalAdcValidationInfo
     unsigned int actualInputBytes = 0;
 };
 
-// SAFE-OP ���¿��� ������
-// ���� Process Data �պ� ���
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+// Process Data를 송신하고 수신 WKC를 확인합니다.
 struct DaoInternalProcessExchangeInfo
 {
     int physicalSlaveIndex = 0;
@@ -75,7 +75,7 @@ struct DaoInternalProcessExchangeInfo
     bool wkcValid = false;
 };
 
-// SAFE-OP ���¿��� ������ Process Data Priming ���
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 struct DaoInternalPrimingInfo
 {
     int physicalSlaveIndex = 0;
@@ -96,7 +96,7 @@ struct DaoInternalPrimingInfo
     bool allRoundsValid = false;
 };
 
-// SAFE-OP���� OP ���·� ��ȯ�� ���
+// 정상 통신 여부를 판단하기 위한 예상 WKC 값입니다.
 struct DaoInternalOperationalInfo
 {
     int physicalSlaveIndex = 0;
@@ -122,7 +122,7 @@ struct DaoInternalOperationalInfo
 
 #pragma pack(push, 1)
 
-// DAO ADC�� ������ 24����Ʈ Input PDO
+// PDO 구조체는 EtherCAT 매핑 크기와 일치하도록 바이트 단위로 정렬합니다.
 struct DaoInternalAdcInputPdo
 {
     std::uint32_t testCounter;
@@ -146,7 +146,7 @@ static_assert(
 
 // ------------------------------------------------------------
 // LS Mecapion L7NH RxPDO 0x1601
-// Master �� Servo
+// 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
 //
 // 0x6040 : Controlword
 // 0x6060 : Modes of Operation
@@ -180,7 +180,7 @@ struct DaoInternalLsServoOutputPdo
 
 // ------------------------------------------------------------
 // LS Mecapion L7NH TxPDO 0x1A01
-// Servo �� Master
+// 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
 //
 // 0x6041 : Statusword
 // 0x6061 : Modes of Operation Display
@@ -346,8 +346,8 @@ static_assert(
 // ------------------------------------------------------------
 // Servo Command Type
 //
-// ����� ���� ������ �ƴ϶�
-// Servo �� ��ü�� ���� ���� ���� ������ ǥ���մϴ�.
+// 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+// 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
 // ------------------------------------------------------------
 enum DaoInternalServoCommandType
 {
@@ -368,15 +368,15 @@ enum DaoInternalServoCommandType
     DAO_SERVO_COMMAND_QUICK_STOP = 9,
 
     DAO_SERVO_COMMAND_ALARM_RESET = 10,
-	DAO_SERVO_COMMAND_VELOCITY = 11 // �ӵ������� ����
+	DAO_SERVO_COMMAND_VELOCITY = 11 // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
 };
 
 
 // ------------------------------------------------------------
 // Servo Command State
 //
-// UI�� �� ���¸� �ֱ������� ��ȸ�Ͽ�
-// ���� ��� �������� �����մϴ�.
+// 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+// 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
 // ------------------------------------------------------------
 enum DaoInternalServoCommandState
 {
@@ -395,9 +395,9 @@ enum DaoInternalServoCommandState
 // ------------------------------------------------------------
 // Servo Internal Command Step
 //
-// commandState�� �ܺ� UI�� ���� ū �����̰�,
-// commandStep�� ���� ���ο��� ������ �����ϱ� ����
-// ���� �ܰ��Դϴ�.
+// 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
+// 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+// 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
 // ------------------------------------------------------------
 enum DaoInternalServoCommandStep
 {
@@ -441,9 +441,9 @@ enum DaoInternalServoCommandStep
 // ------------------------------------------------------------
 // Servo Mailbox Request
 //
-// EtherCAT ��ȯ PDO�� ������ ó���ؾ� �ϴ�
-// SDO �۾��� ��û ���¸� �����մϴ�.
-// �̹� �ܰ迡���� ���� SDO�� �������� �ʽ��ϴ�.
+// 요청값의 유효성을 확인한 후 내부 Master에 전달합니다.
+// 요청값의 유효성을 확인한 후 내부 Master에 전달합니다.
+// 요청값의 유효성을 확인한 후 내부 Master에 전달합니다.
 // ------------------------------------------------------------
 enum DaoInternalServoMailboxRequestType
 {
@@ -466,11 +466,11 @@ enum DaoInternalServoMailboxRequestState
 // ------------------------------------------------------------
 // LS Servo Runtime Information
 //
-// ���� Slave����:
-// - ���� �۽��� ���� PDO
-// - �ֱ� ������ ���� PDO
-// - ��� ���¿� WKC ���
-// �� �����մϴ�.
+// 요청된 정보를 출력 구조체에 복사합니다.
+// 요청된 정보를 출력 구조체에 복사합니다.
+// 요청된 정보를 출력 구조체에 복사합니다.
+// 요청된 정보를 출력 구조체에 복사합니다.
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 // ------------------------------------------------------------
 struct DaoInternalServoRuntimeInfo
 {
@@ -480,7 +480,7 @@ struct DaoInternalServoRuntimeInfo
     bool communicationRunning = false;
     bool hasValidInputData = false;
 
-    // CiA402 StatusWord �ؼ� ���
+    // Statusword에서 CiA 402 상태를 추출합니다.
     unsigned short cia402State = 0;
 
     bool fault = false;
@@ -488,7 +488,7 @@ struct DaoInternalServoRuntimeInfo
     bool targetReached = false;
 
     // --------------------------------------------------------
-    // LS L7NH 0x60FD Digital Inputs �ؼ� ����
+    // Servo 입력값에서 Limit, Home, STOP 및 STO 신호를 해석합니다.
     // --------------------------------------------------------
     bool negativeLimit = false;   // bit 0 : NOT
     bool positiveLimit = false;   // bit 1 : POT
@@ -500,12 +500,12 @@ struct DaoInternalServoRuntimeInfo
 
     std::uint64_t commandStartFrameCount = 0; 
 
-    // Homing ���� ���� ������ �ܺο��� ���� ���ѽð�
+    // Servo Homing 명령과 제한 시간을 설정합니다.
     std::uint64_t homingStartFrameCount = 0;
     unsigned int homingTimeoutMs = 60000;
 
 
-    // Move Absolute ���� �Ķ����
+    // Servo Homing 명령과 제한 시간을 설정합니다.
     int moveTargetPosition = 0;
 
     unsigned int moveProfileVelocity = 1000;
@@ -515,36 +515,36 @@ struct DaoInternalServoRuntimeInfo
     unsigned int moveTimeoutMs = 60000;
 
     // --------------------------------------------------------
-    // Profile Velocity ���� �Ķ���� �ӵ��������Դϴ�.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     // --------------------------------------------------------
     int velocityTarget = 0;
 
     unsigned int velocityAcceleration = 1000;
     unsigned int velocityDeceleration = 1000;
 
-    // MoveAbs ���� �̵� ���� ������ ��ġ
+    // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
     int moveStartPosition = 0;
 
-    // MoveAbs ���� �̵� ���� Frame
+    // 이 값은 해당 처리의 실행 상태와 결과를 나타냅니다.
     std::uint64_t moveStartFrameCount = 0;
 
-    // MoveAbs ���� �� Target Reached��
-    // ������ �ѹ� OFF �� ���� Ȯ���ߴ��� ǥ��
+    // Servo Homing 명령과 제한 시간을 설정합니다.
+    // Servo Homing 명령과 제한 시간을 설정합니다.
     bool moveTargetReachedWentLow = false;
 
-    // Homing �� ���� ��ġ ��ȭ ���ÿ�
+    // Servo Homing 명령과 제한 시간을 설정합니다.
     int homingLastPosition = 0;
 
-    // ���������� ��ġ ��ȭ�� Ȯ�ε� Frame
+    // Servo Homing 명령과 제한 시간을 설정합니다.
     std::uint64_t homingLastMoveFrameCount = 0;
 
-    // ��ġ ���ð� ���۵Ǿ����� ǥ��
+    // Servo Homing 명령과 제한 시간을 설정합니다.
     bool homingPositionMonitorStarted = false;
-	// Homing Attained�� ������ �ѹ� OFF �� ���� Ȯ���ߴ��� ǥ��
-	bool homingAttainedWentLow = false; // Homing Attained�� ������ �ѹ� OFF �� ���� Ȯ���ߴ��� ǥ��
+	// Servo Homing 명령과 제한 시간을 설정합니다.
+	bool homingAttainedWentLow = false; // Servo Homing 명령과 제한 시간을 설정합니다.
 
 
-    // ���� Servo ���� ���� ���� ���� ���� ����
+    // Servo Homing 명령과 제한 시간을 설정합니다.
     std::uint64_t commandId = 0;
 
     int commandType =
@@ -554,7 +554,7 @@ struct DaoInternalServoRuntimeInfo
         DAO_SERVO_COMMAND_STATE_IDLE;
 
     int commandStep =
-		DAO_SERVO_STEP_NONE; // ���� ���ο��� ������ �����ϱ� ���� ���� �ܰ�
+		DAO_SERVO_STEP_NONE; // 비동기 Servo 명령의 상태와 완료 결과를 갱신합니다.
 
     int commandResult = 0;
 
@@ -569,7 +569,7 @@ struct DaoInternalServoRuntimeInfo
 
     int mailboxResult = 0;
 
-    // Homing�� ���� �Ϸ�� ���� �ִ��� ǥ��
+    // Process Data를 송신하고 수신 WKC를 확인합니다.
     bool homed = false;
 
     int lastWkc = 0;
@@ -580,10 +580,10 @@ struct DaoInternalServoRuntimeInfo
     uint64_t badWkcFrameCount = 0;
     uint64_t inputUpdateCount = 0;
 
-    // UI �Ǵ� ���� DLL ������ ������ ��� PDO ����
+    // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
     DaoInternalLsServoOutputPdo outputCommand{};
 
-    // ��� �����尡 �ֱ� ������ �Է� PDO
+    // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
     DaoInternalLsServoInputPdo latestInput{};
 };
 
@@ -591,9 +591,9 @@ struct DaoInternalServoRuntimeInfo
 // ------------------------------------------------------------
 // FASTECH IO Runtime Information
 //
-// IN8OUT8�� IN16OUT16�� ���� ������ ó���ϱ� ����
-// �Է°� ��°��� �ִ� 16��Ʈ�� �����մϴ�.
-// ���� PDO ũ��� inputBytes/outputBytes�� �����մϴ�.
+// Slave의 출력 PDO 크기와 입력 PDO 크기를 확인합니다.
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 // ------------------------------------------------------------
 struct DaoInternalIoRuntimeInfo
 {
@@ -613,10 +613,10 @@ struct DaoInternalIoRuntimeInfo
     uint64_t badWkcFrameCount = 0;
     uint64_t inputUpdateCount = 0;
 
-    // �ܺο��� ��û�� ��°�
+    // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
     unsigned short outputCommand = 0;
 
-    // ��� �����尡 �ֱ� ������ �Է°�
+    // Servo에 전송할 출력 PDO를 IO Map에 복사합니다.
     unsigned short latestInput = 0;
 };
 
@@ -646,7 +646,7 @@ struct DaoInternalEncoderRuntimeInfo
     DaoInternalFastechEncoderInputPdo latestInput{};
 };
 
-// OP ���¿��� ������ DAO ADC 1ȸ �б� ���
+// Process Data를 송신하고 수신 WKC를 확인합니다.
 struct DaoInternalAdcReadInfo
 {
     int physicalSlaveIndex = 0;
@@ -675,7 +675,7 @@ enum class DaoInternalAdcPowerLineFilterMode
     HZ_60_120 = 5
 };
 
-enum class DaoInternalAdcStableCaptureType // ���� ��� ����
+enum class DaoInternalAdcStableCaptureType // 안정된 ADC 샘플을 모아 영점 오프셋을 계산합니다.
 {
     NONE = 0,
     ZERO = 1,
@@ -698,7 +698,7 @@ struct DaoInternalAdcDiagnosticSample
     double filteredValue = 0.0;
 };
 
-//�����۸� ���� ����ü ����========================================
+// 설정된 N개 샘플의 이동 평균을 계산합니다.
 struct DaoInternalAdcBufferedSample
 {
     std::uint64_t sampleIndex = 0;
@@ -708,85 +708,85 @@ struct DaoInternalAdcBufferedSample
 // ------------------------------------------------------------
 // ADC Signal Processing State
 //
-// �ϳ��� ���� ADC ���������� ����ϴ�
-// ���� / Zero / Calibration ���¸� �����մϴ�.
+// ADC 런타임 상태를 초기값으로 되돌립니다.
+// ADC 런타임 상태를 초기값으로 되돌립니다.
 // ------------------------------------------------------------
 struct DaoInternalAdcProcessingState
 {
-    // ���� �ֱ� ADC ���ð�
+    // ADC 런타임 상태를 초기값으로 되돌립니다.
     std::int32_t latestRaw = 0;
 
-    // ������ �⺻ Filter ó�� �� ��
+    // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
     double lowLevelFiltered = 0.0;
 
-    // ������ Filter�� ù ���÷� �ʱ�ȭ�Ǿ����� ǥ��
+    // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
     bool lowLevelFilterInitialized = false;
 
 
     // ------------------------------------------------------------
     // Power Line Notch Filter
     //
-    // OFF      : ��� �� ��
-    // HZ_50    : 50Hz ����
-    // HZ_60    : 60Hz ����
-    // HZ_50_60 : 50Hz + 60Hz ����
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     // ------------------------------------------------------------
     DaoInternalAdcPowerLineFilterMode powerLineFilterMode =
         DaoInternalAdcPowerLineFilterMode::OFF;
 
-    // 50Hz Notch ���� ����
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     double notch50X1 = 0.0;
     double notch50X2 = 0.0;
     double notch50Y1 = 0.0;
     double notch50Y2 = 0.0;
 
-    // 60Hz Notch ���� ����
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     double notch60X1 = 0.0;
     double notch60X2 = 0.0;
     double notch60Y1 = 0.0;
     double notch60Y2 = 0.0;
 
-    // 120Hz Notch ���� ����
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     double notch120X1 = 0.0;
     double notch120X2 = 0.0;
     double notch120Y1 = 0.0;
     double notch120Y2 = 0.0;
 
-    // Notch ���� �� ��
+    // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
     double powerLineFiltered = 0.0;
 
     // Zero Offset
     double zeroOffset = 0.0;
 
-    // Zero�� ����� ��û���� �����Ǿ����� ǥ��
+    // 안정된 ADC 샘플을 모아 영점 오프셋을 계산합니다.
     bool zeroInitialized = false;
 
-    // Zero ���� �� ��
+    // 엔진과 내부 상태를 초기화합니다.
     double zeroedValue = 0.0;
 
 
 
-    // ����� Calibration Scale
+    // 기준값과 안정된 ADC 샘플을 이용해 보정 계수를 계산합니다.
     double calibrationScale = 1.0;
 
-    // Calibration ���� �� ��
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     double calibratedValue = 0.0;
 
     // ------------------------------------------------------------
     // 3-Sample Median Filter
     //
-    // ���������� �� Sample�� ũ�� Ƣ�� ���� �����մϴ�.
-    // Calibration ���� ��, N Moving Average ���� ����մϴ�.
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     // ------------------------------------------------------------
     double medianBuffer[3] = { 0.0, 0.0, 0.0 };
 
     unsigned int medianIndex = 0;
     unsigned int medianCount = 0;
 
-    // Median 3 ���� �� ��
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     double medianFilteredValue = 0.0;
 
-    // Zero / Calibration ���� ��� ����
+    // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     bool stableCaptureActive = false;
 
 
@@ -804,7 +804,7 @@ struct DaoInternalAdcProcessingState
     unsigned int stableCaptureCollectedCount = 0;
     double stableCaptureSum = 0.0;
 
-    // ����� N Sample Moving Average
+    // 설정된 N개 샘플의 이동 평균을 계산합니다.
     unsigned int filterN = 16;
 
     static constexpr unsigned int USER_FILTER_MAX_N = 64;
@@ -817,11 +817,11 @@ struct DaoInternalAdcProcessingState
 
     double userFilterSum = 0.0;
 
-    // ���� ����� ǥ�ð�
+    // 설정된 N개 샘플의 이동 평균을 계산합니다.
     double filteredValue = 0.0;
 };
 
-// 2ms ��ȯ��ſ��� ������ �ֽ� DAO ADC ����
+// 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 struct DaoInternalAdcRuntimeInfo
 {
     int physicalSlaveIndex = 0;
@@ -844,8 +844,8 @@ struct DaoInternalAdcRuntimeInfo
     // ------------------------------------------------------------
     // ADC Diagnostic Capture
     //
-    // Noise �м��� ���� Sample ���� �����Դϴ�.
-    // ���� ������ ProcessAdcSample()���� �����մϴ�.
+    // ADC 진단 캡처 상태와 수집된 샘플 수를 관리합니다.
+    // ADC 진단 캡처 상태와 수집된 샘플 수를 관리합니다.
     // ------------------------------------------------------------
     bool diagnosticCaptureActive = false;
 
@@ -859,8 +859,8 @@ struct DaoInternalAdcRuntimeInfo
     // ------------------------------------------------------------
     // ADC Runtime Ring Buffer
     //
-    // ���� UI / ����� ���� FilteredValue Sample��
-    // ��ȯ ������� �����մϴ�.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
+    // 아래 코드는 현재 장치 상태에 맞는 처리 단계를 수행합니다.
     // ------------------------------------------------------------
     static constexpr std::size_t ADC_RING_BUFFER_SIZE = 8192;
 
@@ -874,8 +874,8 @@ struct DaoInternalAdcRuntimeInfo
 
     std::uint64_t ringBufferNextSampleIndex = 0;
 
-    // Buffer�� ���� �� ���¿��� �� Sample�� ����
-    // ���� ������ Sample�� ��� Ƚ���Դϴ�.
+    // 처리된 ADC 샘플을 링 버퍼에 추가하고 넘침 횟수를 관리합니다.
+    // 처리된 ADC 샘플을 링 버퍼에 추가하고 넘침 횟수를 관리합니다.
     std::uint64_t ringBufferOverflowCount = 0;
 
 };
@@ -898,14 +898,14 @@ public:
     bool GetSlaveInfo(
         int slaveListIndex,
         DaoInternalSlaveInfo& slaveInfo) const;
-    // �˻��� ��� Slave�� PRE-OP ���·� ��ȯ�մϴ�.
-	bool RequestAllSlavesPreOp(); // �˻��� ��� Slave�� PRE-OP ���·� ��ȯ�մϴ�.
+    // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
+	bool RequestAllSlavesPreOp(); // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
 
-    bool RequestAllSlavesSafeOp(); // �˻��� ��� Slave�� SAFE-OP ���·� ��ȯ�մϴ�.
+    bool RequestAllSlavesSafeOp(); // 검색된 모든 Slave를 PRE-OP 상태로 전환합니다.
 
-	bool RequestAllSlavesOperational();// �˻��� ��� Slave�� OP ���·� ��ȯ�մϴ�.
+	bool RequestAllSlavesOperational();// 검색된 모든 Slave를 SAFE-OP 상태로 전환합니다.
 
-    bool RequestAllSlavesInit(); // �˻��� ��� Slave�� INIT ���·� ��ȯ�մϴ�.
+    bool RequestAllSlavesInit(); // 검색된 모든 Slave를 OP 상태로 전환합니다.
 
     bool MapProcessData();
 
@@ -916,71 +916,71 @@ public:
         int slaveListIndex,
         DaoInternalSlavePdoInfo& pdoInfo) const;
 
-    // DAO ADC PDO�� �аų� ���� ���� ���� ���Ǹ� �˻��մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool ValidateDaoAdcPdo(
         int physicalSlaveIndex,
         DaoInternalAdcValidationInfo& validationInfo) const;
 
-    // ������ DAO ADC Slave�� SAFE-OP ���·� ��ȯ�մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     bool RequestDaoAdcSafeOp(
         int physicalSlaveIndex);
 
-    // ������ DAO ADC�� ������� SAFE-OP ���¿���
-    // Process Data�� ��Ȯ�� �� ���� �պ��մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     bool ExchangeDaoAdcProcessDataOnce(
         int physicalSlaveIndex,
         DaoInternalProcessExchangeInfo& exchangeInfo);
 
-    // ������ DAO ADC�� ������� SAFE-OP ���¿���
-    // ������ Ƚ����ŭ Process Data Priming�� �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     bool PrimeDaoAdcProcessData(
         int physicalSlaveIndex,
         int roundCount,
         DaoInternalPrimingInfo& primingInfo);
 
-    // ������ DAO ADC�� SAFE-OP���� OP ���·� ��ȯ�մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     //
-    // ���� ��û�� �� ���� ������,
-    // OP ��ȯ�� ��ٸ��� ���� Process Data�� ��� ��ȯ�մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     bool RequestDaoAdcOperational(
         int physicalSlaveIndex,
         DaoInternalOperationalInfo& operationalInfo);
 
-    // ������ DAO ADC�� ������� OP ���¿���
-    // Process Data�� 1ȸ �պ��ϰ� Input PDO 24����Ʈ�� �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     bool ReadDaoAdcOnce(
         int physicalSlaveIndex,
         DaoInternalAdcReadInfo& readInfo);
 
-    // ���� ���� ���� DAO ADC �ֽ� ���¸� ��ȯ�մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     bool GetDaoAdcRuntimeInfo(
         int physicalSlaveIndex,
         DaoInternalAdcRuntimeInfo& runtimeInfo) const;
 
     bool SetDaoAdcZero(
-		int physicalSlaveIndex); // DAO ADC�� Zero Offset�� ���� ���÷� �����մϴ�.
+		int physicalSlaveIndex); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool SetDaoAdcCalibration(
         int physicalSlaveIndex,
-		double referenceValue); // DAO ADC�� Calibration Scale�� �����մϴ�.
+		double referenceValue); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool SetDaoAdcPowerLineFilterMode(
         int physicalSlaveIndex,
-		DaoInternalAdcPowerLineFilterMode mode); // DAO ADC�� �������ļ� ���� ��带 �����մϴ�.
+		DaoInternalAdcPowerLineFilterMode mode); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool SetDaoAdcFilterN(
         int physicalSlaveIndex,
-        unsigned int filterN); //ui���� ���Ͱ��� �޾Ƽ� ó�����Լ�����
+        unsigned int filterN); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool StartDaoAdcDiagnosticCapture(
         int physicalSlaveIndex,
-        unsigned int targetSampleCount); // DAO ADC �׽�Ʈ����
+        unsigned int targetSampleCount); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool GetDaoAdcRingBufferInfo(
         int physicalSlaveIndex,
         unsigned int& sampleCount,
-        unsigned long long& overflowCount) const; //������ۿ� � �׾Ҵ��� �����÷λ������ Ȯ���ϴ� �Լ� ����
+        unsigned long long& overflowCount) const; // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool ReadDaoAdcRingBuffer(
         int physicalSlaveIndex,
@@ -989,7 +989,7 @@ public:
         unsigned int& readSampleCount); //
 
     bool ClearDaoAdcRingBuffer(
-        int physicalSlaveIndex); //������ Ŭ�����Լ� ����
+        int physicalSlaveIndex); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
 
     bool GetDaoAdcDiagnosticCaptureInfo(
@@ -1003,12 +1003,12 @@ public:
         unsigned int sampleIndex,
         DaoInternalAdcDiagnosticSample& sample) const;
 
-    // ���� ���� ���� LS Servo �ֽ� ���¸� ��ȯ�մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     bool GetServoRuntimeInfo(
         int physicalSlaveIndex,
         DaoInternalServoRuntimeInfo& runtimeInfo) const;
 
-    // ���� ���� ���� FASTECH IO �ֽ� ���¸� ��ȯ�մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     bool GetIoRuntimeInfo(
         int physicalSlaveIndex,
         DaoInternalIoRuntimeInfo& runtimeInfo) const;
@@ -1018,14 +1018,14 @@ public:
         DaoInternalEncoderRuntimeInfo& runtimeInfo) const;
 
     bool RequestServoOn(
-		int physicalSlaveIndex); // LS Servo�� On ���·� ��ȯ�մϴ�. �񵿱�
+		int physicalSlaveIndex); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool RequestServoOff(
-		int physicalSlaveIndex); // LS Servo�� Off ���·� ��ȯ�մϴ�. �񵿱�
+		int physicalSlaveIndex); // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
 
     bool RequestServoHome(
         int physicalSlaveIndex,
-		unsigned int timeoutMs); // LS Servo�� Homing ���·� ��ȯ�մϴ�. �񵿱� �ܺνð� ����
+		unsigned int timeoutMs); // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
 
     bool RequestServoMoveAbsolute(
         int physicalSlaveIndex,
@@ -1033,18 +1033,18 @@ public:
         unsigned int profileVelocity,
         unsigned int profileAcceleration,
         unsigned int profileDeceleration,
-		unsigned int timeoutMs);  // LS Servo�� ���� ��ġ�� �̵��մϴ�. �񵿱� �ܺνð� ����
+		unsigned int timeoutMs);  // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
 
     bool RequestServoVelocity(
         int physicalSlaveIndex,
         int targetVelocity,
         unsigned int acceleration,
-		unsigned int deceleration); // LS Servo�� �ӵ�������� �����մϴ�. �񵿱�
+		unsigned int deceleration); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool RequestServoStop(
-		int physicalSlaveIndex); // LS Servo�� �����մϴ�. �񵿱�
+		int physicalSlaveIndex); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
-    // LS Servo�� �۽��� Output PDO ������ �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     bool SetServoOutputCommand(
         int physicalSlaveIndex,
         const DaoInternalLsServoOutputPdo& command);
@@ -1062,25 +1062,25 @@ public:
 
 
 
-    // FASTECH IO�� �۽��� ��°��� �����մϴ�.
+    // 주기 통신 스레드의 중지를 요청합니다.
     bool SetIoOutputCommand(
         int physicalSlaveIndex,
         unsigned short outputValue);
     
-	void StopCommunication(); // ��� ������ ���� ��û
+	void StopCommunication(); // 통신 스레드의 실행 상태를 확인합니다.
 
-	bool IsCommunicationRunning() const; // ��� �����尡 ���� ������ Ȯ��
+	bool IsCommunicationRunning() const; // 통신 스레드의 실행 상태를 확인합니다.
 
-	bool StartCommunication();// ��� ������ ����
+	bool StartCommunication();// 통신 스레드의 실행 상태를 확인합니다.
 
-    // �ݵ�� PRE-OP ���¿��� ȣ���մϴ�.
+    // 주기 통신 스레드의 실행을 시작합니다.
     bool ConfigureLsL7nhProfilePositionMode(
         int physicalSlaveIndex,
         unsigned int profileVelocity,
         unsigned int profileAcceleration,
         unsigned int profileDeceleration);
 
-    // LS L7NH�� CiA402 ������� 0x6060�� �����մϴ�.
+    // Servo Homing 명령과 제한 시간을 설정합니다.
     //
     // mode:
     // 1 = Profile Position
@@ -1109,23 +1109,23 @@ private:
     void ResetIoRuntimeInfo();
     void ResetEncoderRuntimeInfo();
 
-	void ConfigureServoAndIoRuntimeInfo(); // Servo�� EtherCAT IO�� ��Ÿ�� ������ �ʱ�ȭ�մϴ�.
+	void ConfigureServoAndIoRuntimeInfo(); // Process Data를 송신하고 수신 WKC를 확인합니다.
 
-	void PrepareServoAndIoOutputs(); // Servo�� EtherCAT IO�� ��� PDO�� �ʱ�ȭ�մϴ�.
+	void PrepareServoAndIoOutputs(); // Process Data를 송신하고 수신 WKC를 확인합니다.
 
     void CaptureServoAndIoInputs(
-		int actualWkc);   // Servo�� EtherCAT IO�� �Է� PDO�� ĸó�մϴ�.
+		int actualWkc);   // Process Data를 송신하고 수신 WKC를 확인합니다.
 
-	void ProcessServoCommands(); // Servo ���� ���¸� �����ϰ�, �Ϸ�� ������ �����մϴ�.
+	void ProcessServoCommands(); // Process Data를 송신하고 수신 WKC를 확인합니다.
 
     void UpdateServoDerivedState(
-		DaoInternalServoRuntimeInfo& runtimeInfo); // Servo�� CiA402 ���¸� �ؼ��Ͽ� derived state�� �����մϴ�.
+		DaoInternalServoRuntimeInfo& runtimeInfo); // ADC 샘플의 필터링, 영점 및 보정 처리를 순서대로 수행합니다.
 
     void ProcessAdcSample(
         DaoInternalAdcRuntimeInfo& runtimeInfo,
-		std::int32_t rawSample); // DAO ADC ���� ������ ó���Ͽ� ����/Zero/Calibration�� �����ϰ� ���� ǥ�ð��� �����մϴ�.
+		std::int32_t rawSample); // ADC 샘플의 필터링, 영점 및 보정 처리를 순서대로 수행합니다.
 
-    void ConfigureEncoderRuntimeInfo(); // FASTECH CNT02 Encoder�� ������ �ʱ�ȭ�մϴ�.
+    void ConfigureEncoderRuntimeInfo(); // Process Data를 송신하고 수신 WKC를 확인합니다.
     
     void PrepareEncoderOutputs();
 
@@ -1140,26 +1140,26 @@ private:
         double& x1,
         double& x2,
         double& y1,
-		double& y2); // Notch Filter�� �����մϴ�.
+		double& y2); // 설정된 50 Hz 또는 60 Hz 전원 주파수 제거 필터를 적용합니다.
 
     bool IsDaoAdcSlave(
-		const ec_slavet& slave) const; // DAO ADC Slave���� Ȯ���մϴ�.
+		const ec_slavet& slave) const; // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool IsLsL7nhServo(
-		int physicalSlaveIndex) const; // LS L7NH Servo���� Ȯ���մϴ�.
+		int physicalSlaveIndex) const; // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
    
     bool ConfigureLsL7nhBasicPdo(
         int physicalSlaveIndex);
 
-    // LS L7NH Profile Position �⺻ ��������
-    // �ӵ�/����/������ SDO�� �����մϴ�.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
     //
   
 
 
 
     bool IsFastechIo(
-		int physicalSlaveIndex) const; // Fastech EtherCAT IO���� Ȯ���մϴ�.
+		int physicalSlaveIndex) const; // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
     bool IsFastechEncoder(
         int physicalSlaveIndex) const;
@@ -1170,7 +1170,7 @@ private:
     std::atomic<bool> communicationRunning_{ false };
     std::atomic<bool> communicationStopRequested_{ false };
 
-	void CommunicationThreadMain(); // ��� ������ ���� ����
+	void CommunicationThreadMain(); // 통신 스레드의 실행 상태를 확인합니다.
 
 
 private:
@@ -1187,20 +1187,20 @@ private:
     int expectedWkc_;
     bool processDataMapped_;
 
-    // ���� Slave ��ȣ�� �ε����� ����մϴ�.
-    // 0���� ��ü Slave���̹Ƿ� ������� �ʰ�,
-    // ���� Slave 1������ �����մϴ�.
+    // 정상 통신 여부를 판단하기 위한 예상 WKC 값입니다.
+    // Process Data 매핑이 완료된 경우에만 다음 처리를 수행합니다.
+    // ADC 런타임 정보를 동기화하여 복사합니다.
     std::vector<DaoInternalAdcRuntimeInfo>
         adcRuntimeInfoBySlave_;
-    // ���� Slave ��ȣ�� �״�� �ε����� ����մϴ�.
-// index 0�� EtherCAT���� ������� �ʽ��ϴ�.
+    // ADC 런타임 정보를 동기화하여 복사합니다.
+    // ADC 런타임 정보를 동기화하여 복사합니다.
     std::vector<DaoInternalServoRuntimeInfo>
         servoRuntimeInfoBySlave_;
 
     std::vector<DaoInternalIoRuntimeInfo>
         ioRuntimeInfoBySlave_;
 
-	std::atomic<std::uint64_t> nextServoCommandId_{ 1 }; // Servo ���� ID�� ���������� �����մϴ�.
+	std::atomic<std::uint64_t> nextServoCommandId_{ 1 }; // IO 입력 PDO를 읽어 최신 입력 상태를 갱신합니다.
 
     std::vector<DaoInternalEncoderRuntimeInfo>
     encoderRuntimeInfoBySlave_;
