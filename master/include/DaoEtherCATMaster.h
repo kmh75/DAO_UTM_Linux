@@ -7,6 +7,7 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
+#include <chrono>
 #include <soem/soem.h>
 
 struct DaoInternalSlaveInfo
@@ -623,6 +624,14 @@ struct DaoInternalIoRuntimeInfo
 // ------------------------------------------------------------
 // FASTECH CNT02 Encoder Runtime Information
 // ------------------------------------------------------------
+enum DaoInternalEncoderResetState
+{
+    DAO_INTERNAL_ENCODER_RESET_IDLE = 0,
+    DAO_INTERNAL_ENCODER_RESET_IN_PROGRESS = 1,
+    DAO_INTERNAL_ENCODER_RESET_COMPLETED = 2,
+    DAO_INTERNAL_ENCODER_RESET_FAILED = 3
+};
+
 struct DaoInternalEncoderRuntimeInfo
 {
     int physicalSlaveIndex = 0;
@@ -638,6 +647,21 @@ struct DaoInternalEncoderRuntimeInfo
     std::uint64_t goodWkcFrameCount = 0;
     std::uint64_t badWkcFrameCount = 0;
     std::uint64_t inputUpdateCount = 0;
+
+    std::int32_t signedCountCh1 = 0;
+    std::int32_t signedCountCh2 = 0;
+
+    double calibrationScaleCh1 = 1.0;
+    double calibrationScaleCh2 = 1.0;
+
+    double engineeringValueCh1 = 0.0;
+    double engineeringValueCh2 = 0.0;
+
+    DaoInternalEncoderResetState resetStateCh1 =
+        DAO_INTERNAL_ENCODER_RESET_IDLE;
+
+    DaoInternalEncoderResetState resetStateCh2 =
+        DAO_INTERNAL_ENCODER_RESET_IDLE;
 
     // Master -> CNT02
     DaoInternalFastechEncoderOutputPdo outputCommand{};
@@ -1017,6 +1041,26 @@ public:
         int physicalSlaveIndex,
         DaoInternalEncoderRuntimeInfo& runtimeInfo) const;
 
+    bool ConfigureFastechEncoderCountDirection(
+        int physicalSlaveIndex,
+        int channel,
+        std::uint8_t direction);
+
+    bool ResetFastechEncoderCounter(
+        int physicalSlaveIndex,
+        int channel,
+        unsigned int timeoutMs);
+
+    bool SetEncoderCalibrationScale(
+        int physicalSlaveIndex,
+        int channel,
+        double calibrationScale);
+
+    bool CalibrateEncoder(
+        int physicalSlaveIndex,
+        int channel,
+        double referenceValue);
+
     bool RequestServoOn(
 		int physicalSlaveIndex); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
 
@@ -1131,6 +1175,45 @@ private:
 
     void CaptureEncoderInputs(int actualWkc);
 
+    bool SetEncoderCountEnable(
+        int physicalSlaveIndex,
+        int channel,
+        bool enable);
+
+    bool WaitEncoderCountEnabled(
+        int physicalSlaveIndex,
+        int channel,
+        bool expectedEnabled,
+        unsigned int timeoutMs) const;
+
+    bool SetEncoderResetCommand(
+        int physicalSlaveIndex,
+        int channel,
+        bool execute);
+
+    bool WaitEncoderResetCompleted(
+        int physicalSlaveIndex,
+        int channel,
+        bool expectedCompleted,
+        std::uint64_t inputUpdateCountBeforeCommand,
+        std::chrono::steady_clock::time_point deadline) const;
+
+    bool GetEncoderInputUpdateCount(
+        int physicalSlaveIndex,
+        std::uint64_t& inputUpdateCount) const;
+
+    void SetEncoderResetState(
+        int physicalSlaveIndex,
+        int channel,
+        DaoInternalEncoderResetState state);
+
+    static std::int32_t ConvertEncoderRawCountToSigned(
+        std::uint32_t rawCount);
+
+    bool StartCommunicationUnlocked();
+
+    void StopCommunicationUnlocked();
+
 
 
     double ApplyAdcNotchFilter(
@@ -1169,6 +1252,8 @@ private:
 
     std::atomic<bool> communicationRunning_{ false };
     std::atomic<bool> communicationStopRequested_{ false };
+
+    mutable std::mutex communicationControlMutex_;
 
 	void CommunicationThreadMain(); // 통신 스레드의 실행 상태를 확인합니다.
 

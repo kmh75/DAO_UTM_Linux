@@ -6,5 +6,5 @@ C_DEFINES =
 
 C_INCLUDES = -I/home/dao/Projects/DAO_UTM_Linux/third_party/soem/include -I/home/dao/Projects/DAO_UTM_Linux/build/third_party/soem/include -I/home/dao/Projects/DAO_UTM_Linux/third_party/soem/osal -I/home/dao/Projects/DAO_UTM_Linux/third_party/soem/osal/linux -I/home/dao/Projects/DAO_UTM_Linux/third_party/soem/oshw/linux
 
-C_FLAGS = -Wall -Wextra
+C_FLAGS = -fPIC -fvisibility=hidden -Wall -Wextra
 

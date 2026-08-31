@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #ifdef _WIN32
 
     #ifdef DAOETHERCATENGINE_EXPORTS
@@ -10,7 +12,12 @@
 
 #else
 
-    #define DAO_ENGINE_API
+    #ifdef DAOETHERCATENGINE_EXPORTS
+        #define DAO_ENGINE_API \
+            __attribute__((visibility("default")))
+    #else
+        #define DAO_ENGINE_API
+    #endif
 
 #endif
 struct DaoAdapterInfo
@@ -379,10 +386,39 @@ struct DaoEncoderRuntimeInfo
     unsigned int presentCounterCh1;
     unsigned int presentCounterCh2;
 
+    std::int32_t signedCountCh1;
+    std::int32_t signedCountCh2;
+
+    double calibrationScaleCh1;
+    double calibrationScaleCh2;
+
+    double engineeringValueCh1;
+    double engineeringValueCh2;
+
+    int resetStateCh1;
+    int resetStateCh2;
+
+    int resetCompletedStatusCh1;
+    int resetCompletedStatusCh2;
+
     unsigned int pulseRateCh1;
     unsigned int pulseRateCh2;
 
     unsigned char counterCommand;
+};
+
+enum DaoEncoderCountDirection
+{
+    DAO_ENCODER_COUNT_DIRECTION_FORWARD = 0,
+    DAO_ENCODER_COUNT_DIRECTION_REVERSE = 1
+};
+
+enum DaoEncoderResetState
+{
+    DAO_ENCODER_RESET_IDLE = 0,
+    DAO_ENCODER_RESET_IN_PROGRESS = 1,
+    DAO_ENCODER_RESET_COMPLETED = 2,
+    DAO_ENCODER_RESET_FAILED = 3
 };
 
 // 이 값은 처리된 프레임 또는 샘플의 누적 개수를 나타냅니다.
@@ -676,6 +712,26 @@ extern "C"
     DAO_ENGINE_API int DaoEngine_GetEncoderRuntimeInfo(
         int logicalEncoderIndex,
         DaoEncoderRuntimeInfo* runtimeInfo);
+
+    DAO_ENGINE_API int DaoEngine_SetEncoderCountDirection(
+        int logicalEncoderIndex,
+        int channel,
+        int direction);
+
+    DAO_ENGINE_API int DaoEngine_ResetEncoderCounter(
+        int logicalEncoderIndex,
+        int channel,
+        unsigned int timeoutMs);
+
+    DAO_ENGINE_API int DaoEngine_SetEncoderCalibrationScale(
+        int logicalEncoderIndex,
+        int channel,
+        double calibrationScale);
+
+    DAO_ENGINE_API int DaoEngine_CalibrateEncoder(
+        int logicalEncoderIndex,
+        int channel,
+        double referenceValue);
 
     DAO_ENGINE_API int DaoEngine_ServoOn( 
 		int logicalServoIndex); // Servo ON 명령을 등록하고 CiA 402 활성화 절차를 시작합니다.

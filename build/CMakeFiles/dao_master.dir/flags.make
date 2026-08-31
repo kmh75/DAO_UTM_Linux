@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/home/dao/Projects/DAO_UTM_Linux/master/include -I/home/dao/Projects/DAO_UTM_Linux/third_party/soem/include -I/home/dao/Projects/DAO_UTM_Linux/build/third_party/soem/include -I/home/dao/Projects/DAO_UTM_Linux/third_party/soem/osal -I/home/dao/Projects/DAO_UTM_Linux/third_party/soem/osal/linux -I/home/dao/Projects/DAO_UTM_Linux/third_party/soem/oshw/linux
 
-CXX_FLAGS = -std=gnu++17
+CXX_FLAGS = -std=gnu++17 -fPIC -fvisibility=hidden -fvisibility-inlines-hidden
 

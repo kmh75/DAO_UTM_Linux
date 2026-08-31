@@ -142,6 +142,14 @@ bool DaoEtherCATMaster::IsCommunicationRunning() const
 
 bool DaoEtherCATMaster::StartCommunication()
 {
+    std::lock_guard<std::mutex> lock(
+        communicationControlMutex_);
+
+    return StartCommunicationUnlocked();
+}
+
+bool DaoEtherCATMaster::StartCommunicationUnlocked()
+{
     // 통신 스레드의 실행 상태를 확인합니다.
     if (communicationRunning_.load())
     {
@@ -185,6 +193,14 @@ bool DaoEtherCATMaster::StartCommunication()
 }
 
 void DaoEtherCATMaster::StopCommunication()
+{
+    std::lock_guard<std::mutex> lock(
+        communicationControlMutex_);
+
+    StopCommunicationUnlocked();
+}
+
+void DaoEtherCATMaster::StopCommunicationUnlocked()
 {
     // 주기 통신 스레드의 중지를 요청합니다.
     communicationStopRequested_.store(true);
@@ -3191,6 +3207,751 @@ bool DaoEtherCATMaster::GetEncoderRuntimeInfo(
     return true;
 }
 
+bool DaoEtherCATMaster::ConfigureFastechEncoderCountDirection(
+    int physicalSlaveIndex,
+    int channel,
+    std::uint8_t direction)
+{
+    std::lock_guard<std::mutex> communicationLock(
+        communicationControlMutex_);
+
+    if (!isOpen_ ||
+        !IsFastechEncoder(physicalSlaveIndex))
+    {
+        return false;
+    }
+
+    if ((channel != 1 && channel != 2) ||
+        (direction != 0 && direction != 1))
+    {
+        return false;
+    }
+
+    // Count Enable OFF와 ON을 실제 PDO 상태로 확인하기 위해
+    // 주기 통신이 실행 중인 상태에서만 방향을 변경합니다.
+    if (!communicationRunning_.load())
+    {
+        return false;
+    }
+
+    const std::uint8_t commandEnableMask =
+        channel == 1 ? 0x01 : 0x10;
+
+    bool originalCountEnabled = false;
+
+    {
+        std::lock_guard<std::mutex> lock(
+            encoderRuntimeMutex_);
+
+        const std::size_t runtimeIndex =
+            static_cast<std::size_t>(
+                physicalSlaveIndex);
+
+        if (runtimeIndex >=
+            encoderRuntimeInfoBySlave_.size())
+        {
+            return false;
+        }
+
+        const DaoInternalEncoderRuntimeInfo& runtimeInfo =
+            encoderRuntimeInfoBySlave_[runtimeIndex];
+
+        if (!runtimeInfo.configured)
+        {
+            return false;
+        }
+
+        originalCountEnabled =
+            (runtimeInfo.outputCommand.counterCommand &
+                commandEnableMask) != 0;
+    }
+
+    constexpr unsigned int ENABLE_STATUS_TIMEOUT_MS = 100;
+
+    if (!SetEncoderCountEnable(
+        physicalSlaveIndex,
+        channel,
+        false))
+    {
+        return false;
+    }
+
+    if (!WaitEncoderCountEnabled(
+        physicalSlaveIndex,
+        channel,
+        false,
+        ENABLE_STATUS_TIMEOUT_MS))
+    {
+        (void)SetEncoderCountEnable(
+            physicalSlaveIndex,
+            channel,
+            originalCountEnabled);
+
+        return false;
+    }
+
+    // 통신 스레드가 완전히 종료된 후 같은 SOEM Context로
+    // Count Direction SDO를 전송합니다.
+    StopCommunicationUnlocked();
+
+    constexpr int SDO_TIMEOUT_US =
+        2 * 1000 * 1000;
+
+    const int writeWkc =
+        ecx_SDOwrite(
+            &context_,
+            static_cast<std::uint16_t>(
+                physicalSlaveIndex),
+            0x3002,
+            static_cast<std::uint8_t>(
+                channel),
+            false,
+            sizeof(direction),
+            &direction,
+            SDO_TIMEOUT_US);
+
+    const bool writeSucceeded =
+        writeWkc > 0;
+
+    // SDO 성공 시 새 설정을 적용하기 위해 Count Enable을 ON으로
+    // 준비합니다. 실패 시에는 호출 전 Enable 상태로 복구합니다.
+    const bool targetCountEnabled =
+        writeSucceeded ? true : originalCountEnabled;
+
+    const bool enablePrepared =
+        SetEncoderCountEnable(
+            physicalSlaveIndex,
+            channel,
+            targetCountEnabled);
+
+    const bool communicationRestarted =
+        StartCommunicationUnlocked();
+
+    if (!communicationRestarted)
+    {
+        return false;
+    }
+
+    const bool enabledStateReached =
+        enablePrepared &&
+        WaitEncoderCountEnabled(
+            physicalSlaveIndex,
+            channel,
+            targetCountEnabled,
+            ENABLE_STATUS_TIMEOUT_MS);
+
+    return
+        writeSucceeded &&
+        enablePrepared &&
+        enabledStateReached;
+}
+
+bool DaoEtherCATMaster::ResetFastechEncoderCounter(
+    int physicalSlaveIndex,
+    int channel,
+    unsigned int timeoutMs)
+{
+    std::lock_guard<std::mutex> communicationLock(
+        communicationControlMutex_);
+
+    if (!isOpen_ ||
+        !IsFastechEncoder(physicalSlaveIndex) ||
+        (channel != 1 && channel != 2) ||
+        timeoutMs == 0 ||
+        !communicationRunning_.load())
+    {
+        return false;
+    }
+
+    std::uint64_t inputUpdateCountBeforeCommand = 0;
+
+    {
+        std::lock_guard<std::mutex> lock(
+            encoderRuntimeMutex_);
+
+        const std::size_t runtimeIndex =
+            static_cast<std::size_t>(
+                physicalSlaveIndex);
+
+        if (runtimeIndex >=
+            encoderRuntimeInfoBySlave_.size() ||
+            !encoderRuntimeInfoBySlave_[runtimeIndex].configured ||
+            !encoderRuntimeInfoBySlave_[runtimeIndex].hasValidInputData)
+        {
+            return false;
+        }
+
+        inputUpdateCountBeforeCommand =
+            encoderRuntimeInfoBySlave_[runtimeIndex]
+                .inputUpdateCount;
+    }
+
+    SetEncoderResetState(
+        physicalSlaveIndex,
+        channel,
+        DAO_INTERNAL_ENCODER_RESET_IN_PROGRESS);
+
+    const auto deadline =
+        std::chrono::steady_clock::now() +
+        std::chrono::milliseconds(timeoutMs);
+
+    // Internal Reset은 Count Enable, Scale 및 Direction을 변경하지 않고
+    // Counter Command의 해당 Reset Execution bit만 제어합니다.
+    if (!SetEncoderResetCommand(
+        physicalSlaveIndex,
+        channel,
+        false) ||
+        !WaitEncoderResetCompleted(
+            physicalSlaveIndex,
+            channel,
+            false,
+            inputUpdateCountBeforeCommand,
+            deadline) ||
+        !SetEncoderResetCommand(
+            physicalSlaveIndex,
+            channel,
+            true) ||
+        !GetEncoderInputUpdateCount(
+            physicalSlaveIndex,
+            inputUpdateCountBeforeCommand) ||
+        !WaitEncoderResetCompleted(
+            physicalSlaveIndex,
+            channel,
+            true,
+            inputUpdateCountBeforeCommand,
+            deadline))
+    {
+        (void)SetEncoderResetCommand(
+            physicalSlaveIndex,
+            channel,
+            false);
+
+        SetEncoderResetState(
+            physicalSlaveIndex,
+            channel,
+            DAO_INTERNAL_ENCODER_RESET_FAILED);
+
+        return false;
+    }
+
+    const bool updateCountCaptured =
+        GetEncoderInputUpdateCount(
+            physicalSlaveIndex,
+            inputUpdateCountBeforeCommand);
+
+    const bool commandCleared =
+        updateCountCaptured &&
+        SetEncoderResetCommand(
+            physicalSlaveIndex,
+            channel,
+            false);
+
+    const bool completedStatusCleared =
+        commandCleared &&
+        WaitEncoderResetCompleted(
+            physicalSlaveIndex,
+            channel,
+            false,
+            inputUpdateCountBeforeCommand,
+            deadline);
+
+    SetEncoderResetState(
+        physicalSlaveIndex,
+        channel,
+        completedStatusCleared
+            ? DAO_INTERNAL_ENCODER_RESET_COMPLETED
+            : DAO_INTERNAL_ENCODER_RESET_FAILED);
+
+    return completedStatusCleared;
+}
+
+bool DaoEtherCATMaster::SetEncoderCalibrationScale(
+    int physicalSlaveIndex,
+    int channel,
+    double calibrationScale)
+{
+    if ((channel != 1 && channel != 2) ||
+        !std::isfinite(calibrationScale) ||
+        calibrationScale <= 0.0)
+    {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    if (physicalSlaveIndex <= 0)
+    {
+        return false;
+    }
+
+    const std::size_t runtimeIndex =
+        static_cast<std::size_t>(
+            physicalSlaveIndex);
+
+    if (runtimeIndex >=
+        encoderRuntimeInfoBySlave_.size())
+    {
+        return false;
+    }
+
+    DaoInternalEncoderRuntimeInfo& runtimeInfo =
+        encoderRuntimeInfoBySlave_[runtimeIndex];
+
+    if (!runtimeInfo.configured)
+    {
+        return false;
+    }
+
+    if (channel == 1)
+    {
+        runtimeInfo.calibrationScaleCh1 =
+            calibrationScale;
+
+        runtimeInfo.engineeringValueCh1 =
+            static_cast<double>(
+                runtimeInfo.signedCountCh1) *
+            runtimeInfo.calibrationScaleCh1;
+    }
+    else
+    {
+        runtimeInfo.calibrationScaleCh2 =
+            calibrationScale;
+
+        runtimeInfo.engineeringValueCh2 =
+            static_cast<double>(
+                runtimeInfo.signedCountCh2) *
+            runtimeInfo.calibrationScaleCh2;
+    }
+
+    return true;
+}
+
+bool DaoEtherCATMaster::CalibrateEncoder(
+    int physicalSlaveIndex,
+    int channel,
+    double referenceValue)
+{
+    if ((channel != 1 && channel != 2) ||
+        !std::isfinite(referenceValue) ||
+        referenceValue == 0.0 ||
+        !communicationRunning_.load())
+    {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    if (physicalSlaveIndex <= 0)
+    {
+        return false;
+    }
+
+    const std::size_t runtimeIndex =
+        static_cast<std::size_t>(
+            physicalSlaveIndex);
+
+    if (runtimeIndex >=
+        encoderRuntimeInfoBySlave_.size())
+    {
+        return false;
+    }
+
+    DaoInternalEncoderRuntimeInfo& runtimeInfo =
+        encoderRuntimeInfoBySlave_[runtimeIndex];
+
+    if (!runtimeInfo.configured ||
+        !runtimeInfo.hasValidInputData)
+    {
+        return false;
+    }
+
+    const std::int32_t signedCount =
+        channel == 1
+        ? runtimeInfo.signedCountCh1
+        : runtimeInfo.signedCountCh2;
+
+    if (signedCount == 0)
+    {
+        return false;
+    }
+
+    const double calibrationScale =
+        referenceValue /
+        static_cast<double>(signedCount);
+
+    // 방향은 Count Direction 기능으로만 설정하므로
+    // 음수 Scale이 되는 기준값과 Count 조합은 허용하지 않습니다.
+    if (!std::isfinite(calibrationScale) ||
+        calibrationScale <= 0.0)
+    {
+        return false;
+    }
+
+    if (channel == 1)
+    {
+        runtimeInfo.calibrationScaleCh1 =
+            calibrationScale;
+
+        runtimeInfo.engineeringValueCh1 =
+            static_cast<double>(signedCount) *
+            calibrationScale;
+    }
+    else
+    {
+        runtimeInfo.calibrationScaleCh2 =
+            calibrationScale;
+
+        runtimeInfo.engineeringValueCh2 =
+            static_cast<double>(signedCount) *
+            calibrationScale;
+    }
+
+    return true;
+}
+
+bool DaoEtherCATMaster::SetEncoderResetCommand(
+    int physicalSlaveIndex,
+    int channel,
+    bool execute)
+{
+    const std::uint8_t resetCommandMask =
+        channel == 1 ? 0x02 :
+        channel == 2 ? 0x20 : 0x00;
+
+    if (resetCommandMask == 0)
+    {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    if (physicalSlaveIndex <= 0)
+    {
+        return false;
+    }
+
+    const std::size_t runtimeIndex =
+        static_cast<std::size_t>(
+            physicalSlaveIndex);
+
+    if (runtimeIndex >=
+        encoderRuntimeInfoBySlave_.size())
+    {
+        return false;
+    }
+
+    DaoInternalEncoderRuntimeInfo& runtimeInfo =
+        encoderRuntimeInfoBySlave_[runtimeIndex];
+
+    if (!runtimeInfo.configured)
+    {
+        return false;
+    }
+
+    if (execute)
+    {
+        runtimeInfo.outputCommand.counterCommand |=
+            resetCommandMask;
+    }
+    else
+    {
+        runtimeInfo.outputCommand.counterCommand &=
+            static_cast<std::uint8_t>(
+                ~resetCommandMask);
+    }
+
+    return true;
+}
+
+bool DaoEtherCATMaster::WaitEncoderResetCompleted(
+    int physicalSlaveIndex,
+    int channel,
+    bool expectedCompleted,
+    std::uint64_t inputUpdateCountBeforeCommand,
+    std::chrono::steady_clock::time_point deadline) const
+{
+    const std::uint32_t completedStatusMask =
+        channel == 1 ? 0x00000010U :
+        channel == 2 ? 0x00100000U : 0U;
+
+    if (completedStatusMask == 0)
+    {
+        return false;
+    }
+
+    do
+    {
+        bool statusAvailable = false;
+        bool resetCompleted = false;
+        bool newInputReceived = false;
+
+        {
+            std::lock_guard<std::mutex> lock(
+                encoderRuntimeMutex_);
+
+            const std::size_t runtimeIndex =
+                static_cast<std::size_t>(
+                    physicalSlaveIndex);
+
+            if (physicalSlaveIndex > 0 &&
+                runtimeIndex <
+                encoderRuntimeInfoBySlave_.size())
+            {
+                const DaoInternalEncoderRuntimeInfo& runtimeInfo =
+                    encoderRuntimeInfoBySlave_[runtimeIndex];
+
+                statusAvailable =
+                    runtimeInfo.configured &&
+                    runtimeInfo.hasValidInputData;
+
+                resetCompleted =
+                    (runtimeInfo.latestInput.counterStatus &
+                        completedStatusMask) != 0;
+
+                newInputReceived =
+                    runtimeInfo.inputUpdateCount >
+                    inputUpdateCountBeforeCommand;
+            }
+        }
+
+        if (statusAvailable &&
+            newInputReceived &&
+            resetCompleted == expectedCompleted)
+        {
+            return true;
+        }
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(2));
+    }
+    while (std::chrono::steady_clock::now() < deadline);
+
+    return false;
+}
+
+bool DaoEtherCATMaster::GetEncoderInputUpdateCount(
+    int physicalSlaveIndex,
+    std::uint64_t& inputUpdateCount) const
+{
+    inputUpdateCount = 0;
+
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    if (physicalSlaveIndex <= 0)
+    {
+        return false;
+    }
+
+    const std::size_t runtimeIndex =
+        static_cast<std::size_t>(
+            physicalSlaveIndex);
+
+    if (runtimeIndex >=
+        encoderRuntimeInfoBySlave_.size())
+    {
+        return false;
+    }
+
+    const DaoInternalEncoderRuntimeInfo& runtimeInfo =
+        encoderRuntimeInfoBySlave_[runtimeIndex];
+
+    if (!runtimeInfo.configured ||
+        !runtimeInfo.hasValidInputData)
+    {
+        return false;
+    }
+
+    inputUpdateCount =
+        runtimeInfo.inputUpdateCount;
+
+    return true;
+}
+
+void DaoEtherCATMaster::SetEncoderResetState(
+    int physicalSlaveIndex,
+    int channel,
+    DaoInternalEncoderResetState state)
+{
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    if (physicalSlaveIndex <= 0)
+    {
+        return;
+    }
+
+    const std::size_t runtimeIndex =
+        static_cast<std::size_t>(
+            physicalSlaveIndex);
+
+    if (runtimeIndex >=
+        encoderRuntimeInfoBySlave_.size())
+    {
+        return;
+    }
+
+    DaoInternalEncoderRuntimeInfo& runtimeInfo =
+        encoderRuntimeInfoBySlave_[runtimeIndex];
+
+    if (!runtimeInfo.configured)
+    {
+        return;
+    }
+
+    if (channel == 1)
+    {
+        runtimeInfo.resetStateCh1 = state;
+    }
+    else if (channel == 2)
+    {
+        runtimeInfo.resetStateCh2 = state;
+    }
+}
+
+std::int32_t DaoEtherCATMaster::ConvertEncoderRawCountToSigned(
+    std::uint32_t rawCount)
+{
+    // 현재 CNT02 운용 조건인 Maximum Counter Value 0xFFFFFFFF,
+    // 즉 전체 32 bit 범위를 전제로 Raw Count를 2's complement
+    // 상대 Count로 해석합니다. Maximum Counter Value 설정 기능은
+    // 이 엔진에서 제공하지 않습니다.
+    if (rawCount <=
+        static_cast<std::uint32_t>(INT32_MAX))
+    {
+        return static_cast<std::int32_t>(
+            rawCount);
+    }
+
+    const std::int64_t signedValue =
+        static_cast<std::int64_t>(rawCount) -
+        0x100000000LL;
+
+    return static_cast<std::int32_t>(
+        signedValue);
+}
+
+bool DaoEtherCATMaster::SetEncoderCountEnable(
+    int physicalSlaveIndex,
+    int channel,
+    bool enable)
+{
+    const std::uint8_t commandEnableMask =
+        channel == 1 ? 0x01 :
+        channel == 2 ? 0x10 : 0x00;
+
+    if (commandEnableMask == 0)
+    {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(
+        encoderRuntimeMutex_);
+
+    if (physicalSlaveIndex <= 0)
+    {
+        return false;
+    }
+
+    const std::size_t runtimeIndex =
+        static_cast<std::size_t>(
+            physicalSlaveIndex);
+
+    if (runtimeIndex >=
+        encoderRuntimeInfoBySlave_.size())
+    {
+        return false;
+    }
+
+    DaoInternalEncoderRuntimeInfo& runtimeInfo =
+        encoderRuntimeInfoBySlave_[runtimeIndex];
+
+    if (!runtimeInfo.configured)
+    {
+        return false;
+    }
+
+    if (enable)
+    {
+        runtimeInfo.outputCommand.counterCommand |=
+            commandEnableMask;
+    }
+    else
+    {
+        runtimeInfo.outputCommand.counterCommand &=
+            static_cast<std::uint8_t>(
+                ~commandEnableMask);
+    }
+
+    return true;
+}
+
+bool DaoEtherCATMaster::WaitEncoderCountEnabled(
+    int physicalSlaveIndex,
+    int channel,
+    bool expectedEnabled,
+    unsigned int timeoutMs) const
+{
+    const std::uint32_t enabledStatusMask =
+        channel == 1 ? 0x00000001U :
+        channel == 2 ? 0x00010000U : 0U;
+
+    if (enabledStatusMask == 0)
+    {
+        return false;
+    }
+
+    const auto deadline =
+        std::chrono::steady_clock::now() +
+        std::chrono::milliseconds(timeoutMs);
+
+    do
+    {
+        bool statusAvailable = false;
+        bool countEnabled = false;
+
+        {
+            std::lock_guard<std::mutex> lock(
+                encoderRuntimeMutex_);
+
+            const std::size_t runtimeIndex =
+                static_cast<std::size_t>(
+                    physicalSlaveIndex);
+
+            if (physicalSlaveIndex > 0 &&
+                runtimeIndex <
+                encoderRuntimeInfoBySlave_.size())
+            {
+                const DaoInternalEncoderRuntimeInfo& runtimeInfo =
+                    encoderRuntimeInfoBySlave_[runtimeIndex];
+
+                statusAvailable =
+                    runtimeInfo.configured &&
+                    runtimeInfo.hasValidInputData;
+
+                countEnabled =
+                    (runtimeInfo.latestInput.counterStatus &
+                        enabledStatusMask) != 0;
+            }
+        }
+
+        if (statusAvailable &&
+            countEnabled == expectedEnabled)
+        {
+            return true;
+        }
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(2));
+    }
+    while (std::chrono::steady_clock::now() < deadline);
+
+    return false;
+}
+
 bool DaoEtherCATMaster::RequestServoOn(
     int physicalSlaveIndex)
 {
@@ -5177,6 +5938,24 @@ void DaoEtherCATMaster::CaptureEncoderInputs(
             slave.inputs,
             sizeof(
                 DaoInternalFastechEncoderInputPdo));
+
+        runtimeInfo.signedCountCh1 =
+            ConvertEncoderRawCountToSigned(
+                runtimeInfo.latestInput.presentCounterCh1);
+
+        runtimeInfo.signedCountCh2 =
+            ConvertEncoderRawCountToSigned(
+                runtimeInfo.latestInput.presentCounterCh2);
+
+        runtimeInfo.engineeringValueCh1 =
+            static_cast<double>(
+                runtimeInfo.signedCountCh1) *
+            runtimeInfo.calibrationScaleCh1;
+
+        runtimeInfo.engineeringValueCh2 =
+            static_cast<double>(
+                runtimeInfo.signedCountCh2) *
+            runtimeInfo.calibrationScaleCh2;
 
         runtimeInfo.hasValidInputData =
             true;

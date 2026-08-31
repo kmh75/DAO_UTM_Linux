@@ -160,6 +160,7 @@ CMakeFiles/dao_master.dir/master/src/DaoEtherCATMaster.cpp.o: \
  /usr/include/c++/15/ext/atomicity.h \
  /usr/include/x86_64-linux-gnu/c++/15/bits/atomic_word.h \
  /usr/include/x86_64-linux-gnu/sys/single_threaded.h \
+ /usr/include/c++/15/chrono \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/include/soem/soem.h \
  /home/dao/Projects/DAO_UTM_Linux/build/third_party/soem/include/soem/ec_options.h \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/include/soem/ec_type.h \
@@ -176,7 +177,7 @@ CMakeFiles/dao_master.dir/master/src/DaoEtherCATMaster.cpp.o: \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/include/soem/ec_eoe.h \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/include/soem/ec_config.h \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/include/soem/ec_print.h \
- /usr/include/c++/15/chrono /usr/include/c++/15/climits \
+ /usr/include/c++/15/climits \
  /usr/lib/gcc/x86_64-linux-gnu/15/include/limits.h \
  /usr/lib/gcc/x86_64-linux-gnu/15/include/syslimits.h \
  /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \

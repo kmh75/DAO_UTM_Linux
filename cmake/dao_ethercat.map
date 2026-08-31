@@ -1,0 +1,7 @@
+DAO_ETHERCAT_1.0 {
+    global:
+        DaoEngine_*;
+
+    local:
+        *;
+};

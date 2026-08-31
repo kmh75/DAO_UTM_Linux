@@ -1,1 +1,1 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/dao_engine_test.dir/link.d CMakeFiles/dao_engine_test.dir/app/engine_test/main.cpp.o -o dao_engine_test  libdao_engine_api.a libdao_engine_core.a libdao_master.a third_party/soem/libsoem.a -lpthread -lrt
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/dao_engine_test.dir/link.d CMakeFiles/dao_engine_test.dir/app/engine_test/main.cpp.o -o dao_engine_test  -Wl,-rpath,/home/dao/Projects/DAO_UTM_Linux/build libdao_ethercat.so.1.0.0

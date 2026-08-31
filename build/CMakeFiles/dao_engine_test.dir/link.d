@@ -3,12 +3,7 @@ dao_engine_test: \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/crti.o \
   /usr/lib/gcc/x86_64-linux-gnu/15/crtbeginS.o \
   CMakeFiles/dao_engine_test.dir/app/engine_test/main.cpp.o \
-  libdao_engine_api.a \
-  libdao_engine_core.a \
-  libdao_master.a \
-  third_party/soem/libsoem.a \
-  /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/libpthread.a \
-  /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/librt.a \
+  libdao_ethercat.so.1.0.0 \
   /usr/lib/gcc/x86_64-linux-gnu/15/libstdc++.so \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/libm.so \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/libm.so \
@@ -35,6 +30,7 @@ dao_engine_test: \
   /usr/lib/gcc/x86_64-linux-gnu/15/libgcc.a \
   /usr/lib/gcc/x86_64-linux-gnu/15/crtendS.o \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/crtn.o \
+  /usr/lib/x86_64-linux-gnu/libm.so.6 \
   /lib64/ld-linux-x86-64.so.2
 
 /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/Scrt1.o:
@@ -45,17 +41,7 @@ dao_engine_test: \
 
 CMakeFiles/dao_engine_test.dir/app/engine_test/main.cpp.o:
 
-libdao_engine_api.a:
-
-libdao_engine_core.a:
-
-libdao_master.a:
-
-third_party/soem/libsoem.a:
-
-/usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/libpthread.a:
-
-/usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/librt.a:
+libdao_ethercat.so.1.0.0:
 
 /usr/lib/gcc/x86_64-linux-gnu/15/libstdc++.so:
 
@@ -108,5 +94,7 @@ third_party/soem/libsoem.a:
 /usr/lib/gcc/x86_64-linux-gnu/15/crtendS.o:
 
 /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/crtn.o:
+
+/usr/lib/x86_64-linux-gnu/libm.so.6:
 
 /lib64/ld-linux-x86-64.so.2:

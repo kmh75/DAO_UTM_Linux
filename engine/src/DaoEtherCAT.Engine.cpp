@@ -1354,6 +1354,40 @@ int DaoEngine_GetEncoderRuntimeInfo(
     runtimeInfo->presentCounterCh2 =
         internalInfo.latestInput.presentCounterCh2;
 
+    runtimeInfo->signedCountCh1 =
+        internalInfo.signedCountCh1;
+
+    runtimeInfo->signedCountCh2 =
+        internalInfo.signedCountCh2;
+
+    runtimeInfo->calibrationScaleCh1 =
+        internalInfo.calibrationScaleCh1;
+
+    runtimeInfo->calibrationScaleCh2 =
+        internalInfo.calibrationScaleCh2;
+
+    runtimeInfo->engineeringValueCh1 =
+        internalInfo.engineeringValueCh1;
+
+    runtimeInfo->engineeringValueCh2 =
+        internalInfo.engineeringValueCh2;
+
+    runtimeInfo->resetStateCh1 =
+        static_cast<int>(
+            internalInfo.resetStateCh1);
+
+    runtimeInfo->resetStateCh2 =
+        static_cast<int>(
+            internalInfo.resetStateCh2);
+
+    runtimeInfo->resetCompletedStatusCh1 =
+        (internalInfo.latestInput.counterStatus &
+            0x00000010U) != 0 ? 1 : 0;
+
+    runtimeInfo->resetCompletedStatusCh2 =
+        (internalInfo.latestInput.counterStatus &
+            0x00100000U) != 0 ? 1 : 0;
+
     runtimeInfo->pulseRateCh1 =
         internalInfo.latestInput.pulseRateCh1;
 
@@ -1364,6 +1398,58 @@ int DaoEngine_GetEncoderRuntimeInfo(
         internalInfo.outputCommand.counterCommand;
 
     return result ? 1 : 0;
+}
+
+int DaoEngine_SetEncoderCountDirection(
+    int logicalEncoderIndex,
+    int channel,
+    int direction)
+{
+    return g_engine.SetEncoderCountDirection(
+        logicalEncoderIndex,
+        channel,
+        direction)
+        ? 1
+        : 0;
+}
+
+int DaoEngine_ResetEncoderCounter(
+    int logicalEncoderIndex,
+    int channel,
+    unsigned int timeoutMs)
+{
+    return g_engine.ResetEncoderCounter(
+        logicalEncoderIndex,
+        channel,
+        timeoutMs)
+        ? 1
+        : 0;
+}
+
+int DaoEngine_SetEncoderCalibrationScale(
+    int logicalEncoderIndex,
+    int channel,
+    double calibrationScale)
+{
+    return g_engine.SetEncoderCalibrationScale(
+        logicalEncoderIndex,
+        channel,
+        calibrationScale)
+        ? 1
+        : 0;
+}
+
+int DaoEngine_CalibrateEncoder(
+    int logicalEncoderIndex,
+    int channel,
+    double referenceValue)
+{
+    return g_engine.CalibrateEncoder(
+        logicalEncoderIndex,
+        channel,
+        referenceValue)
+        ? 1
+        : 0;
 }
 
 

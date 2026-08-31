@@ -96,10 +96,7 @@ dao_engine_test_EXTERNAL_OBJECTS =
 dao_engine_test: CMakeFiles/dao_engine_test.dir/app/engine_test/main.cpp.o
 dao_engine_test: CMakeFiles/dao_engine_test.dir/build.make
 dao_engine_test: CMakeFiles/dao_engine_test.dir/compiler_depend.ts
-dao_engine_test: libdao_engine_api.a
-dao_engine_test: libdao_engine_core.a
-dao_engine_test: libdao_master.a
-dao_engine_test: third_party/soem/libsoem.a
+dao_engine_test: libdao_ethercat.so.1.0.0
 dao_engine_test: CMakeFiles/dao_engine_test.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/dao/Projects/DAO_UTM_Linux/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable dao_engine_test"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/dao_engine_test.dir/link.txt --verbose=$(VERBOSE)

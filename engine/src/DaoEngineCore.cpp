@@ -1205,6 +1205,128 @@ bool DaoEngineCore::GetEncoderRuntimeInfo(
         runtimeInfo);
 }
 
+bool DaoEngineCore::SetEncoderCountDirection(
+    int logicalEncoderIndex,
+    int channel,
+    int direction)
+{
+    if (!IsInitialized())
+    {
+        return false;
+    }
+
+    if (!master_.IsOpen())
+    {
+        return false;
+    }
+
+    if ((channel != 1 && channel != 2) ||
+        (direction != 0 && direction != 1))
+    {
+        return false;
+    }
+
+    int physicalSlaveIndex = 0;
+
+    if (!GetPhysicalSlaveIndex(
+        DAO_DEVICE_ENCODER,
+        logicalEncoderIndex,
+        physicalSlaveIndex))
+    {
+        return false;
+    }
+
+    return master_.ConfigureFastechEncoderCountDirection(
+        physicalSlaveIndex,
+        channel,
+        static_cast<std::uint8_t>(direction));
+}
+
+bool DaoEngineCore::ResetEncoderCounter(
+    int logicalEncoderIndex,
+    int channel,
+    unsigned int timeoutMs)
+{
+    if (!IsInitialized() ||
+        !master_.IsOpen() ||
+        (channel != 1 && channel != 2) ||
+        timeoutMs == 0)
+    {
+        return false;
+    }
+
+    int physicalSlaveIndex = 0;
+
+    if (!GetPhysicalSlaveIndex(
+        DAO_DEVICE_ENCODER,
+        logicalEncoderIndex,
+        physicalSlaveIndex))
+    {
+        return false;
+    }
+
+    return master_.ResetFastechEncoderCounter(
+        physicalSlaveIndex,
+        channel,
+        timeoutMs);
+}
+
+bool DaoEngineCore::SetEncoderCalibrationScale(
+    int logicalEncoderIndex,
+    int channel,
+    double calibrationScale)
+{
+    if (!IsInitialized() ||
+        !master_.IsOpen() ||
+        (channel != 1 && channel != 2))
+    {
+        return false;
+    }
+
+    int physicalSlaveIndex = 0;
+
+    if (!GetPhysicalSlaveIndex(
+        DAO_DEVICE_ENCODER,
+        logicalEncoderIndex,
+        physicalSlaveIndex))
+    {
+        return false;
+    }
+
+    return master_.SetEncoderCalibrationScale(
+        physicalSlaveIndex,
+        channel,
+        calibrationScale);
+}
+
+bool DaoEngineCore::CalibrateEncoder(
+    int logicalEncoderIndex,
+    int channel,
+    double referenceValue)
+{
+    if (!IsInitialized() ||
+        !master_.IsOpen() ||
+        (channel != 1 && channel != 2))
+    {
+        return false;
+    }
+
+    int physicalSlaveIndex = 0;
+
+    if (!GetPhysicalSlaveIndex(
+        DAO_DEVICE_ENCODER,
+        logicalEncoderIndex,
+        physicalSlaveIndex))
+    {
+        return false;
+    }
+
+    return master_.CalibrateEncoder(
+        physicalSlaveIndex,
+        channel,
+        referenceValue);
+}
+
 bool DaoEngineCore::ServoOn(
     int logicalServoIndex)
 {

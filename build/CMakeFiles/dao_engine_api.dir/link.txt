@@ -1,2 +1,1 @@
-/usr/bin/ar qc libdao_engine_api.a CMakeFiles/dao_engine_api.dir/engine/src/DaoEtherCAT.Engine.cpp.o
-/usr/bin/ranlib libdao_engine_api.a
+/usr/bin/c++ -fPIC -shared -Wl,--version-script=/home/dao/Projects/DAO_UTM_Linux/cmake/dao_ethercat.map -Wl,--no-undefined -Wl,--dependency-file=CMakeFiles/dao_engine_api.dir/link.d -Wl,-soname,libdao_ethercat.so.1 -o libdao_ethercat.so.1.0.0 CMakeFiles/dao_engine_api.dir/engine/src/DaoEtherCAT.Engine.cpp.o  libdao_engine_core.a libdao_master.a third_party/soem/libsoem.a -lpthread -lrt

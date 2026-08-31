@@ -3271,6 +3271,10 @@ namespace
 
             << " 20. ADC Ring Buffer Test\n"
             << " 21. Encoder status\n"
+            << " 22. Encoder CH1 Forward\n"
+            << " 23. Encoder CH1 Reverse\n"
+            << " 24. Encoder Hardware Zero CH1\n"
+            << " 25. Encoder Calibration CH1\n"
             << " 0. Exit\n"
             << "----------------------------------------\n"
             << "Select: ";
@@ -3505,6 +3509,34 @@ int main()
             << "  CH2 Raw Count     : "
             << encoderInfo.presentCounterCh2
             << '\n'
+            << "  CH1 Signed Count  : "
+            << encoderInfo.signedCountCh1
+            << '\n'
+            << "  CH2 Signed Count  : "
+            << encoderInfo.signedCountCh2
+            << '\n'
+            << "  CH1 Scale         : "
+            << encoderInfo.calibrationScaleCh1
+            << '\n'
+            << "  CH2 Scale         : "
+            << encoderInfo.calibrationScaleCh2
+            << '\n'
+            << "  CH1 Engineering   : "
+            << encoderInfo.engineeringValueCh1
+            << '\n'
+            << "  CH2 Engineering   : "
+            << encoderInfo.engineeringValueCh2
+            << '\n'
+            << "  CH1 Reset State   : "
+            << encoderInfo.resetStateCh1
+            << " / Completed Status: "
+            << encoderInfo.resetCompletedStatusCh1
+            << '\n'
+            << "  CH2 Reset State   : "
+            << encoderInfo.resetStateCh2
+            << " / Completed Status: "
+            << encoderInfo.resetCompletedStatusCh2
+            << '\n'
             << "  CH1 Pulse Rate    : "
             << encoderInfo.pulseRateCh1
             << '\n'
@@ -3522,6 +3554,92 @@ int main()
             << " / "
             << encoderInfo.expectedWkc
             << "\n\n";
+
+            break;
+        }
+
+        case 22:
+        {
+            const int result =
+                DaoEngine_SetEncoderCountDirection(
+                    0,
+                    1,
+                    DAO_ENCODER_COUNT_DIRECTION_FORWARD);
+
+            std::cout
+                << "\nEncoder CH1 Forward\n"
+                << "  Result : "
+                << result
+                << "\n\n";
+
+            break;
+        }
+
+        case 23:
+        {
+            const int result =
+                DaoEngine_SetEncoderCountDirection(
+                    0,
+                    1,
+                    DAO_ENCODER_COUNT_DIRECTION_REVERSE);
+
+            std::cout
+                << "\nEncoder CH1 Reverse\n"
+                << "  Result : "
+                << result
+                << "\n\n";
+
+            break;
+        }
+
+        case 24:
+        {
+            const int result =
+                DaoEngine_ResetEncoderCounter(
+                    0,
+                    1,
+                    1000);
+
+            std::cout
+                << "\nEncoder Hardware Zero CH1\n"
+                << "  Result : "
+                << result
+                << "\n\n";
+
+            break;
+        }
+
+        case 25:
+        {
+            double referenceValue = 0.0;
+
+            std::cout
+                << "\nEncoder Calibration CH1\n"
+                << "Reference engineering value: ";
+
+            if (!(std::cin >> referenceValue))
+            {
+                std::cin.clear();
+                std::cin.ignore(
+                    std::numeric_limits<std::streamsize>::max(),
+                    '\n');
+
+                std::cout
+                    << "Invalid reference value.\n\n";
+
+                break;
+            }
+
+            const int result =
+                DaoEngine_CalibrateEncoder(
+                    0,
+                    1,
+                    referenceValue);
+
+            std::cout
+                << "  Result : "
+                << result
+                << "\n\n";
 
             break;
         }

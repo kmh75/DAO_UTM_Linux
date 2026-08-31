@@ -164,6 +164,26 @@ public:
     int logicalEncoderIndex,
     DaoInternalEncoderRuntimeInfo& runtimeInfo) const;
 
+    bool SetEncoderCountDirection(
+        int logicalEncoderIndex,
+        int channel,
+        int direction);
+
+    bool ResetEncoderCounter(
+        int logicalEncoderIndex,
+        int channel,
+        unsigned int timeoutMs);
+
+    bool SetEncoderCalibrationScale(
+        int logicalEncoderIndex,
+        int channel,
+        double calibrationScale);
+
+    bool CalibrateEncoder(
+        int logicalEncoderIndex,
+        int channel,
+        double referenceValue);
+
     bool SetServoOutputCommand(
         int logicalServoIndex,
 		const DaoInternalLsServoOutputPdo& command);  // Servo ON 명령을 등록하고 CiA 402 활성화 절차를 시작합니다.
