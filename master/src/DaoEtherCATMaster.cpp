@@ -6,8 +6,27 @@
 #include <cstdint>
 #include <climits>
 #include <cmath>
+#include <cstdio>
+#include <cerrno>
+#include <fstream>
 
 #include <cstring>
+
+namespace
+{
+constexpr std::uint64_t COMM_DEGRADED_BAD_CYCLES=3;
+constexpr std::uint64_t COMM_RECOVERY_BAD_CYCLES=5;
+constexpr unsigned int COMM_RECOVERY_GOOD_CYCLES=3;
+constexpr std::uint64_t COMM_RECOVERY_WINDOW_NS=300000000ULL;
+constexpr std::uint64_t COMM_RECOVERY_RETRY_CYCLES=25;
+constexpr int COMM_RECOVERY_SLAVE_TIMEOUT_US=2000;
+std::uint64_t ReadNetdevCounter(const std::string& adapter,const char* counter)
+{
+    if(adapter.empty())return 0;
+    std::ifstream input("/sys/class/net/"+adapter+"/statistics/"+counter);
+    std::uint64_t value=0;input>>value;return value;
+}
+}
 
 DaoEtherCATMaster::DaoEtherCATMaster()
     : context_{},
@@ -70,6 +89,9 @@ bool DaoEtherCATMaster::Open(
     }
 
     isOpen_ = true;
+    diagnosticAdapterName_=adapterName;
+    netdevTxDroppedAtOpen_=ReadNetdevCounter(adapterName,"tx_dropped");
+    std::fprintf(stderr,"[ECAT NETDEV] adapter=%s txDroppedAtOpen=%llu\n",adapterName.c_str(),static_cast<unsigned long long>(netdevTxDroppedAtOpen_));
     return true;
 }
 
@@ -521,6 +543,9 @@ bool DaoEtherCATMaster::RequestAllSlavesOperational()
             ecx_receive_processdata(
                 &context_,
                 EC_TIMEOUTRET);
+        const bool fatalSocketError=context_.port.last_tx_return<0||
+            (context_.port.last_rx_return<0&&context_.port.last_rx_errno!=EAGAIN&&context_.port.last_rx_errno!=EWOULDBLOCK);
+        if(fatalSocketError){std::fprintf(stderr,"[ECAT COMM] -> FAULT reason=FATAL_SOCKET txReturn=%d txErrno=%d rxReturn=%d rxErrno=%d\n",context_.port.last_tx_return,context_.port.last_tx_errno,context_.port.last_rx_return,context_.port.last_rx_errno);communicationStopRequested_.store(true);}
 
         if (actualWkc < expectedWkc_)
         {
@@ -2658,6 +2683,26 @@ bool DaoEtherCATMaster::SetDaoAdcCalibration(
     return true;
 }
 
+bool DaoEtherCATMaster::SetDaoAdcCalibrationScale(
+    int physicalSlaveIndex,
+    double calibrationScale)
+{
+    if (!std::isfinite(calibrationScale) || calibrationScale <= 0.0)
+        return false;
+    std::lock_guard<std::mutex> lock(adcRuntimeMutex_);
+    if (physicalSlaveIndex <= 0 || static_cast<std::size_t>(physicalSlaveIndex) >=
+        adcRuntimeInfoBySlave_.size())
+        return false;
+    DaoInternalAdcRuntimeInfo& runtime =
+        adcRuntimeInfoBySlave_[static_cast<std::size_t>(physicalSlaveIndex)];
+    if (runtime.physicalSlaveIndex != physicalSlaveIndex)
+        return false;
+    runtime.processing.calibrationScale = calibrationScale;
+    runtime.processing.calibrationInitialized = true;
+    runtime.processing.calibratedValue = runtime.processing.zeroedValue * calibrationScale;
+    return true;
+}
+
 
 bool DaoEtherCATMaster::SetDaoAdcPowerLineFilterMode(
     int physicalSlaveIndex,
@@ -2782,6 +2827,32 @@ bool DaoEtherCATMaster::SetDaoAdcFilterN(
     runtimeInfo.processing.filteredValue =
         runtimeInfo.processing.medianFilteredValue;
 
+    return true;
+}
+
+bool DaoEtherCATMaster::SetDaoAdcLowLevelFilter(
+    int physicalSlaveIndex, bool enabled, double alpha)
+{
+    if (!std::isfinite(alpha) || alpha <= 0.0 || alpha > 1.0) return false;
+    std::lock_guard<std::mutex> lock(adcRuntimeMutex_);
+    if (physicalSlaveIndex <= 0 || static_cast<std::size_t>(physicalSlaveIndex) >= adcRuntimeInfoBySlave_.size()) return false;
+    auto& processing = adcRuntimeInfoBySlave_[static_cast<std::size_t>(physicalSlaveIndex)].processing;
+    processing.lowLevelFilterEnabled = enabled;
+    processing.lowLevelFilterAlpha = alpha;
+    processing.lowLevelFilterInitialized = false;
+    return true;
+}
+
+bool DaoEtherCATMaster::SetDaoAdcMedianFilter(
+    int physicalSlaveIndex, bool enabled)
+{
+    std::lock_guard<std::mutex> lock(adcRuntimeMutex_);
+    if (physicalSlaveIndex <= 0 || static_cast<std::size_t>(physicalSlaveIndex) >= adcRuntimeInfoBySlave_.size()) return false;
+    auto& processing = adcRuntimeInfoBySlave_[static_cast<std::size_t>(physicalSlaveIndex)].processing;
+    processing.medianFilterEnabled = enabled;
+    processing.medianIndex = 0;
+    processing.medianCount = 0;
+    processing.medianFilteredValue = processing.calibratedValue;
     return true;
 }
 
@@ -4960,8 +5031,23 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT 주기 통신 스�
     auto nextWakeTime =
         std::chrono::steady_clock::now();
 
+    auto lastCycleStart = nextWakeTime;
+    communicationDiagnosticWrite_ = 0;
+    communicationDiagnosticCount_ = 0;
+    badWkcCountTotal_ = consecutiveBadWkc_ = maxConsecutiveBadWkc_ = 0;
+    lastGoodWkcTickNs_ = lastBadWkcTickNs_ = receiveTimeoutCount_ = 0;
+    minimumWkcObserved_ = 0;
+    maxCycleIntervalUs_ = lateCycleCount_ = lastLateTickNs_ = 0;
+    communicationRecovering_=false;communicationRecoveryStartedNs_=0;recoveryGoodCycles_=recoveryAttemptCount_=0;
+
     while (!communicationStopRequested_.load())
     {
+        const auto cycleStart = std::chrono::steady_clock::now();
+        const auto cycleIntervalUs = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(cycleStart-lastCycleStart).count());
+        const auto tickNs = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(cycleStart.time_since_epoch()).count());
+        lastCycleStart = cycleStart;
+        if(cycleIntervalUs>maxCycleIntervalUs_)maxCycleIntervalUs_=cycleIntervalUs;
+        if(cycleIntervalUs>2000){++lateCycleCount_;lastLateTickNs_=tickNs;}
         nextWakeTime +=
             COMMUNICATION_PERIOD;
 
@@ -5011,8 +5097,7 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT 주기 통신 스�
         // ----------------------------------------------------
         // Process Data를 송신하고 수신 WKC를 확인합니다.
         // ----------------------------------------------------
-        ecx_send_processdata(
-            &context_);
+        const int sendResult=ecx_send_processdata(&context_);
 
         const int actualWkc =
             ecx_receive_processdata(
@@ -5036,6 +5121,27 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT 주기 통신 스�
 
         const bool wkcValid =
             actualWkc >= expectedWkc_;
+
+        std::uint16_t aggregateSlaveState=0;
+        for(int slaveIndex=1;slaveIndex<=slaveCount_;++slaveIndex)aggregateSlaveState=static_cast<std::uint16_t>(aggregateSlaveState|context_.slavelist[slaveIndex].state);
+        auto& diagnostic=communicationDiagnosticRing_[communicationDiagnosticWrite_];
+        diagnostic={tickNs,expectedWkc_,actualWkc,sendResult,aggregateSlaveState,communicationRunning_.load()};
+        communicationDiagnosticWrite_=(communicationDiagnosticWrite_+1)%COMMUNICATION_DIAGNOSTIC_CAPACITY;
+        if(communicationDiagnosticCount_<COMMUNICATION_DIAGNOSTIC_CAPACITY)++communicationDiagnosticCount_;
+        if(communicationDiagnosticCount_==1||actualWkc<minimumWkcObserved_)minimumWkcObserved_=actualWkc;
+        if(wkcValid){const auto recoveredBadCycles=consecutiveBadWkc_;lastGoodWkcTickNs_=tickNs;consecutiveBadWkc_=0;if(communicationRecovering_&&++recoveryGoodCycles_>=COMM_RECOVERY_GOOD_CYCLES){const auto elapsedMs=(tickNs-communicationRecoveryStartedNs_)/1000000ULL;communicationRecovering_=false;std::fprintf(stderr,"[ECAT COMM] RECOVERING -> RECOVERED recoveryTimeMs=%llu goodWKC=%u motionResume=disabled\n",static_cast<unsigned long long>(elapsedMs),recoveryGoodCycles_);}else if(!communicationRecovering_&&recoveredBadCycles>0)std::fprintf(stderr,"[ECAT COMM] %s -> NORMAL recoveredAfterCycles=%llu\n",recoveredBadCycles>=COMM_DEGRADED_BAD_CYCLES?"DEGRADED":"TRANSIENT",static_cast<unsigned long long>(recoveredBadCycles));}
+        else
+        {
+            recoveryGoodCycles_=0;++badWkcCountTotal_;++consecutiveBadWkc_;lastBadWkcTickNs_=tickNs;
+            if(consecutiveBadWkc_>maxConsecutiveBadWkc_)maxConsecutiveBadWkc_=consecutiveBadWkc_;
+            if(actualWkc<=EC_NOFRAME)++receiveTimeoutCount_;
+            if(consecutiveBadWkc_==1)DumpCommunicationDiagnostics(actualWkc<=EC_NOFRAME?"RECEIVE_TIMEOUT":"BAD_WKC",actualWkc);
+            if(consecutiveBadWkc_==1)std::fprintf(stderr,"[ECAT COMM] NORMAL -> TRANSIENT badWkc=1\n");
+            if(consecutiveBadWkc_==COMM_DEGRADED_BAD_CYCLES)std::fprintf(stderr,"[ECAT COMM] TRANSIENT -> DEGRADED consecutiveBadWkc=%llu\n",static_cast<unsigned long long>(consecutiveBadWkc_));
+            if(consecutiveBadWkc_==COMM_RECOVERY_BAD_CYCLES){communicationRecovering_=true;communicationRecoveryStartedNs_=tickNs;std::fprintf(stderr,"[ECAT COMM] DEGRADED -> RECOVERING consecutiveBadWkc=%llu windowMs=300\n",static_cast<unsigned long long>(consecutiveBadWkc_));AttemptSoftRecovery();}
+            else if(communicationRecovering_&&consecutiveBadWkc_%COMM_RECOVERY_RETRY_CYCLES==0)AttemptSoftRecovery();
+            if(communicationRecovering_&&tickNs-communicationRecoveryStartedNs_>=COMM_RECOVERY_WINDOW_NS){std::fprintf(stderr,"[ECAT COMM] RECOVERING -> FAULT reason=RECOVERY_TIMEOUT elapsedMs=%llu attempts=%u\n",static_cast<unsigned long long>((tickNs-communicationRecoveryStartedNs_)/1000000ULL),recoveryAttemptCount_);communicationStopRequested_.store(true);}
+        }
 
         // ----------------------------------------------------
         // Process Data를 송신하고 수신 WKC를 확인합니다.
@@ -5228,6 +5334,27 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT 주기 통신 스�
     
 
     communicationRunning_.store(false);
+}
+
+void DaoEtherCATMaster::DumpCommunicationDiagnostics(const char* reason,int actualWkc)
+{
+    const auto nowNs=lastBadWkcTickNs_;
+    const auto lastGoodAgeMs=lastGoodWkcTickNs_>0&&nowNs>=lastGoodWkcTickNs_?(nowNs-lastGoodWkcTickNs_)/1000000ULL:0ULL;
+    std::fprintf(stderr,"[ECAT FAULT] reason=%s expectedWKC=%d actualWKC=%d minimumWKC=%d consecutiveBadWKC=%llu maxConsecutiveBadWKC=%llu totalBadWKC=%llu lastGoodAgeMs=%llu receiveTimeouts=%llu\n",reason,expectedWkc_,actualWkc,minimumWkcObserved_,static_cast<unsigned long long>(consecutiveBadWkc_),static_cast<unsigned long long>(maxConsecutiveBadWkc_),static_cast<unsigned long long>(badWkcCountTotal_),static_cast<unsigned long long>(lastGoodAgeMs),static_cast<unsigned long long>(receiveTimeoutCount_));
+    std::fprintf(stderr,"[ECAT IO] txAttempt=%llu txSuccess=%llu txFailure=%llu lastTxReturn=%d lastTxErrno=%d rxAttempt=%llu rxSuccess=%llu rxFailure=%llu lastRxReturn=%d lastRxErrno=%d\n",static_cast<unsigned long long>(context_.port.tx_attempt_count),static_cast<unsigned long long>(context_.port.tx_success_count),static_cast<unsigned long long>(context_.port.tx_failure_count),context_.port.last_tx_return,context_.port.last_tx_errno,static_cast<unsigned long long>(context_.port.rx_attempt_count),static_cast<unsigned long long>(context_.port.rx_success_count),static_cast<unsigned long long>(context_.port.rx_failure_count),context_.port.last_rx_return,context_.port.last_rx_errno);
+    const auto txDroppedNow=ReadNetdevCounter(diagnosticAdapterName_,"tx_dropped");
+    std::fprintf(stderr,"[ECAT NETDEV] adapter=%s txDroppedAtOpen=%llu txDroppedNow=%llu txDroppedDelta=%llu attribution=interface-wide\n",diagnosticAdapterName_.c_str(),static_cast<unsigned long long>(netdevTxDroppedAtOpen_),static_cast<unsigned long long>(txDroppedNow),static_cast<unsigned long long>(txDroppedNow>=netdevTxDroppedAtOpen_?txDroppedNow-netdevTxDroppedAtOpen_:0));
+    std::fprintf(stderr,"[ECAT TIMING] targetUs=2000 maxCycleIntervalUs=%llu lateCycleCount=%llu lastLateTickNs=%llu policy=default affinity=unset sleep=sleep_until\n",static_cast<unsigned long long>(maxCycleIntervalUs_),static_cast<unsigned long long>(lateCycleCount_),static_cast<unsigned long long>(lastLateTickNs_));
+    for(int slaveIndex=1;slaveIndex<=slaveCount_;++slaveIndex){const auto& slave=context_.slavelist[slaveIndex];std::fprintf(stderr,"[ECAT SLAVE] index=%d name=%s state=0x%02x AL=0x%04x lost=%d Obytes=%d Ibytes=%d\n",slaveIndex,slave.name,slave.state,slave.ALstatuscode,slave.islost,slave.Obytes,slave.Ibytes);}
+    const std::size_t first=(communicationDiagnosticWrite_+COMMUNICATION_DIAGNOSTIC_CAPACITY-communicationDiagnosticCount_)%COMMUNICATION_DIAGNOSTIC_CAPACITY;
+    std::fprintf(stderr,"[ECAT RING] entries=%zu capacity=%zu\n",communicationDiagnosticCount_,COMMUNICATION_DIAGNOSTIC_CAPACITY);
+    for(std::size_t offset=0;offset<communicationDiagnosticCount_;++offset){const auto& entry=communicationDiagnosticRing_[(first+offset)%COMMUNICATION_DIAGNOSTIC_CAPACITY];std::fprintf(stderr,"[ECAT RING] timestampNs=%llu WKC=%d expectedWKC=%d communication=%d slaveAggregate=0x%02x sendResult=%d receiveResult=%d\n",static_cast<unsigned long long>(entry.timestampNs),entry.actualWkc,entry.expectedWkc,entry.communicationRunning?1:0,entry.aggregateSlaveState,entry.sendResult,entry.actualWkc);}
+}
+
+void DaoEtherCATMaster::AttemptSoftRecovery()
+{
+    ++recoveryAttemptCount_;std::fprintf(stderr,"[ECAT RECOVERY] stage=READ_STATE attempt=%u\n",recoveryAttemptCount_);const int aggregateState=ecx_readstate(&context_);std::fprintf(stderr,"[ECAT RECOVERY] stage=READ_STATE result=0x%x\n",aggregateState);
+    for(int slaveIndex=1;slaveIndex<=slaveCount_;++slaveIndex){auto& slave=context_.slavelist[slaveIndex];if((slave.state&0x0f)==EC_STATE_OPERATIONAL&&!slave.islost)continue;if(slave.state==(EC_STATE_SAFE_OP+EC_STATE_ERROR)){slave.state=EC_STATE_SAFE_OP+EC_STATE_ACK;(void)ecx_writestate(&context_,static_cast<uint16>(slaveIndex));std::fprintf(stderr,"[ECAT RECOVERY] stage=ACK_SAFEOP_ERROR slave=%d\n",slaveIndex);}int result=0;if(slave.islost||slave.state==EC_STATE_NONE){result=ecx_recover_slave(&context_,static_cast<uint16>(slaveIndex),COMM_RECOVERY_SLAVE_TIMEOUT_US);std::fprintf(stderr,"[ECAT RECOVERY] stage=RECOVER_SLAVE slave=%d result=%d\n",slaveIndex,result);}else{result=ecx_reconfig_slave(&context_,static_cast<uint16>(slaveIndex),COMM_RECOVERY_SLAVE_TIMEOUT_US);std::fprintf(stderr,"[ECAT RECOVERY] stage=RECONFIG_SLAVE slave=%d result=%d\n",slaveIndex,result);}if(result){slave.islost=FALSE;slave.state=EC_STATE_OPERATIONAL;const int opResult=ecx_writestate(&context_,static_cast<uint16>(slaveIndex));std::fprintf(stderr,"[ECAT RECOVERY] stage=REQUEST_OP slave=%d result=%d\n",slaveIndex,opResult);}}
 }
 
 void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()
@@ -7526,15 +7653,16 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // --------------------------------------------------------
     // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
     // --------------------------------------------------------
-    constexpr double LOW_LEVEL_FILTER_ALPHA = 0.1;
-
-    runtimeInfo.processing.lowLevelFiltered =
-        runtimeInfo.processing.lowLevelFiltered +
-        LOW_LEVEL_FILTER_ALPHA *
-        (
-            static_cast<double>(rawSample) -
-            runtimeInfo.processing.lowLevelFiltered
-            );
+    if (runtimeInfo.processing.lowLevelFilterEnabled)
+    {
+        runtimeInfo.processing.lowLevelFiltered +=
+            runtimeInfo.processing.lowLevelFilterAlpha *
+            (static_cast<double>(rawSample) - runtimeInfo.processing.lowLevelFiltered);
+    }
+    else
+    {
+        runtimeInfo.processing.lowLevelFiltered = static_cast<double>(rawSample);
+    }
 
     // --------------------------------------------------------
     // Power Line Notch Filter
@@ -7624,8 +7752,6 @@ void DaoEtherCATMaster::ProcessAdcSample(
                 runtimeInfo.processing.notch60Y2);
         break;
     }
-
-
     case DaoInternalAdcPowerLineFilterMode::HZ_60_120:
     {
         // ADC 원시 샘플에 저역 통과 필터를 적용합니다.
@@ -7686,6 +7812,7 @@ void DaoEtherCATMaster::ProcessAdcSample(
     // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     // --------------------------------------------------------
+    if (runtimeInfo.processing.medianFilterEnabled)
     {
         runtimeInfo.processing.medianBuffer[
             runtimeInfo.processing.medianIndex] =
@@ -7733,6 +7860,10 @@ void DaoEtherCATMaster::ProcessAdcSample(
                 runtimeInfo.processing.medianFilteredValue =
                     medianValue;
             }
+    }
+    else
+    {
+        runtimeInfo.processing.medianFilteredValue = runtimeInfo.processing.calibratedValue;
     }
 
     // --------------------------------------------------------
@@ -7927,6 +8058,10 @@ void DaoEtherCATMaster::ProcessAdcSample(
                         runtimeInfo.processing.calibrationScale =
                             runtimeInfo.processing.stableCaptureReferenceValue /
                             calibrationSpan;
+
+                        runtimeInfo.processing.calibrationInitialized =
+                            std::isfinite(
+                                runtimeInfo.processing.calibrationScale);
 
                         // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
                         runtimeInfo.processing.calibratedValue =

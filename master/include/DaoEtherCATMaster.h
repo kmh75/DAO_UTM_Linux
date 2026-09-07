@@ -737,6 +737,8 @@ struct DaoInternalAdcBufferedSample
 // ------------------------------------------------------------
 struct DaoInternalAdcProcessingState
 {
+    bool lowLevelFilterEnabled = true;
+    double lowLevelFilterAlpha = 0.1;
     // ADC 런타임 상태를 초기값으로 되돌립니다.
     std::int32_t latestRaw = 0;
 
@@ -793,6 +795,9 @@ struct DaoInternalAdcProcessingState
     // 기준값과 안정된 ADC 샘플을 이용해 보정 계수를 계산합니다.
     double calibrationScale = 1.0;
 
+    // 유효한 기준값으로 ADC 보정 계수 계산을 완료했는지 나타냅니다.
+    bool calibrationInitialized = false;
+
     // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     double calibratedValue = 0.0;
 
@@ -809,6 +814,7 @@ struct DaoInternalAdcProcessingState
 
     // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     double medianFilteredValue = 0.0;
+    bool medianFilterEnabled = true;
 
     // 최근 샘플의 중앙값을 계산해 순간 잡음을 줄입니다.
     bool stableCaptureActive = false;
@@ -996,6 +1002,8 @@ public:
     bool SetDaoAdcFilterN(
         int physicalSlaveIndex,
         unsigned int filterN); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
+    bool SetDaoAdcLowLevelFilter(int physicalSlaveIndex, bool enabled, double alpha);
+    bool SetDaoAdcMedianFilter(int physicalSlaveIndex, bool enabled);
 
     bool StartDaoAdcDiagnosticCapture(
         int physicalSlaveIndex,
@@ -1060,6 +1068,9 @@ public:
         int physicalSlaveIndex,
         int channel,
         double referenceValue);
+    bool SetDaoAdcCalibrationScale(
+        int physicalSlaveIndex,
+        double calibrationScale);
 
     bool RequestServoOn(
 		int physicalSlaveIndex); // 논리 장치 인덱스를 실제 EtherCAT Slave 인덱스로 변환합니다.
@@ -1138,6 +1149,37 @@ public:
 	
 
 private:
+    struct CommunicationDiagnosticEntry
+    {
+        std::uint64_t timestampNs = 0;
+        int expectedWkc = 0;
+        int actualWkc = 0;
+        int sendResult = 0;
+        std::uint16_t aggregateSlaveState = 0;
+        bool communicationRunning = false;
+    };
+    static constexpr std::size_t COMMUNICATION_DIAGNOSTIC_CAPACITY = 256;
+    std::array<CommunicationDiagnosticEntry, COMMUNICATION_DIAGNOSTIC_CAPACITY> communicationDiagnosticRing_{};
+    std::size_t communicationDiagnosticWrite_ = 0;
+    std::size_t communicationDiagnosticCount_ = 0;
+    std::uint64_t badWkcCountTotal_ = 0;
+    std::uint64_t consecutiveBadWkc_ = 0;
+    std::uint64_t maxConsecutiveBadWkc_ = 0;
+    std::uint64_t lastGoodWkcTickNs_ = 0;
+    std::uint64_t lastBadWkcTickNs_ = 0;
+    std::uint64_t receiveTimeoutCount_ = 0;
+    int minimumWkcObserved_ = 0;
+    std::uint64_t maxCycleIntervalUs_ = 0;
+    std::uint64_t lateCycleCount_ = 0;
+    std::uint64_t lastLateTickNs_ = 0;
+    std::string diagnosticAdapterName_;
+    std::uint64_t netdevTxDroppedAtOpen_ = 0;
+    bool communicationRecovering_ = false;
+    std::uint64_t communicationRecoveryStartedNs_ = 0;
+    unsigned int recoveryGoodCycles_ = 0;
+    unsigned int recoveryAttemptCount_ = 0;
+    void DumpCommunicationDiagnostics(const char* reason, int actualWkc);
+    void AttemptSoftRecovery();
    
     static constexpr std::size_t IO_MAP_SIZE = 4096;
 

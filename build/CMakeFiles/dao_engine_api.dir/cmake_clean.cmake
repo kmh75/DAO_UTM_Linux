@@ -6,7 +6,7 @@ file(REMOVE_RECURSE
   "libdao_ethercat.pdb"
   "libdao_ethercat.so"
   "libdao_ethercat.so.1"
-  "libdao_ethercat.so.1.0.0"
+  "libdao_ethercat.so.1.0.1"
 )
 
 # Per-language clean rules from dependency scanning.

@@ -220,6 +220,47 @@ struct DaoAdcRuntimeInfo
     double filteredValue;
 };
 
+// 기존 DaoAdcRuntimeInfo ABI를 유지하면서 최종 Engineering 값을 제공합니다.
+// Engineering 단위는 DaoEngine_SetAdcCalibration()에 전달한 기준값과 같습니다.
+struct DaoAdcRuntimeInfoV2
+{
+    int physicalSlaveIndex;
+    int communicationRunning;
+    int hasValidData;
+    int lastWkc;
+    int expectedWkc;
+    unsigned long long totalFrameCount;
+    unsigned long long goodWkcFrameCount;
+    unsigned long long badWkcFrameCount;
+    unsigned long long dataUpdateCount;
+    DaoAdcInputPdo latestData;
+    double lowLevelFiltered;
+    double powerLineFiltered;
+    double zeroedValue;
+    double calibratedValue;
+    int stableCaptureActive;
+    int stableCaptureType;
+    unsigned int stableCaptureCollectedCount;
+    unsigned int stableCaptureSampleCount;
+    double filteredValue;
+    double engineeringValue;
+    int engineeringValueValid;
+};
+
+struct DaoAdcRuntimeInfoV3
+{
+    DaoAdcRuntimeInfoV2 runtime{};
+    double calibrationScale = 1.0;
+    int calibrationValid = 0;
+    int zeroValid = 0;
+    double zeroOffset = 0.0;
+    int lowLevelFilterEnabled = 1;
+    double lowLevelFilterAlpha = 0.1;
+    int powerLineFilterMode = 0;
+    int medianFilterEnabled = 1;
+    unsigned int movingAverageSampleCount = 16;
+};
+
 
 struct DaoAdcDiagnosticSample
 {
@@ -647,7 +688,17 @@ extern "C"
 
     DAO_ENGINE_API int DaoEngine_GetAdcRuntimeInfo(
         int logicalAdcIndex,
-        DaoAdcRuntimeInfo* runtimeInfo); 
+        DaoAdcRuntimeInfo* runtimeInfo);
+
+    DAO_ENGINE_API int DaoEngine_GetAdcRuntimeInfoV2(
+        int logicalAdcIndex,
+        DaoAdcRuntimeInfoV2* runtimeInfo);
+    DAO_ENGINE_API int DaoEngine_GetAdcRuntimeInfoV3(
+        int logicalAdcIndex,
+        DaoAdcRuntimeInfoV3* runtimeInfo);
+    DAO_ENGINE_API int DaoEngine_SetAdcCalibrationScale(
+        int logicalAdcIndex,
+        double calibrationScale);
 
     DAO_ENGINE_API int DaoEngine_SetAdcZero(
 		int logicalAdcIndex); // 안정된 ADC 샘플을 모아 영점 오프셋을 계산합니다.
@@ -663,6 +714,10 @@ extern "C"
     DAO_ENGINE_API int DaoEngine_SetAdcFilterN(
         int logicalAdcIndex,
         unsigned int filterN); //---------------------------------------
+    DAO_ENGINE_API int DaoEngine_SetAdcLowLevelFilter(
+        int logicalAdcIndex, int enabled, double alpha);
+    DAO_ENGINE_API int DaoEngine_SetAdcMedianFilter(
+        int logicalAdcIndex, int enabled);
 
 
     DAO_ENGINE_API int DaoEngine_StartAdcDiagnosticCapture(

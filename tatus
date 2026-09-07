@@ -1,0 +1,92 @@
+ CMakeLists.txt                                                            |  133 [32m++++[m[31m-[m
+ build/CMakeCache.txt                                                      | 1098 [32m++++++++++++++++++++++++++++++++++++[m[31m-[m
+ build/CMakeFiles/CMakeConfigureLog.yaml                                   | 3749 [32m++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[m
+ build/CMakeFiles/Makefile.cmake                                           |  189 [32m+++++++[m
+ build/CMakeFiles/Makefile2                                                | 1844 [32m++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[m[31m----[m
+ build/CMakeFiles/TargetDirectories.txt                                    |   51 [32m++[m
+ build/CMakeFiles/dao_console.dir/app/console/main.cpp.o                   |  Bin [31m150144[m -> [32m39416[m bytes
+ build/CMakeFiles/dao_console.dir/app/console/main.cpp.o.d                 |   21 [32m+[m[31m-[m
+ build/CMakeFiles/dao_console.dir/compiler_depend.internal                 |   11 [32m+[m
+ build/CMakeFiles/dao_console.dir/compiler_depend.make                     |   85 [32m++[m[31m-[m
+ build/CMakeFiles/dao_console.dir/flags.make                               |    2 [32m+[m[31m-[m
+ build/CMakeFiles/dao_console.dir/link.txt                                 |    2 [32m+[m[31m-[m
+ build/CMakeFiles/dao_console.dir/progress.make                            |    4 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_api.dir/DependInfo.cmake                      |    4 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_api.dir/build.make                            |   20 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_api.dir/cmake_clean.cmake                     |    2 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_api.dir/compiler_depend.internal              |   60 [32m+++[m
+ build/CMakeFiles/dao_engine_api.dir/compiler_depend.make                  |  609 [32m+++++++++++++[m[31m--------[m
+ build/CMakeFiles/dao_engine_api.dir/engine/src/DaoEtherCAT.Engine.cpp.o   |  Bin [31m81760[m -> [32m31720[m bytes
+ build/CMakeFiles/dao_engine_api.dir/engine/src/DaoEtherCAT.Engine.cpp.o.d |   41 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_api.dir/flags.make                            |    2 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_api.dir/link.txt                              |    2 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_api.dir/progress.make                         |    4 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_core.dir/compiler_depend.internal             |    9 [32m+[m
+ build/CMakeFiles/dao_engine_core.dir/compiler_depend.make                 |   27 [32m+[m
+ build/CMakeFiles/dao_engine_core.dir/engine/src/DaoEngineCore.cpp.o       |  Bin [31m138560[m -> [32m38856[m bytes
+ build/CMakeFiles/dao_engine_core.dir/engine/src/DaoEngineCore.cpp.o.d     |   14 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_core.dir/flags.make                           |    2 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_core.dir/progress.make                        |    4 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_test.dir/app/engine_test/main.cpp.o           |  Bin [31m136520[m -> [32m111240[m bytes
+ build/CMakeFiles/dao_engine_test.dir/app/engine_test/main.cpp.o.d         |   24 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_test.dir/build.make                           |    2 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_test.dir/compiler_depend.internal             |   18 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_test.dir/compiler_depend.make                 |  104 [32m++[m[31m--[m
+ build/CMakeFiles/dao_engine_test.dir/flags.make                           |    2 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_test.dir/link.d                               |    4 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_test.dir/link.txt                             |    2 [32m+[m[31m-[m
+ build/CMakeFiles/dao_engine_test.dir/progress.make                        |    4 [32m+[m[31m-[m
+ build/CMakeFiles/dao_master.dir/compiler_depend.internal                  |   44 [32m++[m
+ build/CMakeFiles/dao_master.dir/compiler_depend.make                      |  604 [32m+++++++++++++[m[31m--------[m
+ build/CMakeFiles/dao_master.dir/flags.make                                |    2 [32m+[m[31m-[m
+ build/CMakeFiles/dao_master.dir/master/src/DaoEtherCATMaster.cpp.o        |  Bin [31m356304[m -> [32m104936[m bytes
+ build/CMakeFiles/dao_master.dir/master/src/DaoEtherCATMaster.cpp.o.d      |   42 [32m+[m[31m-[m
+ build/CMakeFiles/dao_master.dir/progress.make                             |    4 [32m+[m[31m-[m
+ build/CMakeFiles/progress.marks                                           |    2 [32m+[m[31m-[m
+ build/CPackConfig.cmake                                                   |    2 [32m+[m[31m-[m
+ build/CPackSourceConfig.cmake                                             |    2 [32m+[m[31m-[m
+ build/Makefile                                                            | 1701 [32m++++++++++++++++++++++++++++++++++++++++++++++++++++++[m[31m---[m
+ build/cmake_install.cmake                                                 |    2 [32m+[m[31m-[m
+ build/dao_console                                                         |  Bin [31m195520[m -> [32m140584[m bytes
+ build/dao_engine_test                                                     |  Bin [31m84056[m -> [32m72512[m bytes
+ build/libdao_engine_core.a                                                |  Bin [31m155758[m -> [32m42978[m bytes
+ build/libdao_master.a                                                     |  Bin [31m402142[m -> [32m111578[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/compiler_depend.internal       |   72 [32m+++[m
+ build/third_party/soem/CMakeFiles/soem.dir/compiler_depend.make           |  256 [32m++++++[m[31m---[m
+ build/third_party/soem/CMakeFiles/soem.dir/flags.make                     |    2 [32m+[m[31m-[m
+ build/third_party/soem/CMakeFiles/soem.dir/osal/linux/osal.o              |  Bin [31m5624[m -> [32m5360[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/osal/linux/osal.o.d            |   10 [32m+[m[31m-[m
+ build/third_party/soem/CMakeFiles/soem.dir/oshw/linux/nicdrv.o            |  Bin [31m9544[m -> [32m10048[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/oshw/linux/nicdrv.o.d          |   30 [32m+[m[31m-[m
+ build/third_party/soem/CMakeFiles/soem.dir/oshw/linux/oshw.o              |  Bin [31m2504[m -> [32m2232[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/oshw/linux/oshw.o.d            |   16 [32m+[m[31m-[m
+ build/third_party/soem/CMakeFiles/soem.dir/progress.make                  |   26 [32m+[m[31m-[m
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_base.o                  |  Bin [31m8888[m -> [32m9544[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_base.o.d                |    4 [32m+[m
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_coe.o                   |  Bin [31m17672[m -> [32m17704[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_coe.o.d                 |    4 [32m+[m
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_config.o                |  Bin [31m31176[m -> [32m25104[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_config.o.d              |    9 [32m+[m[31m-[m
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_dc.o                    |  Bin [31m7280[m -> [32m6184[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_dc.o.d                  |    2 [32m+[m
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_eoe.o                   |  Bin [31m7736[m -> [32m6384[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_eoe.o.d                 |    4 [32m+[m
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_foe.o                   |  Bin [31m5424[m -> [32m5056[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_foe.o.d                 |    4 [32m+[m
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_main.o                  |  Bin [31m40448[m -> [32m44320[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_main.o.d                |    4 [32m+[m
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_print.o                 |  Bin [31m25456[m -> [32m26496[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_print.o.d               |    5 [32m+[m
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_soe.o                   |  Bin [31m6272[m -> [32m5752[m bytes
+ build/third_party/soem/CMakeFiles/soem.dir/src/ec_soe.o.d                 |    4 [32m+[m
+ build/third_party/soem/Makefile                                           |   11 [32m+[m
+ build/third_party/soem/cmake_install.cmake                                |    8 [32m+[m[31m-[m
+ build/third_party/soem/libsoem.a                                          |  Bin [31m171772[m -> [32m167932[m bytes
+ engine/include/DaoEngineCore.h                                            |   15 [32m+[m[31m-[m
+ engine/include/DaoEtherCAT.Engine.h                                       |   81 [32m++[m[31m-[m
+ engine/src/DaoEngineCore.cpp                                              |   32 [32m+[m[31m-[m
+ engine/src/DaoEtherCAT.Engine.cpp                                         |  123 [32m++++[m[31m-[m
+ master/include/DaoEtherCATMaster.h                                        |   68 [32m++[m[31m-[m
+ master/src/DaoEtherCATMaster.cpp                                          |  255 [32m++++++[m[31m---[m
+ third_party/soem                                                          |    0
+ 91 files changed, 10639 insertions(+), 960 deletions(-)

@@ -111,7 +111,10 @@ public:
 
     bool SetAdcCalibration(
         int logicalAdcIndex,
-        double referenceValue); 
+        double referenceValue);
+    bool SetAdcCalibrationScale(
+        int logicalAdcIndex,
+        double calibrationScale);
 
     bool SetAdcPowerLineFilterMode(
         int logicalAdcIndex,
@@ -120,6 +123,8 @@ public:
     bool SetAdcFilterN(
         int logicalAdcIndex,
         unsigned int filterN);
+    bool SetAdcLowLevelFilter(int logicalAdcIndex, bool enabled, double alpha);
+    bool SetAdcMedianFilter(int logicalAdcIndex, bool enabled);
 
 
     bool StartAdcDiagnosticCapture(

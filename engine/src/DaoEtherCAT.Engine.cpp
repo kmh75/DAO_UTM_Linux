@@ -1,5 +1,6 @@
 ﻿#include "DaoEtherCAT.Engine.h"
 #include "DaoEngineCore.h"
+#include <cmath>
 #include <cstring>
 #include <vector>
 
@@ -828,6 +829,106 @@ int DaoEngine_GetAdcRuntimeInfo(
     return result ? 1 : 0;
 }
 
+int DaoEngine_GetAdcRuntimeInfoV2(
+    int logicalAdcIndex,
+    DaoAdcRuntimeInfoV2* runtimeInfo)
+{
+    if (runtimeInfo == nullptr)
+    {
+        return 0;
+    }
+
+    DaoInternalAdcRuntimeInfo internalInfo{};
+
+    const bool result =
+        g_engine.GetAdcRuntimeInfo(
+            logicalAdcIndex,
+            internalInfo);
+
+    std::memset(
+        runtimeInfo,
+        0,
+        sizeof(DaoAdcRuntimeInfoV2));
+
+    runtimeInfo->physicalSlaveIndex =
+        internalInfo.physicalSlaveIndex;
+    runtimeInfo->communicationRunning =
+        internalInfo.communicationRunning ? 1 : 0;
+    runtimeInfo->hasValidData =
+        internalInfo.hasValidData ? 1 : 0;
+    runtimeInfo->lastWkc = internalInfo.lastWkc;
+    runtimeInfo->expectedWkc = internalInfo.expectedWkc;
+    runtimeInfo->totalFrameCount = internalInfo.totalFrameCount;
+    runtimeInfo->goodWkcFrameCount = internalInfo.goodWkcFrameCount;
+    runtimeInfo->badWkcFrameCount = internalInfo.badWkcFrameCount;
+    runtimeInfo->dataUpdateCount = internalInfo.dataUpdateCount;
+
+    runtimeInfo->latestData.testCounter = internalInfo.latestData.testCounter;
+    runtimeInfo->latestData.adcRaw0 = internalInfo.latestData.adcRaw0;
+    runtimeInfo->latestData.adcRaw1 = internalInfo.latestData.adcRaw1;
+    runtimeInfo->latestData.adcRaw2 = internalInfo.latestData.adcRaw2;
+    runtimeInfo->latestData.adcRaw3 = internalInfo.latestData.adcRaw3;
+    runtimeInfo->latestData.status = internalInfo.latestData.status;
+
+    runtimeInfo->lowLevelFiltered =
+        internalInfo.processing.lowLevelFiltered;
+    runtimeInfo->powerLineFiltered =
+        internalInfo.processing.powerLineFiltered;
+    runtimeInfo->zeroedValue = internalInfo.processing.zeroedValue;
+    runtimeInfo->calibratedValue =
+        internalInfo.processing.calibratedValue;
+    runtimeInfo->stableCaptureActive =
+        internalInfo.processing.stableCaptureActive ? 1 : 0;
+    runtimeInfo->stableCaptureType =
+        static_cast<int>(internalInfo.processing.stableCaptureType);
+    runtimeInfo->stableCaptureCollectedCount =
+        internalInfo.processing.stableCaptureCollectedCount;
+    runtimeInfo->stableCaptureSampleCount =
+        internalInfo.processing.stableCaptureSampleCount;
+
+    runtimeInfo->filteredValue = internalInfo.processing.filteredValue;
+    runtimeInfo->engineeringValue = internalInfo.processing.filteredValue;
+    runtimeInfo->engineeringValueValid =
+        internalInfo.communicationRunning &&
+        internalInfo.hasValidData &&
+        internalInfo.processing.zeroInitialized &&
+        internalInfo.processing.calibrationInitialized &&
+        std::isfinite(internalInfo.processing.filteredValue)
+            ? 1
+            : 0;
+
+    return result ? 1 : 0;
+}
+
+int DaoEngine_GetAdcRuntimeInfoV3(
+    int logicalAdcIndex,
+    DaoAdcRuntimeInfoV3* runtimeInfo)
+{
+    if (runtimeInfo == nullptr) return 0;
+    DaoInternalAdcRuntimeInfo internal{};
+    if (!g_engine.GetAdcRuntimeInfo(logicalAdcIndex, internal)) return 0;
+    DaoAdcRuntimeInfoV2 v2{};
+    if (DaoEngine_GetAdcRuntimeInfoV2(logicalAdcIndex, &v2) == 0) return 0;
+    runtimeInfo->runtime = v2;
+    runtimeInfo->calibrationScale = internal.processing.calibrationScale;
+    runtimeInfo->calibrationValid = internal.processing.calibrationInitialized ? 1 : 0;
+    runtimeInfo->zeroValid = internal.processing.zeroInitialized ? 1 : 0;
+    runtimeInfo->zeroOffset = internal.processing.zeroOffset;
+    runtimeInfo->lowLevelFilterEnabled = internal.processing.lowLevelFilterEnabled ? 1 : 0;
+    runtimeInfo->lowLevelFilterAlpha = internal.processing.lowLevelFilterAlpha;
+    runtimeInfo->powerLineFilterMode = static_cast<int>(internal.processing.powerLineFilterMode);
+    runtimeInfo->medianFilterEnabled = internal.processing.medianFilterEnabled ? 1 : 0;
+    runtimeInfo->movingAverageSampleCount = internal.processing.filterN;
+    return 1;
+}
+
+int DaoEngine_SetAdcCalibrationScale(
+    int logicalAdcIndex,
+    double calibrationScale)
+{
+    return g_engine.SetAdcCalibrationScale(logicalAdcIndex, calibrationScale) ? 1 : 0;
+}
+
 int DaoEngine_SetAdcZero(
 	int logicalAdcIndex) // 논리 ADC 장치의 현재 입력값을 0으로 설정합니다.
 {
@@ -870,6 +971,12 @@ int DaoEngine_SetAdcFilterN(
         ? 1
         : 0;
 }
+
+int DaoEngine_SetAdcLowLevelFilter(int logicalAdcIndex, int enabled, double alpha)
+{ return g_engine.SetAdcLowLevelFilter(logicalAdcIndex,enabled!=0,alpha)?1:0; }
+
+int DaoEngine_SetAdcMedianFilter(int logicalAdcIndex, int enabled)
+{ return g_engine.SetAdcMedianFilter(logicalAdcIndex,enabled!=0)?1:0; }
 
 int DaoEngine_StartAdcDiagnosticCapture(
     int logicalAdcIndex,

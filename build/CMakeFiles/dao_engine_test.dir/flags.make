@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/home/dao/Projects/DAO_UTM_Linux/engine/include
 
-CXX_FLAGS = -std=gnu++17
+CXX_FLAGS = -O3 -DNDEBUG -std=gnu++17
 

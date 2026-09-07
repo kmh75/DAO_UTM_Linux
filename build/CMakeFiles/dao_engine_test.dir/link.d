@@ -3,7 +3,7 @@ dao_engine_test: \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/crti.o \
   /usr/lib/gcc/x86_64-linux-gnu/15/crtbeginS.o \
   CMakeFiles/dao_engine_test.dir/app/engine_test/main.cpp.o \
-  libdao_ethercat.so.1.0.0 \
+  libdao_ethercat.so.1.0.1 \
   /usr/lib/gcc/x86_64-linux-gnu/15/libstdc++.so \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/libm.so \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/libm.so \
@@ -41,7 +41,7 @@ dao_engine_test: \
 
 CMakeFiles/dao_engine_test.dir/app/engine_test/main.cpp.o:
 
-libdao_ethercat.so.1.0.0:
+libdao_ethercat.so.1.0.1:
 
 /usr/lib/gcc/x86_64-linux-gnu/15/libstdc++.so:
 

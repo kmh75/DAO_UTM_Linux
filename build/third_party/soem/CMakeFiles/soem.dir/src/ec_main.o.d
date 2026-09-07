@@ -49,6 +49,8 @@ third_party/soem/CMakeFiles/soem.dir/src/ec_main.o: \
  /usr/include/x86_64-linux-gnu/sys/select.h \
  /usr/include/x86_64-linux-gnu/bits/select.h \
  /usr/include/x86_64-linux-gnu/bits/types/sigset_t.h \
+ /usr/include/x86_64-linux-gnu/bits/select2.h \
+ /usr/include/x86_64-linux-gnu/bits/select-decl.h \
  /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
  /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h \
@@ -66,5 +68,7 @@ third_party/soem/CMakeFiles/soem.dir/src/ec_main.o: \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/include/soem/ec_config.h \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/include/soem/ec_print.h \
  /usr/include/string.h /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/oshw/linux/oshw.h \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/oshw/linux/nicdrv.h

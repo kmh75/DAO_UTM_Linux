@@ -2,10 +2,19 @@ cmake_minimum_required(VERSION 3.16)
 
 project(DAO_UTM_Linux)
 
+include(CTest)
+
+option(DAO_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+if(DAO_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Threads REQUIRED)
+find_package(Qt6 QUIET COMPONENTS Core Gui Widgets)
 
 # ------------------------------------------------------------
 # SOEM
@@ -84,7 +93,7 @@ add_library(dao_engine_api SHARED
 
 set_target_properties(dao_engine_api PROPERTIES
     OUTPUT_NAME dao_ethercat
-    VERSION 1.0.0
+    VERSION 1.0.1
     SOVERSION 1
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN YES
@@ -128,3 +137,125 @@ target_link_libraries(dao_engine_test
     PRIVATE
     dao_engine_api
 )
+
+# ------------------------------------------------------------
+# DAO UTM Control Engine Skeleton
+# ------------------------------------------------------------
+add_library(dao_utm_engine SHARED
+    utm/src/DaoUtm.Engine.cpp
+    utm/src/UtmEngineCore.cpp
+    utm/src/UtmInputCollector.cpp
+    utm/src/UtmJogController.cpp
+    utm/src/UtmCoordinateController.cpp
+    utm/src/UtmMotionController.cpp
+    utm/src/UtmMotionOutputArbiter.cpp
+    utm/src/UtmSafetyMonitor.cpp
+    utm/src/UtmStateMachine.cpp
+    utm/src/UtmCommandMailbox.cpp
+    utm/src/UtmRuntimeStore.cpp
+    utm/src/UtmStopConditionMonitor.cpp
+    utm/src/UtmSequencer.cpp
+)
+
+set_target_properties(dao_utm_engine PROPERTIES
+    OUTPUT_NAME dao_utm_engine
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN YES
+)
+
+target_compile_definitions(dao_utm_engine
+    PRIVATE
+    DAO_UTM_ENGINE_EXPORTS
+)
+
+target_include_directories(dao_utm_engine
+    PUBLIC
+    utm/include
+    PRIVATE
+    utm/src
+    engine/include
+)
+
+target_link_libraries(dao_utm_engine
+    PRIVATE
+    dao_engine_api
+    Threads::Threads
+)
+
+target_link_options(dao_utm_engine
+    PRIVATE
+    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/dao_utm_engine.map"
+    "LINKER:--no-undefined"
+)
+
+# ------------------------------------------------------------
+# DAO UTM Control Engine Test
+# ------------------------------------------------------------
+add_executable(dao_utm_test
+    app/utm_test/main.cpp
+)
+
+target_include_directories(dao_utm_test
+    PRIVATE
+    utm/include
+)
+
+target_link_libraries(dao_utm_test
+    PRIVATE
+    dao_utm_engine
+)
+
+add_executable(dao_utm_sequence_test
+    app/utm_sequence_test/main.cpp
+    utm/src/UtmSequencer.cpp
+    utm/src/UtmStopConditionMonitor.cpp
+)
+
+target_include_directories(dao_utm_sequence_test
+    PRIVATE
+    utm/include
+    utm/src
+)
+
+if (Qt6_FOUND)
+    qt_standard_project_setup()
+    add_executable(dao_utm_ui
+        app/dao_utm_ui/main.cpp
+        ui/src/UtmUiController.cpp
+        ui/src/MachineProfile.cpp
+        ui/src/MainWindow.cpp
+        ui/src/TrendGraphWidget.cpp
+        ui/include/MachineProfile.h
+        ui/include/UtmUiController.h
+        ui/include/MainWindow.h
+        ui/include/TrendGraphWidget.h
+    )
+    set_target_properties(dao_utm_ui PROPERTIES AUTOMOC ON)
+    target_include_directories(dao_utm_ui PRIVATE ui/include utm/include)
+    target_link_libraries(dao_utm_ui PRIVATE dao_utm_engine Qt6::Core Qt6::Gui Qt6::Widgets)
+    add_executable(dao_utm_graph_test app/utm_graph_test/main.cpp ui/src/TrendGraphWidget.cpp)
+    target_include_directories(dao_utm_graph_test PRIVATE ui/include)
+    target_link_libraries(dao_utm_graph_test PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
+    add_executable(dao_force_unit_test app/force_unit_test/main.cpp ui/src/UtmUiController.cpp ui/src/MachineProfile.cpp ui/include/UtmUiController.h)
+    set_target_properties(dao_force_unit_test PROPERTIES AUTOMOC ON)
+    target_compile_definitions(dao_force_unit_test PRIVATE DAO_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(dao_force_unit_test PRIVATE ui/include utm/include)
+    target_link_libraries(dao_force_unit_test PRIVATE dao_utm_engine Qt6::Core)
+    add_test(NAME dao_force_unit_profile_lifecycle COMMAND dao_force_unit_test)
+    add_executable(dao_setup_persistence_test app/setup_persistence_test/main.cpp ui/src/UtmUiController.cpp ui/src/MachineProfile.cpp ui/src/MainWindow.cpp ui/src/TrendGraphWidget.cpp ui/include/UtmUiController.h ui/include/MainWindow.h ui/include/TrendGraphWidget.h)
+    set_target_properties(dao_setup_persistence_test PROPERTIES AUTOMOC ON)
+    target_include_directories(dao_setup_persistence_test PRIVATE ui/include utm/include)
+    target_link_libraries(dao_setup_persistence_test PRIVATE dao_utm_engine Qt6::Core Qt6::Gui Qt6::Widgets)
+    add_test(NAME dao_setup_persistence_restart COMMAND dao_setup_persistence_test)
+    set_tests_properties(dao_setup_persistence_restart PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    add_executable(dao_production_ui_path_test app/production_ui_path_test/main.cpp)
+    target_compile_definitions(dao_production_ui_path_test PRIVATE DAO_UI_EXECUTABLE="$<TARGET_FILE:dao_utm_ui>")
+    target_link_libraries(dao_production_ui_path_test PRIVATE Qt6::Core)
+    add_dependencies(dao_production_ui_path_test dao_utm_ui)
+    add_test(NAME dao_production_ui_startup_save_restart COMMAND dao_production_ui_path_test)
+    add_executable(dao_communication_policy_test app/communication_policy_test/main.cpp utm/src/UtmSafetyMonitor.cpp utm/src/UtmStateMachine.cpp)
+    target_include_directories(dao_communication_policy_test PRIVATE utm/src utm/include)
+    add_test(NAME dao_communication_policy_fault_injection COMMAND dao_communication_policy_test)
+else()
+    message(STATUS "Qt6 Widgets not found: dao_utm_ui target disabled")
+endif()

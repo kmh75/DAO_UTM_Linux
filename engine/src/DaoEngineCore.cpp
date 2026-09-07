@@ -844,6 +844,18 @@ bool DaoEngineCore::SetAdcCalibration(
         referenceValue);
 }
 
+bool DaoEngineCore::SetAdcCalibrationScale(
+    int logicalAdcIndex,
+    double calibrationScale)
+{
+    if (!IsInitialized() || !master_.IsOpen())
+        return false;
+    int physicalSlaveIndex = 0;
+    if (!GetPhysicalSlaveIndex(DAO_DEVICE_ADC, logicalAdcIndex, physicalSlaveIndex))
+        return false;
+    return master_.SetDaoAdcCalibrationScale(physicalSlaveIndex, calibrationScale);
+}
+
 bool DaoEngineCore::SetAdcPowerLineFilterMode(
     int logicalAdcIndex,
     int mode)
@@ -939,6 +951,18 @@ bool DaoEngineCore::SetAdcFilterN(
     return master_.SetDaoAdcFilterN(
         physicalSlaveIndex,
         filterN);
+}
+
+bool DaoEngineCore::SetAdcLowLevelFilter(int logicalAdcIndex, bool enabled, double alpha)
+{
+    if(!IsInitialized()||!master_.IsOpen())return false;int physical=0;
+    return GetPhysicalSlaveIndex(DAO_DEVICE_ADC,logicalAdcIndex,physical)&&master_.SetDaoAdcLowLevelFilter(physical,enabled,alpha);
+}
+
+bool DaoEngineCore::SetAdcMedianFilter(int logicalAdcIndex, bool enabled)
+{
+    if(!IsInitialized()||!master_.IsOpen())return false;int physical=0;
+    return GetPhysicalSlaveIndex(DAO_DEVICE_ADC,logicalAdcIndex,physical)&&master_.SetDaoAdcMedianFilter(physical,enabled);
 }
 
 

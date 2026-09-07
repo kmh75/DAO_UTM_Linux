@@ -1,0 +1,7 @@
+DAO_UTM_ENGINE_1.0 {
+    global:
+        DaoUtm_*;
+
+    local:
+        *;
+};

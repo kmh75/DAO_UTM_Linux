@@ -27,6 +27,8 @@ third_party/soem/CMakeFiles/soem.dir/oshw/linux/nicdrv.o: \
  /usr/include/x86_64-linux-gnu/bits/types/__sigset_t.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct_timeval.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h \
+ /usr/include/x86_64-linux-gnu/bits/select2.h \
+ /usr/include/x86_64-linux-gnu/bits/select-decl.h \
  /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h \
  /usr/include/x86_64-linux-gnu/bits/thread-shared-types.h \
  /usr/include/x86_64-linux-gnu/bits/pthreadtypes-arch.h \
@@ -57,11 +59,14 @@ third_party/soem/CMakeFiles/soem.dir/oshw/linux/nicdrv.o: \
  /usr/include/x86_64-linux-gnu/asm/posix_types_64.h \
  /usr/include/asm-generic/posix_types.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct_osockaddr.h \
- /usr/include/unistd.h /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
+ /usr/include/x86_64-linux-gnu/bits/socket2.h /usr/include/unistd.h \
+ /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
  /usr/include/x86_64-linux-gnu/bits/environments.h \
  /usr/include/x86_64-linux-gnu/bits/confname.h \
  /usr/include/x86_64-linux-gnu/bits/getopt_posix.h \
  /usr/include/x86_64-linux-gnu/bits/getopt_core.h \
+ /usr/include/x86_64-linux-gnu/bits/unistd.h \
+ /usr/include/x86_64-linux-gnu/bits/unistd-decl.h \
  /usr/include/x86_64-linux-gnu/bits/unistd_ext.h \
  /usr/include/linux/close_range.h \
  /usr/include/x86_64-linux-gnu/sys/time.h /usr/include/time.h \
@@ -73,19 +78,25 @@ third_party/soem/CMakeFiles/soem.dir/oshw/linux/nicdrv.o: \
  /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
  /usr/include/arpa/inet.h /usr/include/netinet/in.h \
  /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
- /usr/include/x86_64-linux-gnu/bits/in.h /usr/include/fcntl.h \
- /usr/include/x86_64-linux-gnu/bits/fcntl.h \
+ /usr/include/x86_64-linux-gnu/bits/in.h \
+ /usr/include/x86_64-linux-gnu/bits/inet-fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/inet-fortified-decl.h \
+ /usr/include/fcntl.h /usr/include/x86_64-linux-gnu/bits/fcntl.h \
  /usr/include/x86_64-linux-gnu/bits/fcntl-linux.h \
  /usr/include/linux/falloc.h /usr/include/linux/openat2.h \
  /usr/include/linux/types.h /usr/include/x86_64-linux-gnu/asm/types.h \
  /usr/include/asm-generic/types.h /usr/include/asm-generic/int-ll64.h \
  /usr/include/x86_64-linux-gnu/bits/openat2.h \
+ /usr/include/x86_64-linux-gnu/bits/fcntl-linux-fortify.h \
  /usr/include/x86_64-linux-gnu/bits/stat.h \
- /usr/include/x86_64-linux-gnu/bits/struct_stat.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/struct_stat.h \
+ /usr/include/x86_64-linux-gnu/bits/fcntl2.h /usr/include/string.h \
  /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
- /usr/include/strings.h /usr/include/netpacket/packet.h \
- /usr/include/pthread.h /usr/include/sched.h \
- /usr/include/x86_64-linux-gnu/bits/sched.h \
+ /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
+ /usr/include/netpacket/packet.h /usr/include/pthread.h \
+ /usr/include/sched.h /usr/include/x86_64-linux-gnu/bits/sched.h \
  /usr/include/linux/sched/types.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct_sched_param.h \
  /usr/include/x86_64-linux-gnu/bits/cpu-set.h \
@@ -94,6 +105,11 @@ third_party/soem/CMakeFiles/soem.dir/oshw/linux/nicdrv.o: \
  /usr/include/x86_64-linux-gnu/bits/pthread_stack_min-dynamic.h \
  /usr/include/poll.h /usr/include/x86_64-linux-gnu/sys/poll.h \
  /usr/include/x86_64-linux-gnu/bits/poll.h \
+ /usr/include/x86_64-linux-gnu/bits/poll2.h /usr/include/errno.h \
+ /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
+ /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+ /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/oshw/linux/oshw.h \
  /home/dao/Projects/DAO_UTM_Linux/third_party/soem/include/soem/soem.h \
  /home/dao/Projects/DAO_UTM_Linux/build/third_party/soem/include/soem/ec_options.h \
