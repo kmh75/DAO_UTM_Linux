@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -108,19 +109,27 @@ bool DecodeMachineStatus(const std::vector<std::uint8_t>& data, MachineStatus& v
 std::vector<std::uint8_t> EncodeTestDataChunk(const TestDataChunk& value);
 bool DecodeTestDataChunk(const std::vector<std::uint8_t>& data, TestDataChunk& value);
 
-// Lock-free publication: writer never waits for the protocol reader. T must be trivially copyable.
+// Race-safe handoff for application/service threads. This mailbox must not be
+// published from the real-time control loop.
 template<class T> class SnapshotMailbox
 {
 public:
     void Publish(const T& value) noexcept
     {
-        const unsigned next = (published_.load(std::memory_order_relaxed) + 1U) & 1U;
-        slots_[next] = value;
-        published_.store(next, std::memory_order_release);
+        std::lock_guard<std::mutex> lock(mutex_);
+        value_ = value;
+        valid_ = true;
     }
-    T Read() const noexcept { return slots_[published_.load(std::memory_order_acquire)]; }
+    bool Read(T& value) const noexcept
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!valid_) return false;
+        value = value_;
+        return true;
+    }
 private:
-    std::array<T,2> slots_{};
-    std::atomic<unsigned> published_{0};
+    mutable std::mutex mutex_;
+    T value_{};
+    bool valid_ = false;
 };
 }

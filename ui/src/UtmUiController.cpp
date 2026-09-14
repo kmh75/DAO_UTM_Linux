@@ -72,12 +72,24 @@ bool UtmUiController::ensureActiveProfile()
 UtmUiController::~UtmUiController()
 {
     timer_.stop();
+    protocolService_.Stop();
     if (ownsEngine_)
     {
         DaoUtm_Stop();
         DaoUtm_Shutdown();
     }
 }
+
+bool UtmUiController::startMonitoring()
+{
+    const bool started=protocolService_.Start();
+    if(!started)qWarning().noquote()<<QString("[MONITORING] listen failed port=%1 error=%2")
+        .arg(protocolService_.Port()).arg(static_cast<int>(protocolService_.LastError()));
+    else qInfo().noquote()<<QString("[MONITORING] server ON port=%1 bind=0.0.0.0 monitoringOnly=1")
+        .arg(protocolService_.Port());
+    return started;
+}
+void UtmUiController::stopMonitoring(){protocolService_.Stop();}
 
 bool UtmUiController::startOffline()
 {
@@ -294,6 +306,7 @@ ApplicationActivitySnapshot UtmUiController::shutdownActivity() const
 bool UtmUiController::orderlyShutdown(QString& error)
 {
     timer_.stop();
+    protocolService_.Stop();
     if(offline_){offline_=false;return true;}
     if(!ownsEngine_)return true;
     DaoUtm_Disconnect();
@@ -500,7 +513,7 @@ void UtmUiController::pollRuntime()
         const qint64 now=QDateTime::currentMSecsSinceEpoch();
         if(verboseRuntime_&&now-lastRuntimeLogMs_>=1000){const auto& sequence=runtime_.sequence;qInfo().noquote()<<QString("[UI-RUNTIME] pollOk=%1 pollFail=%2 machine=%3 forceValid=%4 encoderPresent=%5 step=%6/%7 profile=%8 capture=%9:%10").arg(runtimePollSuccessCount_).arg(runtimePollFailureCount_).arg(base.machineState).arg(base.input.forceValid).arg(base.input.encoderPresent).arg(sequence.currentStepIndex).arg(sequence.stepCount).arg(profileApplyState_).arg(calibration_.forceCaptureType).arg(calibration_.forceCaptureActive);lastRuntimeLogMs_=now;}
     }
-    if(ownsEngine_)DaoUtm_GetComplianceCalibrationRuntimeV1(&autoCalibrationRuntime_);emit runtimeUpdated();
+    if(ownsEngine_){DaoUtm_GetComplianceCalibrationRuntimeV1(&autoCalibrationRuntime_);protocolService_.PublishCurrentRuntime(runtime_,complianceRuntime());}emit runtimeUpdated();
 }
 
 void UtmUiController::updateOffline()

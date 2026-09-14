@@ -4,6 +4,7 @@
 #include "MachineProfile.h"
 #include "ForceUnit.h"
 #include "ApplicationShutdownCoordinator.h"
+#include "UtmProtocolService.h"
 
 #include <QObject>
 #include <QTimer>
@@ -96,6 +97,11 @@ public:
     bool stopSequence();
     ApplicationActivitySnapshot shutdownActivity() const;
     bool orderlyShutdown(QString& error);
+    bool startMonitoring();
+    void stopMonitoring();
+    bool monitoringListening() const { return protocolService_.IsListening(); }
+    bool monitoringClientConnected() const { return protocolService_.IsClientConnected(); }
+    unsigned short monitoringPort() const { return protocolService_.Port(); }
 
 signals:
     void runtimeUpdated();
@@ -115,6 +121,7 @@ private:
     void restoreComplianceFromProfile();
 
     QTimer timer_;
+    UtmProtocolService protocolService_;
     UtmRuntimeInfoV6 runtime_{};
     bool offline_ = false;
     bool ownsEngine_ = false;

@@ -55,6 +55,7 @@ int main(int argc, char** argv)
         if(parser.isSet(adapter))profile.adapterName=parser.value(adapter);
         if(parser.isSet(units))profile.jog.config.servoUnitsPerMm=parser.value(units).toDouble();
         qInfo().noquote()<<QString("[UI] adapter requested: %1").arg(profile.adapterName.isEmpty()?"<not specified>":profile.adapterName);
+        if(!controller.startMonitoring())qWarning().noquote()<<"[UI] monitoring server unavailable; UTM control remains independent";
     }
     else
     {
