@@ -56,7 +56,8 @@ UtmStopEvaluation UtmSafetyMonitor::Evaluate(
 {
     UtmStopEvaluation evaluation{};
 
-    if(communicationRecovering)
+    if(communicationRecovering &&
+        (context.motionActive != 0 || snapshot.communicationValid == 0))
         AddReason(evaluation,UTM_STOP_COMMUNICATION_FAULT,UTM_STOP_ACTION_DISABLE_MOTION);
 
     // 평가 순서가 동시에 발생한 Stop의 우선순위입니다.

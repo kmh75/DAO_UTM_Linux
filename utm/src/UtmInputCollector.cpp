@@ -25,6 +25,7 @@ bool UtmInputCollector::Capture(
 
     snapshot.basicCommunicationRunning =
         DaoEngine_IsCommunicationRunning() == 1 ? 1 : 0;
+    const bool recoveryRead=DaoEngine_GetCommunicationRecoveryRuntimeV1(&basicRecovery_)==1;
 
     DaoServoRuntimeInfo servo{};
     DaoAdcRuntimeInfoV2 adc{};
@@ -257,10 +258,11 @@ bool UtmInputCollector::Capture(
     snapshot.communicationValid =
         snapshot.basicCommunicationRunning != 0&&servoState_.observed&&adcState_.observed&&ioState_.observed ? 1 : 0;
 
-    const bool cycleDataValid=snapshot.servoSource.validInput!=0&&snapshot.adcSource.validInput!=0&&snapshot.ioSource.validInput!=0;
-    const auto previousState=communicationPolicy_.GetState();const auto policy=communicationPolicy_.Update(cycleDataValid,snapshot.basicCommunicationRunning!=0,timestampNs);
-    if(policy.hardFault)snapshot.communicationValid=0;
-    if(previousState!=policy.state)std::fprintf(stderr,"[ECAT COMM] UTM state %d -> %d consecutiveBad=%u stopRequired=%d hardFault=%d\n",previousState,policy.state,communicationPolicy_.ConsecutiveBad(),policy.stopRequired?1:0,policy.hardFault?1:0);
+    const auto previousState=communicationState_;
+    if(!recoveryRead||snapshot.basicCommunicationRunning==0)communicationState_=FAULT;
+    else switch(basicRecovery_.communicationState){case DAO_COMMUNICATION_TRANSIENT:communicationState_=TRANSIENT;break;case DAO_COMMUNICATION_DEGRADED:communicationState_=DEGRADED;break;case DAO_COMMUNICATION_RECOVERING:communicationState_=RECOVERING;break;case DAO_COMMUNICATION_FAILED:communicationState_=FAULT;break;default:communicationState_=NORMAL;break;}
+    if(communicationState_==FAULT)snapshot.communicationValid=0;
+    if(previousState!=communicationState_)std::fprintf(stderr,"[ECAT COMM] UTM observes Basic state %d -> %d generation=%llu\n",previousState,communicationState_,basicRecovery_.incidentGeneration);
 
     return snapshot.requiredDevicesValid != 0;
 }

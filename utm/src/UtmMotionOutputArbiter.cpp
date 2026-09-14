@@ -204,6 +204,13 @@ UtmMotionOutputArbiter::GetRuntime() const
     return runtime_;
 }
 
+void UtmMotionOutputArbiter::RequestRecoveryStopAlignment()
+{
+    // A STOP registered while EtherCAT was unavailable is not a physical-stop
+    // confirmation. Re-arm one fresh STOP after communication stabilization.
+    forceStopActive_=false;
+}
+
 bool UtmMotionOutputArbiter::IssueVelocity(
     const UtmMotionRequest& request,
     const UtmServoCommandSnapshot& servoCommand)

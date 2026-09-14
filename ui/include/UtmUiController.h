@@ -3,9 +3,11 @@
 #include "DaoUtm.Engine.h"
 #include "MachineProfile.h"
 #include "ForceUnit.h"
+#include "ApplicationShutdownCoordinator.h"
 
 #include <QObject>
 #include <QTimer>
+#include <QVector>
 
 class UtmUiController final : public QObject
 {
@@ -45,6 +47,7 @@ public:
     bool displayForceValid() const { return displayForceValid_; }
     unsigned int displayForceAverageSamples() const { return displayForceAverageSamples_; }
     const UtmDisplayForceRuntimeInfo& displayForceRuntime() const { return displayForceRuntime_; }
+    const UtmCommunicationRuntimeInfoV1& communicationRuntime() const { return communicationRuntime_; }
 
     bool startJog(int direction, double speed);
     bool stopJog();
@@ -69,6 +72,18 @@ public:
     bool applyAdcFilterConfiguration(const UtmAdcFilterConfig& config, unsigned int displayAverageSamples);
     bool calibrateEncoder(double referenceDisplacementMm);
     bool configureDisplayForceAverage(unsigned int sampleCount);
+    dao::utm::ComplianceRuntime complianceRuntime() const;
+    bool captureComplianceZero();
+    dao::utm::CompliancePoint currentCompliancePoint() const;
+    bool applyCompliance(const QVector<dao::utm::CompliancePoint>& points,bool enabled,QString& error);
+    const MachineComplianceCurveProfile& complianceCurve(int mode) const;
+    UtmComplianceCalibrationRuntimeV1 autoCalibrationRuntime() const { return autoCalibrationRuntime_; }
+    bool startComplianceAutoCalibration(const UtmComplianceCalibrationConfigV1& config,QString& error);
+    bool confirmFullComplianceCalibration(QString& error);
+    void abortComplianceAutoCalibration();
+    bool savePendingComplianceCurve(bool enable,QString& error);
+    void discardPendingComplianceCurve();
+    bool complianceZeroValid() const { return complianceZeroValid_; }
     bool requestStop();
     bool acknowledgeStop();
     bool retryStartup();
@@ -79,6 +94,8 @@ public:
     bool commitSequence();
     bool startSequence();
     bool stopSequence();
+    ApplicationActivitySnapshot shutdownActivity() const;
+    bool orderlyShutdown(QString& error);
 
 signals:
     void runtimeUpdated();
@@ -95,6 +112,7 @@ private:
     bool autosaveCalibrationScale(bool force);
     bool applyStoredConfiguration();
     void updateOffline();
+    void restoreComplianceFromProfile();
 
     QTimer timer_;
     UtmRuntimeInfoV6 runtime_{};
@@ -108,6 +126,7 @@ private:
     bool displayForceValid_ = false;
     unsigned int displayForceAverageSamples_ = 20;
     UtmDisplayForceRuntimeInfo displayForceRuntime_{};
+    UtmCommunicationRuntimeInfoV1 communicationRuntime_{};
     unsigned int offlineDisplayCollected_ = 20;
     bool pendingScaleApply_ = false;
     bool forceCalibrationSavePending_ = false;
@@ -118,6 +137,12 @@ private:
     bool verbose_ = false;
     bool verboseRuntime_ = false;
     bool profileApplying_ = false;
+    dao::utm::UtmComplianceCompensation compliance_{};
+    dao::utm::UtmComplianceCompensation compressionCompliance_{};
+    dao::utm::UtmComplianceCompensation tensionCompliance_{};
+    UtmComplianceCalibrationRuntimeV1 autoCalibrationRuntime_{};
+    double complianceZeroDisplacementMm_ = 0.0;
+    bool complianceZeroValid_ = false;
     QString profileApplyState_ = "IDLE";
     unsigned long long runtimePollSuccessCount_ = 0;
     unsigned long long runtimePollFailureCount_ = 0;

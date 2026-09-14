@@ -5039,6 +5039,13 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT 주기 통신 스�
     minimumWkcObserved_ = 0;
     maxCycleIntervalUs_ = lateCycleCount_ = lastLateTickNs_ = 0;
     communicationRecovering_=false;communicationRecoveryStartedNs_=0;recoveryGoodCycles_=recoveryAttemptCount_=0;
+    recoveryPublishedState_.store(DAO_INTERNAL_COMM_HEALTHY);
+    recoveryPublishedActive_.store(0); recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_NONE);
+    recoveryPublishedSucceeded_.store(0); recoveryPublishedFailed_.store(0);
+    recoveryPublishedAttempt_.store(0); recoveryPublishedElapsedMs_.store(0);
+    recoveryPublishedExpectedWkc_.store(expectedWkc_); recoveryPublishedCurrentWkc_.store(0);
+    recoveryPublishedMinimumWkc_.store(0); recoveryPublishedBadWkc_.store(0);
+    recoveryPublishedGoodWkc_.store(0); recoveryPublishedMaxBadWkc_.store(0);
 
     while (!communicationStopRequested_.load())
     {
@@ -5121,6 +5128,8 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT 주기 통신 스�
 
         const bool wkcValid =
             actualWkc >= expectedWkc_;
+        recoveryPublishedExpectedWkc_.store(expectedWkc_,std::memory_order_relaxed);
+        recoveryPublishedCurrentWkc_.store(actualWkc,std::memory_order_relaxed);
 
         std::uint16_t aggregateSlaveState=0;
         for(int slaveIndex=1;slaveIndex<=slaveCount_;++slaveIndex)aggregateSlaveState=static_cast<std::uint16_t>(aggregateSlaveState|context_.slavelist[slaveIndex].state);
@@ -5129,18 +5138,20 @@ void DaoEtherCATMaster::CommunicationThreadMain() // EtherCAT 주기 통신 스�
         communicationDiagnosticWrite_=(communicationDiagnosticWrite_+1)%COMMUNICATION_DIAGNOSTIC_CAPACITY;
         if(communicationDiagnosticCount_<COMMUNICATION_DIAGNOSTIC_CAPACITY)++communicationDiagnosticCount_;
         if(communicationDiagnosticCount_==1||actualWkc<minimumWkcObserved_)minimumWkcObserved_=actualWkc;
-        if(wkcValid){const auto recoveredBadCycles=consecutiveBadWkc_;lastGoodWkcTickNs_=tickNs;consecutiveBadWkc_=0;if(communicationRecovering_&&++recoveryGoodCycles_>=COMM_RECOVERY_GOOD_CYCLES){const auto elapsedMs=(tickNs-communicationRecoveryStartedNs_)/1000000ULL;communicationRecovering_=false;std::fprintf(stderr,"[ECAT COMM] RECOVERING -> RECOVERED recoveryTimeMs=%llu goodWKC=%u motionResume=disabled\n",static_cast<unsigned long long>(elapsedMs),recoveryGoodCycles_);}else if(!communicationRecovering_&&recoveredBadCycles>0)std::fprintf(stderr,"[ECAT COMM] %s -> NORMAL recoveredAfterCycles=%llu\n",recoveredBadCycles>=COMM_DEGRADED_BAD_CYCLES?"DEGRADED":"TRANSIENT",static_cast<unsigned long long>(recoveredBadCycles));}
+        if(wkcValid){const auto recoveredBadCycles=consecutiveBadWkc_;lastGoodWkcTickNs_=tickNs;consecutiveBadWkc_=0;recoveryPublishedBadWkc_.store(0,std::memory_order_relaxed);if(communicationRecovering_){recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_STABILIZING);recoveryPublishedGoodWkc_.store(++recoveryGoodCycles_);if(recoveryGoodCycles_>=COMM_RECOVERY_GOOD_CYCLES){const auto elapsedMs=(tickNs-communicationRecoveryStartedNs_)/1000000ULL;communicationRecovering_=false;recoveryPublishedState_.store(DAO_INTERNAL_COMM_HEALTHY);recoveryPublishedActive_.store(0);recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_RECOVERED);recoveryPublishedSucceeded_.store(1);recoveryPublishedElapsedMs_.store(elapsedMs);recoveryRecoveredIncidents_.fetch_add(1);auto previousMax=recoveryMaximumDurationMs_.load();while(elapsedMs>previousMax&&!recoveryMaximumDurationMs_.compare_exchange_weak(previousMax,elapsedMs)){}std::fprintf(stderr,"[ECAT COMM] RECOVERING -> RECOVERED recoveryTimeMs=%llu goodWKC=%u motionResume=disabled\n",static_cast<unsigned long long>(elapsedMs),recoveryGoodCycles_);}}else if(recoveredBadCycles>0){recoveryPublishedState_.store(DAO_INTERNAL_COMM_HEALTHY);recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_NONE);std::fprintf(stderr,"[ECAT COMM] %s -> NORMAL recoveredAfterCycles=%llu\n",recoveredBadCycles>=COMM_DEGRADED_BAD_CYCLES?"DEGRADED":"TRANSIENT",static_cast<unsigned long long>(recoveredBadCycles));}}
         else
         {
             recoveryGoodCycles_=0;++badWkcCountTotal_;++consecutiveBadWkc_;lastBadWkcTickNs_=tickNs;
+            recoveryPublishedGoodWkc_.store(0,std::memory_order_relaxed);recoveryPublishedBadWkc_.store(consecutiveBadWkc_,std::memory_order_relaxed);
             if(consecutiveBadWkc_>maxConsecutiveBadWkc_)maxConsecutiveBadWkc_=consecutiveBadWkc_;
             if(actualWkc<=EC_NOFRAME)++receiveTimeoutCount_;
             if(consecutiveBadWkc_==1)DumpCommunicationDiagnostics(actualWkc<=EC_NOFRAME?"RECEIVE_TIMEOUT":"BAD_WKC",actualWkc);
-            if(consecutiveBadWkc_==1)std::fprintf(stderr,"[ECAT COMM] NORMAL -> TRANSIENT badWkc=1\n");
-            if(consecutiveBadWkc_==COMM_DEGRADED_BAD_CYCLES)std::fprintf(stderr,"[ECAT COMM] TRANSIENT -> DEGRADED consecutiveBadWkc=%llu\n",static_cast<unsigned long long>(consecutiveBadWkc_));
-            if(consecutiveBadWkc_==COMM_RECOVERY_BAD_CYCLES){communicationRecovering_=true;communicationRecoveryStartedNs_=tickNs;std::fprintf(stderr,"[ECAT COMM] DEGRADED -> RECOVERING consecutiveBadWkc=%llu windowMs=300\n",static_cast<unsigned long long>(consecutiveBadWkc_));AttemptSoftRecovery();}
+            recoveryPublishedMinimumWkc_.store(minimumWkcObserved_,std::memory_order_relaxed);recoveryPublishedMaxBadWkc_.store(maxConsecutiveBadWkc_,std::memory_order_relaxed);
+            if(consecutiveBadWkc_==1){recoveryPublishedState_.store(DAO_INTERNAL_COMM_TRANSIENT);std::fprintf(stderr,"[ECAT COMM] NORMAL -> TRANSIENT badWkc=1\n");}
+            if(consecutiveBadWkc_==COMM_DEGRADED_BAD_CYCLES){recoveryPublishedState_.store(DAO_INTERNAL_COMM_DEGRADED);std::fprintf(stderr,"[ECAT COMM] TRANSIENT -> DEGRADED consecutiveBadWkc=%llu\n",static_cast<unsigned long long>(consecutiveBadWkc_));}
+            if(consecutiveBadWkc_==COMM_RECOVERY_BAD_CYCLES){communicationRecovering_=true;communicationRecoveryStartedNs_=tickNs;recoveryIncidentGeneration_.fetch_add(1);recoveryTotalIncidents_.fetch_add(1);recoveryLastIncidentTimestampNs_.store(tickNs);recoveryPublishedState_.store(DAO_INTERNAL_COMM_RECOVERING);recoveryPublishedActive_.store(1);recoveryPublishedSucceeded_.store(0);recoveryPublishedFailed_.store(0);std::fprintf(stderr,"[ECAT COMM] DEGRADED -> RECOVERING consecutiveBadWkc=%llu windowMs=300\n",static_cast<unsigned long long>(consecutiveBadWkc_));AttemptSoftRecovery();}
             else if(communicationRecovering_&&consecutiveBadWkc_%COMM_RECOVERY_RETRY_CYCLES==0)AttemptSoftRecovery();
-            if(communicationRecovering_&&tickNs-communicationRecoveryStartedNs_>=COMM_RECOVERY_WINDOW_NS){std::fprintf(stderr,"[ECAT COMM] RECOVERING -> FAULT reason=RECOVERY_TIMEOUT elapsedMs=%llu attempts=%u\n",static_cast<unsigned long long>((tickNs-communicationRecoveryStartedNs_)/1000000ULL),recoveryAttemptCount_);communicationStopRequested_.store(true);}
+            if(communicationRecovering_&&tickNs-communicationRecoveryStartedNs_>=COMM_RECOVERY_WINDOW_NS){const auto elapsedMs=(tickNs-communicationRecoveryStartedNs_)/1000000ULL;recoveryPublishedState_.store(DAO_INTERNAL_COMM_FAILED);recoveryPublishedActive_.store(0);recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_FAILED);recoveryPublishedFailed_.store(1);recoveryPublishedElapsedMs_.store(elapsedMs);recoveryFailureCount_.fetch_add(1);std::fprintf(stderr,"[ECAT COMM] RECOVERING -> FAULT reason=RECOVERY_TIMEOUT elapsedMs=%llu attempts=%u\n",static_cast<unsigned long long>(elapsedMs),recoveryAttemptCount_);communicationStopRequested_.store(true);}
         }
 
         // ----------------------------------------------------
@@ -5353,8 +5364,71 @@ void DaoEtherCATMaster::DumpCommunicationDiagnostics(const char* reason,int actu
 
 void DaoEtherCATMaster::AttemptSoftRecovery()
 {
-    ++recoveryAttemptCount_;std::fprintf(stderr,"[ECAT RECOVERY] stage=READ_STATE attempt=%u\n",recoveryAttemptCount_);const int aggregateState=ecx_readstate(&context_);std::fprintf(stderr,"[ECAT RECOVERY] stage=READ_STATE result=0x%x\n",aggregateState);
-    for(int slaveIndex=1;slaveIndex<=slaveCount_;++slaveIndex){auto& slave=context_.slavelist[slaveIndex];if((slave.state&0x0f)==EC_STATE_OPERATIONAL&&!slave.islost)continue;if(slave.state==(EC_STATE_SAFE_OP+EC_STATE_ERROR)){slave.state=EC_STATE_SAFE_OP+EC_STATE_ACK;(void)ecx_writestate(&context_,static_cast<uint16>(slaveIndex));std::fprintf(stderr,"[ECAT RECOVERY] stage=ACK_SAFEOP_ERROR slave=%d\n",slaveIndex);}int result=0;if(slave.islost||slave.state==EC_STATE_NONE){result=ecx_recover_slave(&context_,static_cast<uint16>(slaveIndex),COMM_RECOVERY_SLAVE_TIMEOUT_US);std::fprintf(stderr,"[ECAT RECOVERY] stage=RECOVER_SLAVE slave=%d result=%d\n",slaveIndex,result);}else{result=ecx_reconfig_slave(&context_,static_cast<uint16>(slaveIndex),COMM_RECOVERY_SLAVE_TIMEOUT_US);std::fprintf(stderr,"[ECAT RECOVERY] stage=RECONFIG_SLAVE slave=%d result=%d\n",slaveIndex,result);}if(result){slave.islost=FALSE;slave.state=EC_STATE_OPERATIONAL;const int opResult=ecx_writestate(&context_,static_cast<uint16>(slaveIndex));std::fprintf(stderr,"[ECAT RECOVERY] stage=REQUEST_OP slave=%d result=%d\n",slaveIndex,opResult);}}
+    ++recoveryAttemptCount_; recoveryPublishedAttempt_.store(recoveryAttemptCount_);
+    recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_READ_STATE);
+    std::fprintf(stderr,"[ECAT RECOVERY] stage=READ_STATE attempt=%u\n",recoveryAttemptCount_);
+    const int aggregateState=ecx_readstate(&context_);
+    std::fprintf(stderr,"[ECAT RECOVERY] stage=READ_STATE result=0x%x\n",aggregateState);
+    for(int slaveIndex=1;slaveIndex<=slaveCount_;++slaveIndex)
+    {
+        auto& slave=context_.slavelist[slaveIndex];
+        if((slave.state&0x0f)==EC_STATE_OPERATIONAL&&!slave.islost)continue;
+        recoveryPublishedFailedSlave_.store(slaveIndex);
+        recoveryPublishedFailedSlaveState_.store(slave.state);
+        recoveryPublishedFailedSlaveAlStatus_.store(slave.ALstatuscode);
+        if(slave.state==(EC_STATE_SAFE_OP+EC_STATE_ERROR))
+        {
+            recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_ACK_SAFEOP_ERROR);
+            slave.state=EC_STATE_SAFE_OP+EC_STATE_ACK;
+            (void)ecx_writestate(&context_,static_cast<uint16>(slaveIndex));
+            (void)ecx_statecheck(&context_,static_cast<uint16>(slaveIndex),EC_STATE_SAFE_OP,COMM_RECOVERY_SLAVE_TIMEOUT_US);
+            std::fprintf(stderr,"[ECAT RECOVERY] stage=ACK_SAFEOP_ERROR slave=%d\n",slaveIndex);
+        }
+        int result=0;
+        if(slave.islost||slave.state==EC_STATE_NONE)
+        {
+            recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_RECOVER_SLAVE);
+            result=ecx_recover_slave(&context_,static_cast<uint16>(slaveIndex),COMM_RECOVERY_SLAVE_TIMEOUT_US);
+            std::fprintf(stderr,"[ECAT RECOVERY] stage=RECOVER_SLAVE slave=%d result=%d\n",slaveIndex,result);
+        }
+        else
+        {
+            recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_RECONFIG_SLAVE);
+            result=ecx_reconfig_slave(&context_,static_cast<uint16>(slaveIndex),COMM_RECOVERY_SLAVE_TIMEOUT_US);
+            std::fprintf(stderr,"[ECAT RECOVERY] stage=RECONFIG_SLAVE slave=%d result=%d\n",slaveIndex,result);
+        }
+        if(result)
+        {
+            recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_VERIFY_SAFEOP);
+            const int safeState=ecx_statecheck(&context_,static_cast<uint16>(slaveIndex),EC_STATE_SAFE_OP,COMM_RECOVERY_SLAVE_TIMEOUT_US);
+            slave.islost=FALSE;
+            recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_REQUEST_OP);
+            slave.state=EC_STATE_OPERATIONAL;
+            const int opResult=ecx_writestate(&context_,static_cast<uint16>(slaveIndex));
+            recoveryPublishedStage_.store(DAO_INTERNAL_RECOVERY_VERIFY_OP);
+            const int verifiedState=ecx_statecheck(&context_,static_cast<uint16>(slaveIndex),EC_STATE_OPERATIONAL,COMM_RECOVERY_SLAVE_TIMEOUT_US);
+            recoveryPublishedFailedSlaveState_.store(slave.state);
+            recoveryPublishedFailedSlaveAlStatus_.store(slave.ALstatuscode);
+            std::fprintf(stderr,"[ECAT RECOVERY] stage=REQUEST_OP slave=%d safeState=0x%x result=%d verifiedState=0x%x\n",slaveIndex,safeState,opResult,verifiedState);
+        }
+    }
+}
+
+void DaoEtherCATMaster::GetCommunicationRecoveryRuntime(
+    DaoInternalCommunicationRecoveryRuntime& r) const
+{
+    r = {};
+    r.communicationState=recoveryPublishedState_.load(); r.incidentGeneration=recoveryIncidentGeneration_.load();
+    r.recoveryActive=recoveryPublishedActive_.load(); r.recoveryStage=recoveryPublishedStage_.load();
+    r.recoveryAttempt=recoveryPublishedAttempt_.load(); r.recoverySucceeded=recoveryPublishedSucceeded_.load();
+    r.recoveryFailed=recoveryPublishedFailed_.load(); r.recoveryElapsedMs=recoveryPublishedElapsedMs_.load();
+    r.expectedWkc=recoveryPublishedExpectedWkc_.load(); r.currentWkc=recoveryPublishedCurrentWkc_.load();
+    r.minimumWkc=recoveryPublishedMinimumWkc_.load(); r.consecutiveBadWkc=recoveryPublishedBadWkc_.load();
+    r.consecutiveGoodWkc=recoveryPublishedGoodWkc_.load(); r.maximumConsecutiveBadWkc=recoveryPublishedMaxBadWkc_.load();
+    r.failedSlaveIndex=recoveryPublishedFailedSlave_.load(); r.failedSlaveState=recoveryPublishedFailedSlaveState_.load();
+    r.failedSlaveAlStatus=recoveryPublishedFailedSlaveAlStatus_.load(); r.totalIncidentCount=recoveryTotalIncidents_.load();
+    r.recoveredIncidentCount=recoveryRecoveredIncidents_.load(); r.recoveryFailureCount=recoveryFailureCount_.load();
+    r.maximumRecoveryDurationMs=recoveryMaximumDurationMs_.load(); r.lastIncidentTimestampNs=recoveryLastIncidentTimestampNs_.load();
 }
 
 void DaoEtherCATMaster::ConfigureServoAndIoRuntimeInfo()

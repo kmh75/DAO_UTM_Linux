@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QSaveFile>
@@ -23,6 +24,24 @@ MachineProfile::MachineProfile()
     jog.config.deceleration = 1000;
     jog.minJogSpeedMmPerMin = 0.1;
     jog.maxJogSpeedMmPerMin = 1000.0;
+    complianceAutoCalibration.loadcellCapacityN=loadcellCapacityN;
+    complianceAutoCalibration.maximumForceN=900.0;
+    complianceAutoCalibration.forceStepN=100.0;
+    complianceAutoCalibration.approachSpeedMmPerMin=1.0;
+    complianceAutoCalibration.calibrationSpeedMmPerMin=0.5;
+    complianceAutoCalibration.fineSpeedMmPerMin=0.1;
+    complianceAutoCalibration.returnSpeedMmPerMin=1.0;
+    complianceAutoCalibration.maximumTravelMm=5.0;
+    complianceAutoCalibration.precheckForceN=5.0;
+    complianceAutoCalibration.precheckMaximumTravelMm=1.0;
+    complianceAutoCalibration.forceToleranceN=1.0;
+    complianceAutoCalibration.releaseForceThresholdN=1.0;
+    complianceAutoCalibration.releaseMaximumTravelMm=2.0;
+    complianceAutoCalibration.minimumForceRiseN=0.1;
+    complianceAutoCalibration.forceRiseTravelThresholdMm=0.5;
+    complianceAutoCalibration.maximumForceJumpN=100.0;
+    complianceAutoCalibration.overshootGuardN=5.0;
+    complianceAutoCalibration.oppositeForceGuardN=2.0;
 }
 
 bool MachineProfile::applyMotionDynamics(QString& error)
@@ -119,6 +138,24 @@ bool MachineProfileStore::validate(const MachineProfile& p, QString& error)
     {error="Loadcell capacity must be finite and > 0 N";return false;}
     if(p.forceDisplayAverageSamples<20||p.forceDisplayAverageSamples>50)
     {error="Force display average must be 20..50 samples";return false;}
+    if(p.compliancePoints.size()>static_cast<int>(dao::utm::kComplianceMaxPoints))
+    {error="Compliance curve supports at most 64 points";return false;}
+    if(!p.compliancePoints.isEmpty())
+    {
+        dao::utm::UtmComplianceCompensation check;
+        if(check.ConfigureCurve(p.compliancePoints.constData(),static_cast<std::size_t>(p.compliancePoints.size()),p.complianceVersion)!=dao::utm::ComplianceError::None)
+        {error="Compliance curve requires 2..64 finite points with unique forceN values";return false;}
+    }
+    if(p.complianceEnabled&&p.compliancePoints.size()<2)
+    {error="Enabled compliance compensation requires at least two points";return false;}
+    const auto validateCurve=[&error](const MachineComplianceCurveProfile& curve,const char* name){
+        if(curve.points.size()>static_cast<int>(dao::utm::kComplianceMaxPoints)){error=QString("%1 compliance curve supports at most 64 points").arg(name);return false;}
+        if(!curve.points.isEmpty()){dao::utm::UtmComplianceCompensation check;if(check.ConfigureCurve(curve.points.constData(),static_cast<std::size_t>(curve.points.size()),curve.version)==dao::utm::ComplianceError::None){}else{error=QString("%1 compliance curve is invalid").arg(name);return false;}}
+        if(curve.enabled&&curve.points.size()<2){error=QString("Enabled %1 compliance curve requires at least two points").arg(name);return false;}return true;};
+    if(!validateCurve(p.compressionCompliance,"Compression")||!validateCurve(p.tensionCompliance,"Tension"))return false;
+    const auto& ac=p.complianceAutoCalibration;
+    if(!finitePositive(ac.maximumForceN)||!finitePositive(ac.forceStepN)||!finitePositive(ac.approachSpeedMmPerMin)||!finitePositive(ac.calibrationSpeedMmPerMin)||!finitePositive(ac.fineSpeedMmPerMin)||!finitePositive(ac.returnSpeedMmPerMin)||!finitePositive(ac.maximumTravelMm)||!finitePositive(ac.precheckForceN)||!finitePositive(ac.precheckMaximumTravelMm)||!finitePositive(ac.forceToleranceN)||!finitePositive(ac.releaseForceThresholdN)||!finitePositive(ac.releaseMaximumTravelMm)||!finitePositive(ac.minimumForceRiseN)||!finitePositive(ac.forceRiseTravelThresholdMm)||!finitePositive(ac.maximumForceJumpN)||!finitePositive(ac.overshootGuardN)||!finitePositive(ac.oppositeForceGuardN)||ac.stabilizationTimeMs==0||ac.minimumStableSampleCount==0||ac.pointTimeoutMs==0||ac.releaseTimeoutMs==0||ac.precheckConfirmationTimeoutMs==0)
+    {error="Invalid machine compliance auto-calibration settings";return false;}
     return true;
 }
 
@@ -158,6 +195,13 @@ bool MachineProfileStore::save(const MachineProfile& p, QString& error)
         {"medianEnabled",p.adcFilter.medianFilterEnabled},{"movingAverageN",static_cast<int>(p.adcFilter.movingAverageSampleCount)}};
     root["force"] = QJsonObject{{"displayUnit",p.displayForceUnit},{"displayDecimals",p.forceDisplayDecimals},{"loadcellCapacityN",p.loadcellCapacityN},{"loadcellCapacityDisplayUnit",p.loadcellCapacityDisplayUnit}};
     root["ui"] = QJsonObject{{"fullscreen",p.fullscreen},{"forceDisplayUnit",p.displayForceUnit},{"forceDisplayAverageSamples",static_cast<int>(p.forceDisplayAverageSamples)},{"calibrationReferenceUnit",p.calibrationReferenceUnit}};
+    QJsonArray compliancePoints;for(const auto& point:p.compliancePoints)
+        compliancePoints.append(QJsonObject{{"forceN",point.forceN},{"deformationMm",point.deformationMm}});
+    root["complianceCompensation"] = QJsonObject{{"enabled",p.complianceEnabled},{"version",static_cast<int>(p.complianceVersion)},{"points",compliancePoints}};
+    const auto curveJson=[](const MachineComplianceCurveProfile& curve){QJsonArray points;for(const auto& point:curve.points)points.append(QJsonObject{{"forceN",point.forceN},{"deformationMm",point.deformationMm}});return QJsonObject{{"enabled",curve.enabled},{"version",static_cast<int>(curve.version)},{"points",points}};};
+    const auto& ac=p.complianceAutoCalibration;
+    root["machineCompliance"] = QJsonObject{{"schemaVersion",2},{"activeMode",p.activeComplianceMode==UTM_COMPLIANCE_MODE_TENSION?"tension":"compression"},{"compression",curveJson(p.compressionCompliance)},{"tension",curveJson(p.tensionCompliance)},
+        {"autoCalibration",QJsonObject{{"maximumForceN",ac.maximumForceN},{"manufacturerLimitN",ac.manufacturerLimitN},{"forceStepN",ac.forceStepN},{"approachSpeedMmPerMin",ac.approachSpeedMmPerMin},{"calibrationSpeedMmPerMin",ac.calibrationSpeedMmPerMin},{"fineSpeedMmPerMin",ac.fineSpeedMmPerMin},{"returnSpeedMmPerMin",ac.returnSpeedMmPerMin},{"maximumTravelMm",ac.maximumTravelMm},{"stabilizationTimeMs",static_cast<int>(ac.stabilizationTimeMs)},{"minimumStableSampleCount",static_cast<int>(ac.minimumStableSampleCount)},{"forceToleranceN",ac.forceToleranceN},{"precheckForceN",ac.precheckForceN},{"precheckMaximumTravelMm",ac.precheckMaximumTravelMm},{"releaseForceThresholdN",ac.releaseForceThresholdN},{"releaseMaximumTravelMm",ac.releaseMaximumTravelMm},{"minimumForceRiseN",ac.minimumForceRiseN},{"forceRiseTravelThresholdMm",ac.forceRiseTravelThresholdMm},{"maximumForceJumpN",ac.maximumForceJumpN},{"overshootGuardN",ac.overshootGuardN},{"oppositeForceGuardN",ac.oppositeForceGuardN},{"pointTimeoutMs",static_cast<int>(ac.pointTimeoutMs)},{"releaseTimeoutMs",static_cast<int>(ac.releaseTimeoutMs)},{"precheckConfirmationTimeoutMs",static_cast<int>(ac.precheckConfirmationTimeoutMs)}}}};
     root["notPersisted"] = QJsonObject{{"forceZero","operator action required"},
         {"positionZero","operator action required"},{"encoderZero","operator action required"}};
     QSaveFile file(profileDirectory()+"/"+name+".json");
@@ -188,6 +232,25 @@ bool MachineProfileStore::load(const QString& requested, MachineProfile& p, QStr
     const auto filter=root.value("adcFilter").toObject();if(!filter.isEmpty()){out.adcFilter.lowLevelFilterEnabled=filter.value("lowLevelEnabled").toInt(1);out.adcFilter.lowLevelFilterAlpha=filter.value("lowLevelAlpha").toDouble(.1);out.adcFilter.powerLineFilterMode=filter.value("powerLineMode").toInt();out.adcFilter.medianFilterEnabled=filter.value("medianEnabled").toInt(1);out.adcFilter.movingAverageSampleCount=filter.value("movingAverageN").toInt(16);}
     const auto ui=root.value("ui").toObject();out.lastSelectedTab=0;out.fullscreen=ui.value("fullscreen").toBool();out.forceDisplayAverageSamples=ui.value("forceDisplayAverageSamples").toInt(20);out.calibrationReferenceUnit=ui.value("calibrationReferenceUnit").toString("N");
     const auto forcePreferences=root.value("force").toObject();out.displayForceUnit=forcePreferences.value("displayUnit").toString(ui.value("forceDisplayUnit").toString("N"));out.forceDisplayDecimals=forcePreferences.value("displayDecimals").toInt(3);out.loadcellCapacityN=forcePreferences.value("loadcellCapacityN").toDouble(1000.0);out.loadcellCapacityDisplayUnit=forcePreferences.value("loadcellCapacityDisplayUnit").toString("N");
+    const auto compliance=root.value("complianceCompensation").toObject();
+    if(!compliance.isEmpty()){out.complianceEnabled=compliance.value("enabled").toBool(false);out.complianceVersion=static_cast<unsigned int>(compliance.value("version").toInt(1));for(const auto value:compliance.value("points").toArray()){const auto point=value.toObject();out.compliancePoints.append({point.value("forceN").toDouble(),point.value("deformationMm").toDouble()});}}
+    const auto machineCompliance=root.value("machineCompliance").toObject();
+    if(!machineCompliance.isEmpty()){
+        out.activeComplianceMode=machineCompliance.value("activeMode").toString()=="tension"?UTM_COMPLIANCE_MODE_TENSION:UTM_COMPLIANCE_MODE_COMPRESSION;
+        const auto readCurve=[](const QJsonObject& object,MachineComplianceCurveProfile& curve){curve.enabled=object.value("enabled").toBool(false);curve.version=static_cast<unsigned int>(object.value("version").toInt(0));for(const auto value:object.value("points").toArray()){const auto point=value.toObject();curve.points.append({point.value("forceN").toDouble(),point.value("deformationMm").toDouble()});}};
+        readCurve(machineCompliance.value("compression").toObject(),out.compressionCompliance);readCurve(machineCompliance.value("tension").toObject(),out.tensionCompliance);
+        const auto ac=machineCompliance.value("autoCalibration").toObject();auto& cfg=out.complianceAutoCalibration;
+        cfg.maximumForceN=ac.value("maximumForceN").toDouble(cfg.maximumForceN);cfg.manufacturerLimitN=ac.value("manufacturerLimitN").toDouble(cfg.manufacturerLimitN);cfg.forceStepN=ac.value("forceStepN").toDouble(cfg.forceStepN);cfg.approachSpeedMmPerMin=ac.value("approachSpeedMmPerMin").toDouble(cfg.approachSpeedMmPerMin);cfg.calibrationSpeedMmPerMin=ac.value("calibrationSpeedMmPerMin").toDouble(cfg.calibrationSpeedMmPerMin);cfg.fineSpeedMmPerMin=ac.value("fineSpeedMmPerMin").toDouble(cfg.fineSpeedMmPerMin);cfg.returnSpeedMmPerMin=ac.value("returnSpeedMmPerMin").toDouble(cfg.returnSpeedMmPerMin);cfg.maximumTravelMm=ac.value("maximumTravelMm").toDouble(cfg.maximumTravelMm);cfg.stabilizationTimeMs=ac.value("stabilizationTimeMs").toInt(cfg.stabilizationTimeMs);cfg.minimumStableSampleCount=ac.value("minimumStableSampleCount").toInt(cfg.minimumStableSampleCount);cfg.forceToleranceN=ac.value("forceToleranceN").toDouble(cfg.forceToleranceN);cfg.precheckForceN=ac.value("precheckForceN").toDouble(cfg.precheckForceN);cfg.precheckMaximumTravelMm=ac.value("precheckMaximumTravelMm").toDouble(cfg.precheckMaximumTravelMm);cfg.releaseForceThresholdN=ac.value("releaseForceThresholdN").toDouble(cfg.releaseForceThresholdN);cfg.releaseMaximumTravelMm=ac.value("releaseMaximumTravelMm").toDouble(cfg.releaseMaximumTravelMm);cfg.minimumForceRiseN=ac.value("minimumForceRiseN").toDouble(cfg.minimumForceRiseN);cfg.forceRiseTravelThresholdMm=ac.value("forceRiseTravelThresholdMm").toDouble(cfg.forceRiseTravelThresholdMm);cfg.maximumForceJumpN=ac.value("maximumForceJumpN").toDouble(cfg.maximumForceJumpN);cfg.overshootGuardN=ac.value("overshootGuardN").toDouble(cfg.overshootGuardN);cfg.oppositeForceGuardN=ac.value("oppositeForceGuardN").toDouble(cfg.oppositeForceGuardN);cfg.pointTimeoutMs=ac.value("pointTimeoutMs").toInt(cfg.pointTimeoutMs);cfg.releaseTimeoutMs=ac.value("releaseTimeoutMs").toInt(cfg.releaseTimeoutMs);cfg.precheckConfirmationTimeoutMs=ac.value("precheckConfirmationTimeoutMs").toInt(cfg.precheckConfirmationTimeoutMs);
+    }else{
+        // Backward compatibility: preserve the legacy curve only in its legacy fields.
+        // Directional curves remain disabled and empty until explicitly calibrated/saved.
+        const double safeLimit=out.protection.overloadEnabled?std::min(out.loadcellCapacityN*.90,out.protection.maxAllowedForceN):out.loadcellCapacityN*.90;
+        out.complianceAutoCalibration.maximumForceN=safeLimit;
+        out.complianceAutoCalibration.forceStepN=safeLimit/10.0;
+        out.complianceAutoCalibration.forceToleranceN=std::max(.001,safeLimit*.01);
+    }
+    // Legacy single-curve data is retained above but is never copied into or enabled for either direction.
+    out.complianceAutoCalibration.loadcellCapacityN=out.loadcellCapacityN;
     if(!validate(out,error)) return false;
     p=out;return true;
 }

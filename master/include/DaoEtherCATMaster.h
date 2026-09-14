@@ -138,6 +138,19 @@ struct DaoInternalAdcInputPdo
 
 #pragma pack(pop)
 
+enum DaoInternalCommunicationRecoveryState { DAO_INTERNAL_COMM_HEALTHY=0, DAO_INTERNAL_COMM_TRANSIENT=1, DAO_INTERNAL_COMM_DEGRADED=2, DAO_INTERNAL_COMM_RECOVERING=3, DAO_INTERNAL_COMM_FAILED=4 };
+enum DaoInternalCommunicationRecoveryStage { DAO_INTERNAL_RECOVERY_NONE=0, DAO_INTERNAL_RECOVERY_READ_STATE, DAO_INTERNAL_RECOVERY_ACK_SAFEOP_ERROR, DAO_INTERNAL_RECOVERY_RECOVER_SLAVE, DAO_INTERNAL_RECOVERY_RECONFIG_SLAVE, DAO_INTERNAL_RECOVERY_VERIFY_SAFEOP, DAO_INTERNAL_RECOVERY_REQUEST_OP, DAO_INTERNAL_RECOVERY_VERIFY_OP, DAO_INTERNAL_RECOVERY_STABILIZING, DAO_INTERNAL_RECOVERY_RECOVERED, DAO_INTERNAL_RECOVERY_FAILED };
+struct DaoInternalCommunicationRecoveryRuntime
+{
+    int communicationState=0; std::uint64_t incidentGeneration=0; int recoveryActive=0; int recoveryStage=0;
+    unsigned int recoveryAttempt=0; int recoverySucceeded=0; int recoveryFailed=0; std::uint64_t recoveryElapsedMs=0;
+    int expectedWkc=0; int currentWkc=0; int minimumWkc=0; std::uint64_t consecutiveBadWkc=0;
+    unsigned int consecutiveGoodWkc=0; std::uint64_t maximumConsecutiveBadWkc=0; int failedSlaveIndex=0;
+    std::uint16_t failedSlaveState=0; std::uint16_t failedSlaveAlStatus=0; std::uint64_t totalIncidentCount=0;
+    std::uint64_t recoveredIncidentCount=0; std::uint64_t recoveryFailureCount=0; std::uint64_t maximumRecoveryDurationMs=0;
+    std::uint64_t lastIncidentTimestampNs=0;
+};
+
 static_assert(
     sizeof(DaoInternalAdcInputPdo) == 24,
     "DaoInternalAdcInputPdo must be exactly 24 bytes.");
@@ -1126,7 +1139,10 @@ public:
 
 	bool IsCommunicationRunning() const; // 통신 스레드의 실행 상태를 확인합니다.
 
-	bool StartCommunication();// 통신 스레드의 실행 상태를 확인합니다.
+    bool StartCommunication();// 통신 스레드의 실행 상태를 확인합니다.
+
+    void GetCommunicationRecoveryRuntime(
+        DaoInternalCommunicationRecoveryRuntime& runtimeInfo) const;
 
     // 주기 통신 스레드의 실행을 시작합니다.
     bool ConfigureLsL7nhProfilePositionMode(
@@ -1178,6 +1194,28 @@ private:
     std::uint64_t communicationRecoveryStartedNs_ = 0;
     unsigned int recoveryGoodCycles_ = 0;
     unsigned int recoveryAttemptCount_ = 0;
+    std::atomic<int> recoveryPublishedState_{DAO_INTERNAL_COMM_HEALTHY};
+    std::atomic<unsigned long long> recoveryIncidentGeneration_{0};
+    std::atomic<int> recoveryPublishedActive_{0};
+    std::atomic<int> recoveryPublishedStage_{DAO_INTERNAL_RECOVERY_NONE};
+    std::atomic<unsigned int> recoveryPublishedAttempt_{0};
+    std::atomic<int> recoveryPublishedSucceeded_{0};
+    std::atomic<int> recoveryPublishedFailed_{0};
+    std::atomic<unsigned long long> recoveryPublishedElapsedMs_{0};
+    std::atomic<int> recoveryPublishedExpectedWkc_{0};
+    std::atomic<int> recoveryPublishedCurrentWkc_{0};
+    std::atomic<int> recoveryPublishedMinimumWkc_{0};
+    std::atomic<unsigned long long> recoveryPublishedBadWkc_{0};
+    std::atomic<unsigned int> recoveryPublishedGoodWkc_{0};
+    std::atomic<unsigned long long> recoveryPublishedMaxBadWkc_{0};
+    std::atomic<int> recoveryPublishedFailedSlave_{0};
+    std::atomic<unsigned short> recoveryPublishedFailedSlaveState_{0};
+    std::atomic<unsigned short> recoveryPublishedFailedSlaveAlStatus_{0};
+    std::atomic<unsigned long long> recoveryTotalIncidents_{0};
+    std::atomic<unsigned long long> recoveryRecoveredIncidents_{0};
+    std::atomic<unsigned long long> recoveryFailureCount_{0};
+    std::atomic<unsigned long long> recoveryMaximumDurationMs_{0};
+    std::atomic<unsigned long long> recoveryLastIncidentTimestampNs_{0};
     void DumpCommunicationDiagnostics(const char* reason, int actualWkc);
     void AttemptSoftRecovery();
    

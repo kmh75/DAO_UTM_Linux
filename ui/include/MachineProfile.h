@@ -1,9 +1,18 @@
 #pragma once
 
 #include "DaoUtm.Types.h"
+#include "UtmComplianceCompensation.h"
 
 #include <QString>
 #include <QStringList>
+#include <QVector>
+
+struct MachineComplianceCurveProfile
+{
+    bool enabled = false;
+    unsigned int version = 0;
+    QVector<dao::utm::CompliancePoint> points;
+};
 
 struct MachineProfile
 {
@@ -28,6 +37,13 @@ struct MachineProfile
     bool encoderCalibrationScaleValid = false;
     int lastSelectedTab = 0;
     bool fullscreen = false;
+    bool complianceEnabled = false;
+    unsigned int complianceVersion = 1;
+    QVector<dao::utm::CompliancePoint> compliancePoints;
+    MachineComplianceCurveProfile compressionCompliance;
+    MachineComplianceCurveProfile tensionCompliance;
+    int activeComplianceMode = UTM_COMPLIANCE_MODE_COMPRESSION;
+    UtmComplianceCalibrationConfigV1 complianceAutoCalibration{};
 
     MachineProfile();
     bool applyMotionDynamics(QString& error);

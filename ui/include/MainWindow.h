@@ -5,6 +5,7 @@
 #include <QMainWindow>
 #include <QElapsedTimer>
 #include <QVector>
+#include <memory>
 
 class QLabel;
 class QDoubleSpinBox;
@@ -14,6 +15,11 @@ class QTableWidget;
 class QTabWidget;
 class QPushButton;
 class QCheckBox;
+class QLineEdit;
+class NetworkBackend;
+class NetworkService;
+class SystemPowerService;
+class ApplicationShutdownCoordinator;
 class TrendGraphWidget;
 class UtmUiController;
 
@@ -22,6 +28,7 @@ class MainWindow final : public QMainWindow
     Q_OBJECT
 public:
     explicit MainWindow(UtmUiController* controller, QWidget* parent = nullptr);
+    ~MainWindow() override;
     void runOfflineCalibrationSelfTest();
 
 protected:
@@ -48,6 +55,8 @@ private:
         QPushButton*& zeroAction);
     void applyStyle();
     void safeJogStop(const char* reason);
+    bool requestOrderlyExit(bool powerOff);
+    void refreshNetworkUi();
     void addSequenceStep(int type);
     void reindexSequence();
     UtmSequenceDefinition sequenceFromTable() const;
@@ -94,6 +103,27 @@ private:
     QLabel* encoderSignedValue_ = nullptr;
     QLabel* encoderScaleValue_ = nullptr;
     QLabel* positionOperatorStatus_ = nullptr;
+    QLabel* complianceStatus_ = nullptr;
+    QLabel* complianceMainStatus_ = nullptr;
+    QLabel* autoCalibrationStatus_ = nullptr;
+    QTableWidget* complianceTable_ = nullptr;
+    QCheckBox* complianceEnabled_ = nullptr;
+    QDoubleSpinBox* autoMaximumForce_ = nullptr;
+    QDoubleSpinBox* autoForceStep_ = nullptr;
+    QDoubleSpinBox* autoApproachSpeed_ = nullptr;
+    QDoubleSpinBox* autoCalibrationSpeed_ = nullptr;
+    QDoubleSpinBox* autoFineSpeed_ = nullptr;
+    QDoubleSpinBox* autoReturnSpeed_ = nullptr;
+    QDoubleSpinBox* autoMaximumTravel_ = nullptr;
+    QDoubleSpinBox* autoPrecheckForce_ = nullptr;
+    QDoubleSpinBox* autoPrecheckTravel_ = nullptr;
+    QDoubleSpinBox* autoTolerance_ = nullptr;
+    QSpinBox* autoStabilizationMs_ = nullptr;
+    QSpinBox* autoConfirmationTimeoutMs_ = nullptr;
+    QPushButton* autoFullStart_ = nullptr;
+    QPushButton* autoAbort_ = nullptr;
+    QPushButton* autoSave_ = nullptr;
+    QPushButton* autoSaveEnable_ = nullptr;
     QLabel* connectionState_ = nullptr;
     TrendGraphWidget* graph_ = nullptr;
     TrendGraphWidget* calibrationGraph_ = nullptr;
@@ -192,4 +222,14 @@ private:
     QElapsedTimer jogHoldTimer_;
     int requestedManualMotionType_ = UTM_MOTION_NONE;
     bool loadingProfile_ = false;
+    std::unique_ptr<NetworkBackend> networkBackend_;
+    std::unique_ptr<NetworkService> networkService_;
+    std::unique_ptr<SystemPowerService> powerService_;
+    std::unique_ptr<ApplicationShutdownCoordinator> shutdownCoordinator_;
+    QComboBox* wiredAdapter_=nullptr;QComboBox* wiredMode_=nullptr;QLineEdit* wiredIp_=nullptr;QSpinBox* wiredPrefix_=nullptr;
+    QLineEdit* wiredGateway_=nullptr;QLineEdit* wiredDns_=nullptr;QLabel* wiredStatus_=nullptr;
+    QWidget* wiredManualFields_=nullptr;
+    QComboBox* wifiAdapter_=nullptr;QTableWidget* wifiNetworks_=nullptr;QLineEdit* wifiPassword_=nullptr;QLabel* wifiStatus_=nullptr;
+    QPushButton* wifiScan_=nullptr;QPushButton* wifiOn_=nullptr;QPushButton* wifiOff_=nullptr;QPushButton* wifiConnect_=nullptr;QPushButton* wifiDisconnect_=nullptr;
+    QCheckBox* powerOffAfterExit_=nullptr;QPushButton* exitButton_=nullptr;bool closeApproved_=false;
 };

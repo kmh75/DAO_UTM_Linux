@@ -3,6 +3,7 @@
 #include "DaoUtm.Types.h"
 #include "UtmMotionTypes.h"
 #include "UtmCommunicationPolicy.h"
+#include "DaoEtherCAT.Engine.h"
 
 class UtmInputCollector
 {
@@ -17,7 +18,8 @@ public:
         unsigned long long timestampNs,
         UtmInputSnapshot& snapshot,
         UtmServoCommandSnapshot& servoCommand);
-    CommunicationState GetCommunicationState() const { return communicationPolicy_.GetState(); }
+    CommunicationState GetCommunicationState() const { return communicationState_; }
+    const DaoCommunicationRecoveryRuntimeV1& GetBasicRecoveryRuntime() const { return basicRecovery_; }
 
 private:
     struct SourceState
@@ -48,4 +50,6 @@ private:
     SourceState ioState_{};
     SourceState encoderState_{};
     UtmCommunicationPolicy communicationPolicy_{};
+    CommunicationState communicationState_=NORMAL;
+    DaoCommunicationRecoveryRuntimeV1 basicRecovery_{};
 };

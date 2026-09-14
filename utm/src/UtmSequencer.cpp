@@ -416,3 +416,9 @@ int UtmSequencer::MotionTypeForStep(int type)
     default: return UTM_MOTION_NONE;
     }
 }
+
+bool UtmSequencer::HasPendingAction() const
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    return actionPending_||waitingActionResult_||startRequested_;
+}

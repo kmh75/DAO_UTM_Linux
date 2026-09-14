@@ -75,7 +75,8 @@ enum UtmStopReason
     UTM_STOP_TARGET_POSITION,
     UTM_STOP_TARGET_FORCE,
     UTM_STOP_BREAK_DETECTED,
-    UTM_STOP_TIMEOUT
+    UTM_STOP_TIMEOUT,
+    UTM_STOP_CALIBRATION_FAULT
 };
 
 enum UtmStopAction
@@ -158,7 +159,8 @@ enum UtmCommandSource
     UTM_COMMAND_SOURCE_DIGITAL_JOG,
     UTM_COMMAND_SOURCE_INTERNAL,
     UTM_COMMAND_SOURCE_REMOTE,
-    UTM_COMMAND_SOURCE_SEQUENCER
+    UTM_COMMAND_SOURCE_SEQUENCER,
+    UTM_COMMAND_SOURCE_CALIBRATION
 };
 
 enum UtmJogSourceMask
@@ -698,6 +700,24 @@ struct UtmRuntimeInfoV6
     UtmSequenceRuntimeInfo sequence{};
 };
 
+struct UtmCommunicationRuntimeInfoV1
+{
+    unsigned int version=1;
+    int communicationState=0;
+    unsigned long long incidentGeneration=0;
+    int recoveryActive=0,recoveryStage=0,recoverySucceeded=0,recoveryFailed=0;
+    unsigned int recoveryAttempt=0;
+    unsigned long long recoveryElapsedMs=0,totalIncidentCount=0,recoveredIncidentCount=0,recoveryFailureCount=0;
+    unsigned long long maximumRecoveryDurationMs=0,lastIncidentTimestampNs=0;
+    int expectedWkc=0,currentWkc=0,minimumWkc=0;
+    unsigned long long consecutiveBadWkc=0,maximumConsecutiveBadWkc=0;
+    unsigned int consecutiveGoodWkc=0,rollingHourIncidentCount=0;
+    int communicationUnstableWarning=0,incidentMotionActive=0,motionInterrupted=0;
+    int failedSlaveIndex=0;unsigned short failedSlaveState=0,failedSlaveAlStatus=0;
+    int incidentCommandType=0,incidentCommandSource=0,incidentSequenceRunning=0,incidentSequenceStep=0;
+    int incidentCalibrationActive=0,postRecoveryServoState=0,safeAlignmentResult=0;
+};
+
 constexpr unsigned int UTM_MAX_ADAPTERS = 32;
 
 struct UtmAdapterInfo
@@ -749,6 +769,134 @@ struct UtmCalibrationRuntimeInfo
     int powerLineFilterMode = 0;
     int medianFilterEnabled = 1;
     unsigned int movingAverageSampleCount = 16;
+};
+
+enum UtmComplianceCalibrationMode
+{
+    UTM_COMPLIANCE_MODE_COMPRESSION = 1,
+    UTM_COMPLIANCE_MODE_TENSION = 2
+};
+
+enum UtmComplianceCalibrationState
+{
+    UTM_COMPLIANCE_CAL_IDLE = 0,
+    UTM_COMPLIANCE_CAL_VALIDATING,
+    UTM_COMPLIANCE_CAL_ZEROING_FORCE,
+    UTM_COMPLIANCE_CAL_CAPTURING_REFERENCE,
+    UTM_COMPLIANCE_CAL_PRECHECK_APPROACH,
+    UTM_COMPLIANCE_CAL_PRECHECK_STABILIZING,
+    UTM_COMPLIANCE_CAL_STOPPING_PRECHECK,
+    UTM_COMPLIANCE_CAL_PRECHECK_PASSED,
+    UTM_COMPLIANCE_CAL_WAITING_FULL_START,
+    UTM_COMPLIANCE_CAL_APPROACHING_TARGET,
+    UTM_COMPLIANCE_CAL_FINE_APPROACH,
+    UTM_COMPLIANCE_CAL_STABILIZING,
+    UTM_COMPLIANCE_CAL_CAPTURING_POINT,
+    UTM_COMPLIANCE_CAL_NEXT_POINT,
+    UTM_COMPLIANCE_CAL_RELEASING_FORCE,
+    UTM_COMPLIANCE_CAL_STOPPING_RELEASE,
+    UTM_COMPLIANCE_CAL_RETURNING,
+    UTM_COMPLIANCE_CAL_COMPLETE_PENDING_SAVE,
+    UTM_COMPLIANCE_CAL_ABORTING,
+    UTM_COMPLIANCE_CAL_ABORTED,
+    UTM_COMPLIANCE_CAL_FAULTED,
+    UTM_COMPLIANCE_CAL_PRECHECK_EXPIRED
+};
+
+enum UtmComplianceCalibrationFault
+{
+    UTM_COMPLIANCE_FAULT_NONE = 0,
+    UTM_COMPLIANCE_FAULT_INVALID_CONFIG,
+    UTM_COMPLIANCE_FAULT_MACHINE_NOT_READY,
+    UTM_COMPLIANCE_FAULT_FORCE_ZERO,
+    UTM_COMPLIANCE_FAULT_EMERGENCY,
+    UTM_COMPLIANCE_FAULT_EXTERNAL_STOP,
+    UTM_COMPLIANCE_FAULT_SERVO,
+    UTM_COMPLIANCE_FAULT_UPPER_LIMIT,
+    UTM_COMPLIANCE_FAULT_LOWER_LIMIT,
+    UTM_COMPLIANCE_FAULT_COMMUNICATION,
+    UTM_COMPLIANCE_FAULT_OVERLOAD,
+    UTM_COMPLIANCE_FAULT_HARD_FORCE,
+    UTM_COMPLIANCE_FAULT_MAX_TRAVEL,
+    UTM_COMPLIANCE_FAULT_PRECHECK_TRAVEL,
+    UTM_COMPLIANCE_FAULT_TIMEOUT,
+    UTM_COMPLIANCE_FAULT_RELEASE_TRAVEL,
+    UTM_COMPLIANCE_FAULT_RELEASE_TIMEOUT,
+    UTM_COMPLIANCE_FAULT_WRONG_FORCE_POLARITY,
+    UTM_COMPLIANCE_FAULT_WRONG_POSITION_DIRECTION,
+    UTM_COMPLIANCE_FAULT_INSUFFICIENT_FORCE_RISE,
+    UTM_COMPLIANCE_FAULT_FORCE_JUMP,
+    UTM_COMPLIANCE_FAULT_OVERSHOOT,
+    UTM_COMPLIANCE_FAULT_OPPOSITE_FORCE,
+    UTM_COMPLIANCE_FAULT_FORCE_INVALID,
+    UTM_COMPLIANCE_FAULT_MOTION,
+    UTM_COMPLIANCE_FAULT_USER_ABORT,
+    UTM_COMPLIANCE_FAULT_COMMUNICATION_INTERRUPTED
+};
+
+constexpr unsigned int UTM_COMPLIANCE_MAX_POINTS = 64;
+
+struct UtmComplianceCalibrationConfigV1
+{
+    unsigned int abiVersion = 1;
+    int mode = UTM_COMPLIANCE_MODE_COMPRESSION;
+    int motionDirection = UTM_DIRECTION_DOWN;
+    double loadcellCapacityN = 0.0;
+    double maximumForceN = 0.0;
+    double manufacturerLimitN = 0.0; // 0 means unavailable
+    double forceStepN = 0.0;
+    double approachSpeedMmPerMin = 0.0;
+    double calibrationSpeedMmPerMin = 0.0;
+    double fineSpeedMmPerMin = 0.0;
+    double returnSpeedMmPerMin = 0.0;
+    double maximumTravelMm = 0.0;
+    double precheckForceN = 0.0;
+    double precheckMaximumTravelMm = 0.0;
+    double forceToleranceN = 0.0;
+    double releaseForceThresholdN = 0.0;
+    double releaseMaximumTravelMm = 0.0;
+    double minimumForceRiseN = 0.0;
+    double forceRiseTravelThresholdMm = 0.0;
+    double maximumForceJumpN = 0.0;
+    double overshootGuardN = 0.0;
+    double oppositeForceGuardN = 0.0;
+    unsigned int stabilizationTimeMs = 300;
+    unsigned int minimumStableSampleCount = 50;
+    unsigned int pointTimeoutMs = 30000;
+    unsigned int releaseTimeoutMs = 10000;
+    unsigned int precheckConfirmationTimeoutMs = 30000;
+};
+
+struct UtmComplianceCalibrationPoint
+{
+    double forceN = 0.0;
+    double deformationMm = 0.0;
+};
+
+struct UtmComplianceCalibrationRuntimeV1
+{
+    unsigned int abiVersion = 1;
+    unsigned long long sessionId = 0;
+    int state = UTM_COMPLIANCE_CAL_IDLE;
+    int fault = UTM_COMPLIANCE_FAULT_NONE;
+    int mode = UTM_COMPLIANCE_MODE_COMPRESSION;
+    int active = 0;
+    int precheckPassed = 0;
+    int pendingResult = 0;
+    double targetForceN = 0.0;
+    double currentForceN = 0.0;
+    double directionalForceN = 0.0;
+    double referenceMachinePositionMm = 0.0;
+    double currentMachinePositionMm = 0.0;
+    double currentDeformationMm = 0.0;
+    double travelUsedMm = 0.0;
+    double allowedMaximumForceN = 0.0;
+    double currentCommandSpeedMmPerMin = 0.0;
+    unsigned int capturedPointCount = 0;
+    unsigned int targetCount = 0;
+    unsigned int currentTargetIndex = 0;
+    unsigned int stableSampleCount = 0;
+    unsigned int guardFlags = 0;
 };
 
 struct UtmAdcFilterConfig

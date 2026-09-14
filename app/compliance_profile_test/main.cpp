@@ -1,0 +1,14 @@
+#include "MachineProfile.h"
+#include <QCoreApplication>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QTemporaryDir>
+#include <cstdlib>
+#include <iostream>
+
+namespace{[[noreturn]]void fail(const char*s){std::cerr<<"FAIL: "<<s<<'\n';std::exit(1);}}
+int main(int argc,char**argv){QTemporaryDir root;if(!root.isValid())fail("temp");qputenv("XDG_CONFIG_HOME",root.path().toUtf8());QCoreApplication app(argc,argv);QCoreApplication::setApplicationName("dao-compliance-profile-test");QCoreApplication::setOrganizationName("DAO-Test");
+ MachineProfile p;p.name="directional";p.compressionCompliance={true,3,{{0,0},{90,.02}}};p.tensionCompliance={false,7,{{-90,-.019},{0,0}}};p.activeComplianceMode=UTM_COMPLIANCE_MODE_COMPRESSION;QString e;if(!MachineProfileStore::save(p,e))fail("save directional");MachineProfile q;if(!MachineProfileStore::load(p.name,q,e))fail("load directional");if(!q.compressionCompliance.enabled||q.compressionCompliance.version!=3||q.compressionCompliance.points.size()!=2||q.tensionCompliance.enabled||q.tensionCompliance.version!=7||q.tensionCompliance.points.size()!=2)fail("independent roundtrip");
+ p.name="legacy";p.complianceEnabled=true;p.complianceVersion=5;p.compliancePoints={{0,0},{50,.01}};p.compressionCompliance={};p.tensionCompliance={};if(!MachineProfileStore::save(p,e))fail("legacy seed");QFile f(MachineProfileStore::profilePath(p.name));if(!f.open(QIODevice::ReadOnly))fail("legacy read");auto rootObject=QJsonDocument::fromJson(f.readAll()).object();f.close();rootObject.remove("machineCompliance");if(!f.open(QIODevice::WriteOnly|QIODevice::Truncate)||f.write(QJsonDocument(rootObject).toJson())<0)fail("legacy rewrite");f.close();MachineProfile legacy;if(!MachineProfileStore::load(p.name,legacy,e))fail("legacy load");if(!legacy.complianceEnabled||legacy.complianceVersion!=5||legacy.compliancePoints.size()!=2)fail("legacy retained");if(legacy.compressionCompliance.enabled||legacy.tensionCompliance.enabled||!legacy.compressionCompliance.points.isEmpty()||!legacy.tensionCompliance.points.isEmpty())fail("legacy must not activate directional curves");
+ auto pending=q;const auto oldCompression=q.compressionCompliance;QVector<dao::utm::CompliancePoint> captured{{0,0},{90,.021}};if(pending.compressionCompliance.version!=oldCompression.version)fail("version changed before save");pending.compressionCompliance.points=captured;pending.compressionCompliance.enabled=true;pending.compressionCompliance.version=oldCompression.version+1;if(!MachineProfileStore::save(pending,e))fail("save pending");MachineProfile saved;if(!MachineProfileStore::load(pending.name,saved,e)||saved.compressionCompliance.version!=4||!saved.compressionCompliance.enabled)fail("version increment on save");if(saved.tensionCompliance.version!=7||saved.tensionCompliance.enabled)fail("tension untouched");std::cout<<"PASS directional compliance profile tests\n";return 0;}

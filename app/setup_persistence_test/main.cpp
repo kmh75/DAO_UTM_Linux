@@ -6,11 +6,13 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QLabel>
 #include <QPushButton>
 #include <QSettings>
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QTemporaryDir>
+#include <QStatusBar>
 
 #include <cmath>
 #include <cstdlib>
@@ -30,8 +32,11 @@ int main(int argc,char** argv)
     {
         UtmUiController controller;controller.profile().lastSelectedTab=3;controller.startOffline();MainWindow window(&controller);
         auto* tabs=window.findChild<QTabWidget*>();if(!tabs)fail("tabs");int setupIndex=-1;for(int i=0;i<tabs->count();++i)if(tabs->tabText(i)=="Setup")setupIndex=i;if(setupIndex<0)fail("Setup tab");QWidget* setup=tabs->widget(setupIndex);
+        QWidget* main=tabs->widget(0);auto* exit=control<QPushButton>(window,"MainExitButton");auto* powerOff=control<QCheckBox>(window,"MainPowerOffAfterExit");if(!main->isAncestorOf(exit)||setup->isAncestorOf(exit)||powerOff->isChecked())fail("Main-only Exit controls or default");if(!window.statusBar()||window.statusBar()->objectName()!="MainStatusBar")fail("Main status bar");
+        auto* mode=control<QComboBox>(window,"NetworkIpMode");auto* manual=control<QWidget>(window,"NetworkManualFields");if(mode->currentIndex()!=0||manual->isEnabled())fail("DHCP fields disabled");mode->setCurrentIndex(1);if(!manual->isEnabled())fail("Manual fields enabled");
+        if(control<QLabel>(window,"NetworkWifiStatus")->text()!="No Wi-Fi adapter available."||control<QPushButton>(window,"NetworkWifiScan")->isEnabled()||control<QPushButton>(window,"NetworkWifiConnect")->isEnabled())fail("Wi-Fi unavailable UI");
         if(tabs->currentIndex()!=0||tabs->tabText(0)!="Main")fail("offline startup must show Main tab");tabs->setCurrentIndex(3);if(tabs->currentIndex()!=3)fail("normal tab navigation");tabs->setCurrentIndex(0);
-        for(auto* widget:setup->findChildren<QWidget*>())if((qobject_cast<QSpinBox*>(widget)||qobject_cast<QDoubleSpinBox*>(widget)||qobject_cast<QComboBox*>(widget)||qobject_cast<QCheckBox*>(widget))&&widget->property("profileJsonField").toString().isEmpty())fail("editable Setup widget without persistence mapping");
+        for(auto* widget:setup->findChildren<QWidget*>())if((qobject_cast<QSpinBox*>(widget)||qobject_cast<QDoubleSpinBox*>(widget)||qobject_cast<QComboBox*>(widget)||qobject_cast<QCheckBox*>(widget))&&widget->property("profileJsonField").toString().isEmpty()&&!widget->property("nonPersistentSystemField").toBool())fail("editable Setup widget without persistence mapping");
         control<QComboBox>(window,"Setup_adapterName")->setEditText("test_eth9");control<QSpinBox>(window,"Setup_devices.servo")->setValue(3);control<QSpinBox>(window,"Setup_devices.adc")->setValue(4);control<QSpinBox>(window,"Setup_devices.io")->setValue(5);control<QSpinBox>(window,"Setup_devices.encoder")->setValue(6);control<QCheckBox>(window,"Setup_devices.encoderRequired")->setChecked(true);control<QCheckBox>(window,"Setup_devices.autoServoOn")->setChecked(true);
         control<QDoubleSpinBox>(window,"Setup_motion.servoUnitsPerMm")->setValue(1234.5);setComboData(control<QComboBox>(window,"Setup_motion.servoDirectionSign"),-1);setComboData(control<QComboBox>(window,"Setup_forceControl.forceDirectionSign"),-1);control<QDoubleSpinBox>(window,"Setup_motion.jogMin")->setValue(.25);control<QDoubleSpinBox>(window,"Setup_motion.jogMax")->setValue(876.5);control<QDoubleSpinBox>(window,"Setup_motion.jogDefault")->setValue(23.75);control<QDoubleSpinBox>(window,"Setup_motion.accelerationMmPerSec2")->setValue(27.5);control<QDoubleSpinBox>(window,"Setup_motion.decelerationMmPerSec2")->setValue(812.0);
         control<QDoubleSpinBox>(window,"Setup_forceControl.approachSpeed")->setValue(8);control<QDoubleSpinBox>(window,"Setup_forceControl.mediumSpeed")->setValue(4);control<QDoubleSpinBox>(window,"Setup_forceControl.fineSpeed")->setValue(2);control<QDoubleSpinBox>(window,"Setup_forceControl.reverseSpeed")->setValue(1);control<QDoubleSpinBox>(window,"Setup_forceControl.mediumErrorN")->setValue(9);control<QDoubleSpinBox>(window,"Setup_forceControl.fineErrorN")->setValue(3);control<QDoubleSpinBox>(window,"Setup_forceControl.toleranceN")->setValue(.7);control<QDoubleSpinBox>(window,"Setup_forceControl.maxTravelMm")->setValue(44);control<QDoubleSpinBox>(window,"Setup_forceControl.timeoutSec")->setValue(77);

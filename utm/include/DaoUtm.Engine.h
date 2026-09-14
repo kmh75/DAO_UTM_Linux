@@ -154,6 +154,25 @@ extern "C"
     DAO_UTM_API int DaoUtm_StopSequence();
     DAO_UTM_API int DaoUtm_GetRuntimeV6(
         UtmRuntimeInfoV6* runtime);
+    DAO_UTM_API int DaoUtm_GetCommunicationRuntimeV1(
+        UtmCommunicationRuntimeInfoV1* runtime);
+
+    DAO_UTM_API int DaoUtm_StartCompliancePrecheck(
+        const UtmComplianceCalibrationConfigV1* config,
+        unsigned long long* sessionId);
+    DAO_UTM_API int DaoUtm_ConfirmComplianceFullCalibration(
+        unsigned long long sessionId);
+    DAO_UTM_API int DaoUtm_AbortComplianceCalibration(
+        unsigned long long sessionId);
+    DAO_UTM_API int DaoUtm_GetComplianceCalibrationRuntimeV1(
+        UtmComplianceCalibrationRuntimeV1* runtime);
+    DAO_UTM_API int DaoUtm_GetCompliancePendingPoints(
+        unsigned long long sessionId,
+        UtmComplianceCalibrationPoint* points,
+        unsigned int capacity,
+        unsigned int* pointCount);
+    DAO_UTM_API int DaoUtm_DiscardCompliancePending(
+        unsigned long long sessionId);
 
     DAO_UTM_API int DaoUtm_RetryStartup();
 }

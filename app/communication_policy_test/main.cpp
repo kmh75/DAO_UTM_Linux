@@ -1,6 +1,7 @@
 #include "UtmCommunicationPolicy.h"
 #include "UtmSafetyMonitor.h"
 #include "UtmStateMachine.h"
+#include "UtmMotionOwnershipPolicy.h"
 #include <cstdlib>
 #include <iostream>
 
@@ -13,7 +14,9 @@ int main()
     t=0;{P p;step(p,true,t);step(p,false,t);step(p,false,t);if(step(p,true,t).hardFault)fail("two bad");}
     t=0;{P p;step(p,true,t);step(p,false,t);step(p,false,t);if(step(p,false,t).state!=P::DEGRADED||step(p,true,t).hardFault)fail("degraded recovery");}
     t=0;{P p;step(p,true,t);for(int i=0;i<5;++i)step(p,false,t);if(p.GetState()!=P::RECOVERING)fail("recovering threshold");auto a=step(p,true,t),b=step(p,true,t),c=step(p,true,t);if(a.state!=P::RECOVERING||b.state!=P::RECOVERING||c.state!=P::NORMAL||!c.recovered)fail("three good recovery");}
-    {UtmSafetyMonitor safety;UtmStopLatch latch;UtmStateMachine machine;machine.CompleteStartup();UtmInputSnapshot snapshot{};snapshot.communicationValid=1;UtmSafetyContext context{};const auto evaluation=safety.Evaluate(snapshot,context,false,true,true);if(!evaluation.requested||evaluation.primaryReason!=UTM_STOP_COMMUNICATION_FAULT)fail("recovering stop request");latch.Update(evaluation,1,1);machine.Update(snapshot,latch.Get(),nullptr,false);if(machine.GetState()!=UTM_MACHINE_STOPPED)fail("recovering safe stopped state");machine.Update(snapshot,latch.Get(),nullptr,false);if(machine.GetState()!=UTM_MACHINE_STOPPED)fail("motion must not auto resume");}
+    {UtmSafetyMonitor safety;UtmStopLatch latch;UtmStateMachine machine;machine.CompleteStartup();UtmInputSnapshot snapshot{};snapshot.communicationValid=1;UtmSafetyContext idle{};const auto idleEvaluation=safety.Evaluate(snapshot,idle,false,true,true);if(idleEvaluation.requested)fail("idle recovery must not stop");machine.Update(snapshot,latch.Get(),nullptr,false);if(machine.GetState()!=UTM_MACHINE_READY)fail("idle recovery ready");UtmSafetyContext active{};active.motionActive=1;const auto evaluation=safety.Evaluate(snapshot,active,false,true,true);if(!evaluation.requested||evaluation.primaryReason!=UTM_STOP_COMMUNICATION_FAULT)fail("active recovery stop request");latch.Update(evaluation,1,1);machine.Update(snapshot,latch.Get(),nullptr,false);if(machine.GetState()!=UTM_MACHINE_STOPPED)fail("active recovery stopped");machine.Update(snapshot,latch.Get(),nullptr,false);if(machine.GetState()!=UTM_MACHINE_STOPPED)fail("motion must not auto resume");}
+    {UtmMotionOwnershipSnapshot s;if(UtmMotionOwnershipPolicy::IsActive(s))fail("empty ownership");s.outputPositionActive=1;if(!UtmMotionOwnershipPolicy::IsActive(s))fail("zero velocity active position");s={};s.sequenceRunning=1;if(!UtmMotionOwnershipPolicy::IsActive(s))fail("sequence wait ownership");s={};s.calibrationActive=1;if(!UtmMotionOwnershipPolicy::IsActive(s))fail("calibration ownership");s={};s.pendingMotionCommand=1;if(!UtmMotionOwnershipPolicy::IsActive(s))fail("pending motion ownership");}
+    {UtmCommunicationWarningPolicy w;const auto hour=UtmCommunicationWarningPolicy::WindowNs;w.Add(1);w.Add(2);if(w.Unstable(2))fail("two incidents warning");w.Add(3);if(!w.Unstable(3)||w.Recent(3)!=3)fail("three incidents warning");if(w.Unstable(hour+4))fail("rolling window expiry");}
     t=0;{P p;step(p,true,t);for(int i=0;i<5;++i)step(p,false,t);t+=P::RecoveryWindowNs;if(!p.Update(false,true,t).hardFault)fail("recovery timeout");}
     t=0;{P p;if(!p.Update(true,false,t).hardFault)fail("fatal basic communication");}
     static_assert(sizeof(P)<=32,"communication policy must remain fixed-size");

@@ -60,3 +60,10 @@ void UtmCommandMailbox::Clear()
     std::lock_guard<std::mutex> lock(mutex_);
     queue_.clear();
 }
+
+bool UtmCommandMailbox::HasPendingMotion() const
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    for(const auto& r:queue_)if(r.type==UTM_COMMAND_START||r.type==UTM_COMMAND_JOG_UP_REQUEST||r.type==UTM_COMMAND_JOG_DOWN_REQUEST)return true;
+    return false;
+}

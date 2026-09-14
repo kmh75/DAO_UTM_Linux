@@ -203,6 +203,9 @@ public:
         int logicalServoIndex,
         unsigned int timeoutMs); // 요청한 EtherCAT 상태에 도달했는지 제한 시간 동안 확인합니다.
 
+    bool GetCommunicationRecoveryRuntime(
+        DaoInternalCommunicationRecoveryRuntime& runtimeInfo) const;
+
     bool ServoMoveAbsolute(
         int logicalServoIndex,
         int targetPosition,

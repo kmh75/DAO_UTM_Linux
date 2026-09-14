@@ -19,10 +19,11 @@ public:
         unsigned long long commandEpoch);
 
     void Clear();
+    bool HasPendingMotion() const;
 
 private:
     static constexpr std::size_t MAX_QUEUE_SIZE = 64;
 
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     std::deque<UtmCommandRequest> queue_;
 };

@@ -29,6 +29,11 @@ bool UtmRuntimeStore::ReadV6(UtmRuntimeInfoV6& runtime) const
     return true;
 }
 
+void UtmRuntimeStore::PublishCommunication(const UtmCommunicationRuntimeInfoV1& runtime)
+{ std::lock_guard<std::mutex> lock(mutex_);communication_=runtime; }
+bool UtmRuntimeStore::ReadCommunication(UtmCommunicationRuntimeInfoV1& runtime) const
+{ std::lock_guard<std::mutex> lock(mutex_);runtime=communication_;return true; }
+
 bool UtmRuntimeStore::ReadV5(UtmRuntimeInfoV5& runtime) const
 {
     std::lock_guard<std::mutex> lock(mutex_);

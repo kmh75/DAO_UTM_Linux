@@ -14,6 +14,8 @@ public:
         const UtmGeneralMotionRuntimeInfo& motion = {},
         const UtmForceMotionRuntimeInfo& forceMotion = {},
         const UtmSequenceRuntimeInfo& sequence = {});
+    void PublishCommunication(const UtmCommunicationRuntimeInfoV1& runtime);
+    bool ReadCommunication(UtmCommunicationRuntimeInfoV1& runtime) const;
 
     bool Read(
         UtmRuntimeInfo& runtime) const;
@@ -37,4 +39,5 @@ private:
     UtmGeneralMotionRuntimeInfo motion_{};
     UtmForceMotionRuntimeInfo forceMotion_{};
     UtmSequenceRuntimeInfo sequence_{};
+    UtmCommunicationRuntimeInfoV1 communication_{};
 };

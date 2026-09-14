@@ -1334,6 +1334,26 @@ int DaoEngine_GetServoRuntimeInfo(
     return result ? 1 : 0;
 }
 
+int DaoEngine_GetCommunicationRecoveryRuntimeV1(
+    DaoCommunicationRecoveryRuntimeV1* runtimeInfo)
+{
+    if (runtimeInfo == nullptr) return 0;
+    DaoInternalCommunicationRecoveryRuntime s{};
+    const bool result = g_engine.GetCommunicationRecoveryRuntime(s);
+    *runtimeInfo = {};
+    runtimeInfo->version=1; runtimeInfo->communicationState=s.communicationState; runtimeInfo->incidentGeneration=s.incidentGeneration;
+    runtimeInfo->recoveryActive=s.recoveryActive; runtimeInfo->recoveryStage=s.recoveryStage; runtimeInfo->recoveryAttempt=s.recoveryAttempt;
+    runtimeInfo->recoverySucceeded=s.recoverySucceeded; runtimeInfo->recoveryFailed=s.recoveryFailed; runtimeInfo->recoveryElapsedMs=s.recoveryElapsedMs;
+    runtimeInfo->expectedWkc=s.expectedWkc; runtimeInfo->currentWkc=s.currentWkc; runtimeInfo->minimumWkc=s.minimumWkc;
+    runtimeInfo->consecutiveBadWkc=s.consecutiveBadWkc; runtimeInfo->consecutiveGoodWkc=s.consecutiveGoodWkc;
+    runtimeInfo->maximumConsecutiveBadWkc=s.maximumConsecutiveBadWkc; runtimeInfo->failedSlaveIndex=s.failedSlaveIndex;
+    runtimeInfo->failedSlaveState=s.failedSlaveState; runtimeInfo->failedSlaveAlStatus=s.failedSlaveAlStatus;
+    runtimeInfo->totalIncidentCount=s.totalIncidentCount; runtimeInfo->recoveredIncidentCount=s.recoveredIncidentCount;
+    runtimeInfo->recoveryFailureCount=s.recoveryFailureCount; runtimeInfo->maximumRecoveryDurationMs=s.maximumRecoveryDurationMs;
+    runtimeInfo->lastIncidentTimestampNs=s.lastIncidentTimestampNs;
+    return result ? 1 : 0;
+}
+
 
 int DaoEngine_GetIoRuntimeInfo(
     int logicalIoIndex,

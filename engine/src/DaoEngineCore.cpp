@@ -1434,6 +1434,14 @@ bool DaoEngineCore::ServoHome(
         timeoutMs);
 }
 
+bool DaoEngineCore::GetCommunicationRecoveryRuntime(
+    DaoInternalCommunicationRecoveryRuntime& runtimeInfo) const
+{
+    if (!IsInitialized()) return false;
+    master_.GetCommunicationRecoveryRuntime(runtimeInfo);
+    return true;
+}
+
 
 bool DaoEngineCore::ServoMoveAbsolute(
     int logicalServoIndex,

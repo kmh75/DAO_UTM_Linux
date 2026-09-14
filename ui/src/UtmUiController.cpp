@@ -35,6 +35,7 @@ QString validateJogConfig(const UtmJogConfigV2& value)
 UtmUiController::UtmUiController(QObject* parent) : QObject(parent)
 {
     ensureActiveProfile();
+    restoreComplianceFromProfile();
     timer_.setInterval(40);
     timer_.setTimerType(Qt::PreciseTimer);
     connect(&timer_, &QTimer::timeout, this, &UtmUiController::pollRuntime);
@@ -48,7 +49,7 @@ bool UtmUiController::ensureActiveProfile()
     {
         QString error;MachineProfile loaded;
         if(!MachineProfileStore::load(name,loaded,error)){qWarning().noquote()<<QString("[PROFILE] load failed path=%1 error=%2").arg(MachineProfileStore::profilePath(name),error);return false;}
-        profile_=loaded;activeProfileValid_=true;profileApplyState_="PROFILE_LOADED";settings.setValue("profiles/lastSelected",profile_.name);settings.sync();
+        profile_=loaded;activeProfileValid_=true;profileApplyState_="PROFILE_LOADED";restoreComplianceFromProfile();settings.setValue("profiles/lastSelected",profile_.name);settings.sync();
         qInfo().noquote()<<QString("[PROFILE] active=%1 path=%2").arg(profile_.name,MachineProfileStore::profilePath(profile_.name));
         qInfo().noquote()<<QString("[PROFILE] loaded forceCalibrationScale=%1 valid=%2").arg(profile_.adcCalibrationScale,0,'g',17).arg(profile_.adcCalibrationScaleValid);
         qInfo().noquote()<<QString("[PROFILE] loaded extensometerScale=%1 valid=%2").arg(profile_.encoderCalibrationScale,0,'g',17).arg(profile_.encoderCalibrationScaleValid);
@@ -229,7 +230,7 @@ bool UtmUiController::loadProfile(const QString& name)
 {
     QString error;MachineProfile loaded;if(!MachineProfileStore::load(name,loaded,error)){emit commandFailed("Load profile",error);return false;}
     if(ownsEngine_){emit commandFailed("Load profile","Disconnect before loading a machine profile");return false;}
-    profile_=loaded;activeProfileValid_=true;pendingScaleApply_=true;profileApplyState_="PROFILE_LOADED";
+    profile_=loaded;activeProfileValid_=true;pendingScaleApply_=true;profileApplyState_="PROFILE_LOADED";compliance_.ClearCurve();if(profile_.compliancePoints.size()>=2)compliance_.ConfigureCurve(profile_.compliancePoints.constData(),static_cast<std::size_t>(profile_.compliancePoints.size()),profile_.complianceVersion);if(profile_.complianceEnabled)compliance_.Enable();complianceZeroValid_=false;
     qInfo().noquote()<<QString("[PROFILE] active=%1 path=%2").arg(profile_.name,MachineProfileStore::profilePath(profile_.name));
     qInfo().noquote()<<QString("[PROFILE] loaded forceCalibrationScale=%1 valid=%2").arg(profile_.adcCalibrationScale,0,'g',17).arg(profile_.adcCalibrationScaleValid);
     qInfo().noquote()<<QString("[PROFILE] loaded extensometerScale=%1 valid=%2").arg(profile_.encoderCalibrationScale,0,'g',17).arg(profile_.encoderCalibrationScaleValid);
@@ -277,6 +278,28 @@ bool UtmUiController::holdForce(int dir, double f, double hold, double tolerance
     static_cast<unsigned int>(timeout*1000.0),UTM_COMMAND_SOURCE_UI)); }
 bool UtmUiController::stopMotion()
 { return result("Motion stop", offline_ ? 1 : DaoUtm_StopMotion(UTM_COMMAND_SOURCE_UI)); }
+
+ApplicationActivitySnapshot UtmUiController::shutdownActivity() const
+{
+    ApplicationActivitySnapshot s;const auto& base=runtime_.runtime.runtime.runtime.runtime.runtime;
+    const auto& jog=runtime_.runtime.runtime.runtime.runtime.jog;const auto& motion=runtime_.runtime.runtime.motion;
+    const auto& force=runtime_.runtime.forceMotion;const auto& sequence=runtime_.sequence;
+    s.jog=jog.jogActive||jog.activeJogSourceMask;s.motion=motion.motionActive;
+    s.stopping=motion.motionState==UTM_MOTION_STATE_STOPPING;s.force=force.forceMotionActive;
+    s.sequence=sequence.sequenceRunning;s.calibration=autoCalibrationRuntime_.active;
+    s.recording=sequence.recordingActive;s.criticalFinalize=false;s.homing=false;
+    (void)base;return s;
+}
+
+bool UtmUiController::orderlyShutdown(QString& error)
+{
+    timer_.stop();
+    if(offline_){offline_=false;return true;}
+    if(!ownsEngine_)return true;
+    DaoUtm_Disconnect();
+    if(DaoUtm_IsRunning()!=0||DaoUtm_IsInitialized()!=0){error="UTM/EtherCAT cleanup did not complete";timer_.start();return false;}
+    ownsEngine_=false;pendingScaleApply_=false;return true;
+}
 bool UtmUiController::setPositionZero()
 { return result("Set position zero", offline_ ? 1 : DaoUtm_SetPositionZero()); }
 bool UtmUiController::clearPositionZero()
@@ -289,6 +312,73 @@ bool UtmUiController::calibrateForce(double referenceValue, ForceUnit referenceU
 { if(!ensureActiveProfile()){emit commandFailed("Force calibration","No persistent active machine profile is available");return false;}const double referenceN=ForceUnits::toNewtons(referenceValue,referenceUnit);lastCalibrationReferenceN_=referenceN;if(offline_){calibration_.forceCalibrationValid=1;offlineDisplayCollected_=0;displayForceRuntime_.state=UTM_DISPLAY_FORCE_STABILIZING;++displayForceRuntime_.generation;++displayForceRuntime_.resetCount;displayForceRuntime_.lastResetReason=UTM_DISPLAY_FORCE_RESET_FORCE_CALIBRATION;}const int rc=offline_?1:DaoUtm_CalibrateForce(referenceN);if(rc){if(offline_){profile_.adcCalibrationScale=calibration_.forceCalibrationScale;profile_.adcCalibrationScaleValid=true;qInfo().noquote()<<QString("[CAL] force calibration success scale=%1").arg(calibration_.forceCalibrationScale,0,'g',17);autosaveCalibrationScale(true);}else{forceCalibrationSavePending_=true;forceCalibrationCaptureObserved_=false;}}return result("Force calibration",rc); }
 bool UtmUiController::configureAdcFilters(const UtmAdcFilterConfig& config)
 { if(offline_){calibration_.lowLevelFilterEnabled=config.lowLevelFilterEnabled;calibration_.lowLevelFilterAlpha=config.lowLevelFilterAlpha;calibration_.powerLineFilterMode=config.powerLineFilterMode;calibration_.medianFilterEnabled=config.medianFilterEnabled;calibration_.movingAverageSampleCount=config.movingAverageSampleCount;offlineDisplayCollected_=0;displayForceRuntime_.state=UTM_DISPLAY_FORCE_STABILIZING;++displayForceRuntime_.generation;++displayForceRuntime_.resetCount;displayForceRuntime_.lastResetReason=UTM_DISPLAY_FORCE_RESET_ADC_FILTER;}const int rc=offline_?1:DaoUtm_ConfigureAdcFilters(&config);if(rc)profile_.adcFilter=config;return result("ADC filter configuration",rc); }
+
+dao::utm::ComplianceRuntime UtmUiController::complianceRuntime() const
+{
+    const auto& base=runtime_.runtime.runtime.runtime.runtime.runtime;
+    const auto& motion=runtime_.runtime.runtime.motion;
+    int mode=profile_.activeComplianceMode;
+    const double signedDirectionalForce=base.input.forceN*static_cast<double>(profile_.force.forceDirectionSign);
+    const double nearZero=std::max(.001,profile_.complianceAutoCalibration.forceToleranceN);
+    if(signedDirectionalForce>nearZero)mode=UTM_COMPLIANCE_MODE_TENSION;
+    else if(signedDirectionalForce<-nearZero)mode=UTM_COMPLIANCE_MODE_COMPRESSION;
+    const auto& directional=mode==UTM_COMPLIANCE_MODE_COMPRESSION?compressionCompliance_:tensionCompliance_;
+    if(directional.PointCount()>=2)return directional.GetRuntime(base.input.forceN,motion.testPositionMm);
+    return compliance_.GetRuntime(base.input.forceN,motion.testPositionMm);
+}
+
+void UtmUiController::restoreComplianceFromProfile()
+{
+    compliance_.ClearCurve();compressionCompliance_.ClearCurve();tensionCompliance_.ClearCurve();
+    const auto configure=[](dao::utm::UtmComplianceCompensation& target,const MachineComplianceCurveProfile& source){if(source.points.size()>=2&&target.ConfigureCurve(source.points.constData(),static_cast<std::size_t>(source.points.size()),source.version)==dao::utm::ComplianceError::None&&source.enabled)target.Enable();};
+    if(profile_.compliancePoints.size()>=2&&compliance_.ConfigureCurve(profile_.compliancePoints.constData(),static_cast<std::size_t>(profile_.compliancePoints.size()),profile_.complianceVersion)==dao::utm::ComplianceError::None&&profile_.complianceEnabled)compliance_.Enable();
+    configure(compressionCompliance_,profile_.compressionCompliance);configure(tensionCompliance_,profile_.tensionCompliance);
+}
+
+const MachineComplianceCurveProfile& UtmUiController::complianceCurve(int mode) const
+{return mode==UTM_COMPLIANCE_MODE_COMPRESSION?profile_.compressionCompliance:profile_.tensionCompliance;}
+
+bool UtmUiController::startComplianceAutoCalibration(const UtmComplianceCalibrationConfigV1& requested,QString& error)
+{
+    if(offline_){error="Auto calibration requires the hardware-disabled Engine simulation test or commissioned hardware; UI offline demo cannot command calibration";return false;}
+    if(!ensureActiveProfile()){error="No persistent active machine profile";return false;}auto config=requested;config.loadcellCapacityN=profile_.loadcellCapacityN;unsigned long long session=0;
+    if(!DaoUtm_StartCompliancePrecheck(&config,&session)){error="Engine rejected calibration validation/start conditions";return false;}profile_.complianceAutoCalibration=config;return true;
+}
+bool UtmUiController::confirmFullComplianceCalibration(QString& error){if(!DaoUtm_ConfirmComplianceFullCalibration(autoCalibrationRuntime_.sessionId)){error="Pre-check has not passed or session is stale";return false;}return true;}
+void UtmUiController::abortComplianceAutoCalibration(){if(autoCalibrationRuntime_.sessionId)DaoUtm_AbortComplianceCalibration(autoCalibrationRuntime_.sessionId);}
+void UtmUiController::discardPendingComplianceCurve(){if(autoCalibrationRuntime_.sessionId)DaoUtm_DiscardCompliancePending(autoCalibrationRuntime_.sessionId);}
+bool UtmUiController::savePendingComplianceCurve(bool enable,QString& error)
+{
+    const auto rt=autoCalibrationRuntime_;unsigned int count=0;if(!rt.pendingResult||!DaoUtm_GetCompliancePendingPoints(rt.sessionId,nullptr,0,&count)||count<2){error="No completed pending calibration result";return false;}QVector<UtmComplianceCalibrationPoint> captured(static_cast<int>(count));if(!DaoUtm_GetCompliancePendingPoints(rt.sessionId,captured.data(),count,&count)){error="Pending calibration result read failed";return false;}MachineProfile candidate=profile_;auto& curve=rt.mode==UTM_COMPLIANCE_MODE_COMPRESSION?candidate.compressionCompliance:candidate.tensionCompliance;curve.points.clear();for(const auto& p:captured)curve.points.append({p.forceN,p.deformationMm});curve.enabled=enable;curve.version+=1U;candidate.activeComplianceMode=rt.mode;
+    if(!MachineProfileStore::validate(candidate,error)||!MachineProfileStore::save(candidate,error))return false;profile_=candidate;restoreComplianceFromProfile();if(!DaoUtm_DiscardCompliancePending(rt.sessionId)){emit commandFailed("Compliance pending result","Profile saved but Engine pending result could not be discarded");}emit profileStatus("MACHINE COMPLIANCE CURVE SAVED");emit runtimeUpdated();return true;
+}
+
+bool UtmUiController::captureComplianceZero()
+{
+    complianceZeroDisplacementMm_=runtime_.runtime.runtime.motion.testPositionMm;
+    complianceZeroValid_=true;emit runtimeUpdated();return true;
+}
+
+dao::utm::CompliancePoint UtmUiController::currentCompliancePoint() const
+{
+    const auto& base=runtime_.runtime.runtime.runtime.runtime.runtime;
+    const auto raw=runtime_.runtime.runtime.motion.testPositionMm;
+    return {base.input.forceN,raw-complianceZeroDisplacementMm_};
+}
+
+bool UtmUiController::applyCompliance(const QVector<dao::utm::CompliancePoint>& points,bool enabled,QString& error)
+{
+    if(!ensureActiveProfile()){error="No persistent active machine profile";return false;}
+    MachineProfile candidate=profile_;candidate.compliancePoints=points;candidate.complianceEnabled=enabled;
+    candidate.complianceVersion=profile_.complianceVersion+1U;
+    if(!MachineProfileStore::validate(candidate,error))return false;
+    dao::utm::UtmComplianceCompensation configured;
+    if(points.size()>=2&&configured.ConfigureCurve(points.constData(),static_cast<std::size_t>(points.size()),candidate.complianceVersion)!=dao::utm::ComplianceError::None){error="Invalid compliance curve";return false;}
+    if(enabled)configured.Enable();
+    if(!MachineProfileStore::save(candidate,error))return false;
+    profile_=candidate;compliance_=configured;QSettings().setValue("profiles/lastSelected",profile_.name);
+    emit profileStatus("COMPLIANCE COMPENSATION APPLIED / SAVED");emit runtimeUpdated();return true;
+}
 
 bool UtmUiController::applyAdcFilterConfiguration(const UtmAdcFilterConfig& config,unsigned int displayAverageSamples)
 {
@@ -382,6 +472,8 @@ void UtmUiController::pollRuntime()
         if(DaoUtm_GetCalibrationRuntime(&nextCalibration)!=0)calibration_=nextCalibration;
         UtmDisplayForceRuntimeInfo nextDisplay{};
         if(DaoUtm_GetDisplayForceRuntime(&nextDisplay)!=0){displayForceRuntime_=nextDisplay;displayForceN_=nextDisplay.displayForceN;displayForceValid_=nextDisplay.state==UTM_DISPLAY_FORCE_VALID;displayForceAverageSamples_=nextDisplay.configuredSampleCount;}
+        UtmCommunicationRuntimeInfoV1 nextCommunication{};
+        if(DaoUtm_GetCommunicationRuntimeV1(&nextCommunication)!=0)communicationRuntime_=nextCommunication;
         const auto& startup=runtime_.runtime.runtime.runtime.startup;
         if(startup.startupPhase!=lastLoggedStartupPhase_||startup.startupFault!=lastLoggedStartupFault_)
         {
@@ -408,7 +500,7 @@ void UtmUiController::pollRuntime()
         const qint64 now=QDateTime::currentMSecsSinceEpoch();
         if(verboseRuntime_&&now-lastRuntimeLogMs_>=1000){const auto& sequence=runtime_.sequence;qInfo().noquote()<<QString("[UI-RUNTIME] pollOk=%1 pollFail=%2 machine=%3 forceValid=%4 encoderPresent=%5 step=%6/%7 profile=%8 capture=%9:%10").arg(runtimePollSuccessCount_).arg(runtimePollFailureCount_).arg(base.machineState).arg(base.input.forceValid).arg(base.input.encoderPresent).arg(sequence.currentStepIndex).arg(sequence.stepCount).arg(profileApplyState_).arg(calibration_.forceCaptureType).arg(calibration_.forceCaptureActive);lastRuntimeLogMs_=now;}
     }
-    emit runtimeUpdated();
+    if(ownsEngine_)DaoUtm_GetComplianceCalibrationRuntimeV1(&autoCalibrationRuntime_);emit runtimeUpdated();
 }
 
 void UtmUiController::updateOffline()

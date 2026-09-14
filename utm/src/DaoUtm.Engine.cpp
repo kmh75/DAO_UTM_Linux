@@ -287,6 +287,12 @@ int DaoUtm_MoveAbsolute(
         commandSource) ? 1 : 0;
 }
 
+int DaoUtm_GetCommunicationRuntimeV1(UtmCommunicationRuntimeInfoV1* runtime)
+{
+    if(runtime==nullptr)return 0;UtmCommunicationRuntimeInfoV1 local{};
+    const bool result=g_utmEngine.GetCommunicationRuntime(local);*runtime=local;return result?1:0;
+}
+
 int DaoUtm_MoveIncremental(
     double incrementalDistanceMm,
     double speedMmPerMin,
@@ -493,6 +499,45 @@ int DaoUtm_GetRuntimeV6(UtmRuntimeInfoV6* runtime)
     std::memcpy(runtime, &local, sizeof(local));
     return result ? 1 : 0;
 }
+
+int DaoUtm_StartCompliancePrecheck(
+    const UtmComplianceCalibrationConfigV1* config,
+    unsigned long long* sessionId)
+{
+    return config != nullptr && sessionId != nullptr &&
+        g_utmEngine.StartCompliancePrecheck(*config, *sessionId) ? 1 : 0;
+}
+
+int DaoUtm_ConfirmComplianceFullCalibration(unsigned long long sessionId)
+{ return g_utmEngine.ConfirmComplianceFullCalibration(sessionId) ? 1 : 0; }
+
+int DaoUtm_AbortComplianceCalibration(unsigned long long sessionId)
+{ return g_utmEngine.AbortComplianceCalibration(sessionId) ? 1 : 0; }
+
+int DaoUtm_GetComplianceCalibrationRuntimeV1(
+    UtmComplianceCalibrationRuntimeV1* runtime)
+{
+    if (runtime == nullptr) return 0;
+    UtmComplianceCalibrationRuntimeV1 local{};
+    const bool result = g_utmEngine.GetComplianceCalibrationRuntime(local);
+    std::memcpy(runtime, &local, sizeof(local));
+    return result ? 1 : 0;
+}
+
+int DaoUtm_GetCompliancePendingPoints(unsigned long long sessionId,
+    UtmComplianceCalibrationPoint* points, unsigned int capacity,
+    unsigned int* pointCount)
+{
+    if (pointCount == nullptr || (capacity > 0 && points == nullptr)) return 0;
+    unsigned int count = 0;
+    const bool result = g_utmEngine.GetCompliancePendingPoints(
+        sessionId, points, capacity, count);
+    *pointCount = count;
+    return result ? 1 : 0;
+}
+
+int DaoUtm_DiscardCompliancePending(unsigned long long sessionId)
+{ return g_utmEngine.DiscardCompliancePending(sessionId) ? 1 : 0; }
 
 int DaoUtm_RetryStartup()
 {

@@ -220,6 +220,58 @@ struct DaoAdcRuntimeInfo
     double filteredValue;
 };
 
+enum DaoCommunicationRecoveryState
+{
+    DAO_COMMUNICATION_HEALTHY = 0,
+    DAO_COMMUNICATION_TRANSIENT = 1,
+    DAO_COMMUNICATION_DEGRADED = 2,
+    DAO_COMMUNICATION_RECOVERING = 3,
+    DAO_COMMUNICATION_FAILED = 4
+};
+
+enum DaoCommunicationRecoveryStage
+{
+    DAO_RECOVERY_STAGE_NONE = 0,
+    DAO_RECOVERY_STAGE_READ_STATE,
+    DAO_RECOVERY_STAGE_ACK_SAFEOP_ERROR,
+    DAO_RECOVERY_STAGE_RECOVER_SLAVE,
+    DAO_RECOVERY_STAGE_RECONFIG_SLAVE,
+    DAO_RECOVERY_STAGE_VERIFY_SAFEOP,
+    DAO_RECOVERY_STAGE_REQUEST_OP,
+    DAO_RECOVERY_STAGE_VERIFY_OP,
+    DAO_RECOVERY_STAGE_STABILIZING,
+    DAO_RECOVERY_STAGE_RECOVERED,
+    DAO_RECOVERY_STAGE_FAILED
+};
+
+// Additive, fixed-size recovery snapshot. Existing public structures remain unchanged.
+struct DaoCommunicationRecoveryRuntimeV1
+{
+    unsigned int version = 1;
+    int communicationState = DAO_COMMUNICATION_HEALTHY;
+    unsigned long long incidentGeneration = 0;
+    int recoveryActive = 0;
+    int recoveryStage = DAO_RECOVERY_STAGE_NONE;
+    unsigned int recoveryAttempt = 0;
+    int recoverySucceeded = 0;
+    int recoveryFailed = 0;
+    unsigned long long recoveryElapsedMs = 0;
+    int expectedWkc = 0;
+    int currentWkc = 0;
+    int minimumWkc = 0;
+    unsigned long long consecutiveBadWkc = 0;
+    unsigned int consecutiveGoodWkc = 0;
+    unsigned long long maximumConsecutiveBadWkc = 0;
+    int failedSlaveIndex = 0;
+    unsigned short failedSlaveState = 0;
+    unsigned short failedSlaveAlStatus = 0;
+    unsigned long long totalIncidentCount = 0;
+    unsigned long long recoveredIncidentCount = 0;
+    unsigned long long recoveryFailureCount = 0;
+    unsigned long long maximumRecoveryDurationMs = 0;
+    unsigned long long lastIncidentTimestampNs = 0;
+};
+
 // 기존 DaoAdcRuntimeInfo ABI를 유지하면서 최종 Engineering 값을 제공합니다.
 // Engineering 단위는 DaoEngine_SetAdcCalibration()에 전달한 기준값과 같습니다.
 struct DaoAdcRuntimeInfoV2
@@ -756,6 +808,9 @@ extern "C"
     DAO_ENGINE_API int DaoEngine_GetServoRuntimeInfo(
         int logicalServoIndex,
         DaoServoRuntimeInfo* runtimeInfo);
+
+    DAO_ENGINE_API int DaoEngine_GetCommunicationRecoveryRuntimeV1(
+        DaoCommunicationRecoveryRuntimeV1* runtimeInfo);
 
     // IO 입력 PDO를 읽어 최신 입력 상태를 갱신합니다.
     // IO 입력 PDO를 읽어 최신 입력 상태를 갱신합니다.

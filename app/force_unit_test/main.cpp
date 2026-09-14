@@ -73,13 +73,13 @@ int main(int argc, char** argv)
     MachineProfile profile;
     profile.name="roundtrip";profile.displayForceUnit="gf";profile.forceDisplayDecimals=1;
     profile.loadcellCapacityN=ForceUnits::toNewtons(500.0,ForceUnit::Gf);
-    profile.calibrationReferenceUnit="kgf";profile.adcCalibrationScale=0.0025;profile.adcCalibrationScaleValid=true;
+    profile.calibrationReferenceUnit="kgf";profile.adcCalibrationScale=0.0025;profile.adcCalibrationScaleValid=true;profile.complianceEnabled=true;profile.complianceVersion=4;profile.compliancePoints={{0,0},{100,.015},{500,.071}};
     if(!near(profile.loadcellCapacityN,4.903325,1e-12))fail("500 gf capacity");
     if(!near(ForceUnits::toNewtons(10.0,ForceUnit::Kgf),98.0665,1e-12))fail("10 kgf capacity");
     QString error;if(!MachineProfileStore::save(profile,error))fail("profile save");
     const QByteArray defaultBefore=[](){QFile f(MachineProfileStore::profilePath("default_machine"));if(!f.open(QIODevice::ReadOnly))return QByteArray{};return f.readAll();}();
     MachineProfile loaded;if(!MachineProfileStore::load("roundtrip",loaded,error))fail("profile load");
-    if(loaded.displayForceUnit!="gf"||loaded.forceDisplayDecimals!=1||loaded.calibrationReferenceUnit!="kgf"||!near(loaded.loadcellCapacityN,4.903325)||!loaded.adcCalibrationScaleValid||!near(loaded.adcCalibrationScale,0.0025))fail("profile roundtrip values");
+    if(loaded.displayForceUnit!="gf"||loaded.forceDisplayDecimals!=1||loaded.calibrationReferenceUnit!="kgf"||!near(loaded.loadcellCapacityN,4.903325)||!loaded.adcCalibrationScaleValid||!near(loaded.adcCalibrationScale,0.0025)||!loaded.complianceEnabled||loaded.complianceVersion!=4||loaded.compliancePoints.size()!=3||!near(loaded.compliancePoints[1].deformationMm,.015))fail("profile roundtrip values");
 
     UtmUiController controller;controller.profile()=loaded;controller.startOffline();
     if(!controller.calibration().forceCalibrationValid||!near(controller.calibration().forceCalibrationScale,0.0025))fail("scale restore after engine initialize");

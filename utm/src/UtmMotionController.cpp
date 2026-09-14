@@ -380,5 +380,6 @@ bool UtmMotionController::IsValidSource(int source)
     return source == UTM_COMMAND_SOURCE_UI ||
         source == UTM_COMMAND_SOURCE_REMOTE ||
         source == UTM_COMMAND_SOURCE_SEQUENCER ||
+        source == UTM_COMMAND_SOURCE_CALIBRATION ||
         source == UTM_COMMAND_SOURCE_INTERNAL;
 }

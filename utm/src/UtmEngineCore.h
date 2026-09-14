@@ -2,9 +2,11 @@
 
 #include "DaoUtm.Types.h"
 #include "UtmCommandMailbox.h"
+#include "UtmComplianceCalibrationController.h"
 #include "UtmInputCollector.h"
 #include "UtmJogController.h"
 #include "UtmMotionController.h"
+#include "UtmMotionOwnershipPolicy.h"
 #include "UtmRuntimeStore.h"
 #include "UtmSafetyMonitor.h"
 #include "UtmStateMachine.h"
@@ -114,6 +116,16 @@ public:
     bool StartSequence();
     bool StopSequence();
     bool GetRuntimeV6(UtmRuntimeInfoV6& runtime) const;
+    bool GetCommunicationRuntime(UtmCommunicationRuntimeInfoV1& runtime) const;
+    bool StartCompliancePrecheck(const UtmComplianceCalibrationConfigV1& config,
+        unsigned long long& sessionId);
+    bool ConfirmComplianceFullCalibration(unsigned long long sessionId);
+    bool AbortComplianceCalibration(unsigned long long sessionId);
+    bool GetComplianceCalibrationRuntime(UtmComplianceCalibrationRuntimeV1& runtime) const;
+    bool GetCompliancePendingPoints(unsigned long long sessionId,
+        UtmComplianceCalibrationPoint* points, unsigned int capacity,
+        unsigned int& pointCount) const;
+    bool DiscardCompliancePending(unsigned long long sessionId);
 
     bool RetryStartup();
 
@@ -161,6 +173,7 @@ private:
     UtmForceControlConfig forceConfig_{};
     UtmStopConditionMonitor stopConditionMonitor_{};
     UtmSequencer sequencer_{};
+    UtmComplianceCalibrationController complianceCalibration_{};
 
     std::thread controlThread_;
     std::atomic<bool> initialized_{false};
@@ -168,6 +181,7 @@ private:
     std::atomic<bool> controlStopRequested_{true};
     std::atomic<bool> userStopRequested_{false};
     std::atomic<bool> startupRetryRequested_{false};
+    std::atomic<bool> communicationMotionInhibited_{false};
 
     std::atomic<unsigned long long> nextCommandId_{1};
     std::atomic<unsigned long long> commandEpoch_{1};

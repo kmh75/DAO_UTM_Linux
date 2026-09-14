@@ -18,6 +18,7 @@ public:
     bool IsMotionActive() const;
     bool IsStopComplete() const;
     const UtmMotionOutputRuntime& GetRuntime() const;
+    void RequestRecoveryStopAlignment();
 
 private:
     bool IssueVelocity(

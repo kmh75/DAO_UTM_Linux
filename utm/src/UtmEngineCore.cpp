@@ -163,11 +163,17 @@ bool UtmEngineCore::SubmitCommand(
         return false;
     }
 
+    // CALIBRATION is an Engine-private owner. Its public enum value is for
+    // diagnostics only; API callers cannot impersonate the controller.
+    if (request.source == UTM_COMMAND_SOURCE_CALIBRATION) return false;
+
     if (request.type == UTM_COMMAND_STOP)
     {
         RequestUserStop();
         return true;
     }
+
+    if (complianceCalibration_.OwnsMotion()) return false;
 
     UtmCommandRequest queuedRequest = request;
 
@@ -254,9 +260,11 @@ bool UtmEngineCore::StartJog(
     double speedMmPerMin,
     int commandSource)
 {
-    if (!initialized_.load() ||
+    if (!initialized_.load() || communicationMotionInhibited_.load() ||
         !controlLoopRunning_.load() ||
-        controlStopRequested_.load() || sequencer_.IsRunning())
+        controlStopRequested_.load() || sequencer_.IsRunning() ||
+        commandSource == UTM_COMMAND_SOURCE_CALIBRATION ||
+        complianceCalibration_.OwnsMotion())
     {
         return false;
     }
@@ -383,6 +391,10 @@ bool UtmEngineCore::StopMotion(int commandSource)
         return false;
     }
 
+    UtmComplianceCalibrationRuntimeV1 calibration{};
+    complianceCalibration_.GetRuntime(calibration);
+    if (calibration.active != 0)
+        return complianceCalibration_.Abort(calibration.sessionId);
     return motionController_.RequestStop(commandSource);
 }
 
@@ -658,6 +670,9 @@ bool UtmEngineCore::ConfigureForceControl(
 
 bool UtmEngineCore::SubmitMotion(const UtmMotionCommandV2& publicCommand)
 {
+    if(communicationMotionInhibited_.load())return false;
+    if (publicCommand.source == UTM_COMMAND_SOURCE_CALIBRATION ||
+        complianceCalibration_.OwnsMotion()) return false;
     UtmGeneralMotionCommand command{};
     command.type = publicCommand.motionType;
     command.direction = publicCommand.direction;
@@ -743,9 +758,10 @@ bool UtmEngineCore::StartSequence()
 {
     UtmRuntimeInfo runtime{};
     runtimeStore_.Read(runtime);
-    return initialized_.load() && controlLoopRunning_.load() &&
+    return initialized_.load() && controlLoopRunning_.load() && !communicationMotionInhibited_.load() &&
         runtime.machineState == UTM_MACHINE_READY && runtime.stop.latched == 0 &&
-        !motionController_.HasPendingOrActive() && sequencer_.RequestStart();
+        !motionController_.HasPendingOrActive() &&
+        !complianceCalibration_.OwnsMotion() && sequencer_.RequestStart();
 }
 
 bool UtmEngineCore::StopSequence()
@@ -757,6 +773,60 @@ bool UtmEngineCore::GetRuntimeV6(UtmRuntimeInfoV6& runtime) const
 {
     return runtimeStore_.ReadV6(runtime);
 }
+
+bool UtmEngineCore::GetCommunicationRuntime(UtmCommunicationRuntimeInfoV1& runtime) const
+{ return runtimeStore_.ReadCommunication(runtime); }
+
+bool UtmEngineCore::StartCompliancePrecheck(
+    const UtmComplianceCalibrationConfigV1& config,
+    unsigned long long& sessionId)
+{
+    if (!initialized_.load() || !controlLoopRunning_.load() || communicationMotionInhibited_.load() ||
+        sequencer_.IsRunning() || motionController_.HasPendingOrActive()) return false;
+    UtmRuntimeInfoV6 current{};
+    runtimeStore_.ReadV6(current);
+    const auto& base = current.runtime.runtime.runtime.runtime.runtime;
+    const auto& motion = current.runtime.runtime.motion;
+    if (current.runtime.runtime.runtime.runtime.jog.activeJogSourceMask != 0) return false;
+    UtmComplianceCalibrationInput input{};
+    input.timestampNs = base.publishedTimestampNs;
+    input.forceN = base.input.forceN;
+    input.machinePositionMm = motion.machinePositionMm;
+    input.testPositionMm = motion.testPositionMm;
+    input.forceValid = base.input.forceValid;
+    input.machineReady = base.machineState == UTM_MACHINE_READY;
+    input.servoReady = base.input.servoOn && !base.input.servoFault;
+    input.communicationValid = base.input.communicationValid;
+    input.emergency = base.input.emergency;
+    input.externalStop = base.input.externalStop;
+    input.upperLimit = base.input.upperLimit;
+    input.lowerLimit = base.input.lowerLimit;
+    input.servoFault = base.input.servoFault;
+    input.stopLatched = base.stop.latched;
+    input.motionOutputStopped = motion.motionActive == 0;
+    const auto& protection = safetyMonitor_.GetMachineProtection();
+    return complianceCalibration_.StartPrecheck(config,
+        protection.maxAllowedForceN, protection.overloadEnabled,
+        forceConfig_.forceDirectionSign, input, sessionId);
+}
+
+bool UtmEngineCore::ConfirmComplianceFullCalibration(unsigned long long sessionId)
+{ return complianceCalibration_.ConfirmFull(sessionId); }
+
+bool UtmEngineCore::AbortComplianceCalibration(unsigned long long sessionId)
+{ return complianceCalibration_.Abort(sessionId); }
+
+bool UtmEngineCore::GetComplianceCalibrationRuntime(
+    UtmComplianceCalibrationRuntimeV1& runtime) const
+{ return complianceCalibration_.GetRuntime(runtime); }
+
+bool UtmEngineCore::GetCompliancePendingPoints(unsigned long long sessionId,
+    UtmComplianceCalibrationPoint* points, unsigned int capacity,
+    unsigned int& pointCount) const
+{ return complianceCalibration_.GetPendingPoints(sessionId, points, capacity, pointCount); }
+
+bool UtmEngineCore::DiscardCompliancePending(unsigned long long sessionId)
+{ return complianceCalibration_.DiscardPending(sessionId); }
 
 bool UtmEngineCore::RetryStartup()
 {
@@ -1118,6 +1188,11 @@ void UtmEngineCore::ControlThreadMain()
     double displayForceSum=0.0;
     unsigned long long observedDisplayResetRequest=0;
     int observedCaptureResetType=0;bool captureResetObservedActive=false;
+    unsigned long long observedCommunicationIncident=0;
+    bool communicationIncidentMotionActive=false;
+    unsigned long long alignedCommunicationIncident=0;
+    UtmCommunicationWarningPolicy communicationWarningPolicy{};
+    UtmCommunicationRuntimeInfoV1 communicationRuntime{};
 
     UtmRuntimeInfo runtime{};
     UtmJogRuntimeInfo jogRuntime{};
@@ -1461,6 +1536,19 @@ void UtmEngineCore::ControlThreadMain()
             (snapshot.servoOn == 0 &&
                 snapshot.servoFault == 0))
         {
+            if (complianceCalibration_.OwnsMotion())
+            {
+                UtmComplianceCalibrationInput failedCalibration{};
+                failedCalibration.timestampNs = timestampNs;
+                failedCalibration.forceN = snapshot.forceN;
+                failedCalibration.forceValid = snapshot.forceValid;
+                failedCalibration.communicationValid = snapshot.communicationValid;
+                failedCalibration.communicationRecovering = 1;
+                failedCalibration.servoFault = snapshot.servoFault;
+                failedCalibration.machinePositionMm = motionController_.GetRuntime().machinePositionMm;
+                complianceCalibration_.Update(failedCalibration);
+                motionOutput.Update({}, true, servoCommand);
+            }
             if (sequencer_.IsRunning())
             {
                 sequencer_.AbortFromSafety();
@@ -1648,19 +1736,74 @@ void UtmEngineCore::ControlThreadMain()
         // READY의 Jog 요청도 Limit/통신/Servo 준비 상태를 먼저
         // 평가하고, 통과한 경우에만 MANUAL 전이와 출력을 수행합니다.
         UtmSafetyContext safetyContext{};
+        const UtmComplianceCalibrationOutput calibrationOutputBefore =
+            complianceCalibration_.GetOutput();
+        const auto& basicRecovery=inputCollector_->GetBasicRecoveryRuntime();
+        const UtmMotionOutputRuntime& ownershipOutput=motionOutput.GetRuntime();
+        const UtmSequenceRuntimeInfo ownershipSequence=sequencer_.GetRuntime();
+        UtmMotionOwnershipSnapshot ownership{};
+        ownership.jogRequested=jog.requested;ownership.jogActive=motionOutput.IsMotionActive()&&ownershipOutput.activeType==UTM_MOTION_JOG;
+        ownership.generalMotionActive=generalMotionActive;ownership.generalMotionStopping=generalMotionStopping;
+        ownership.sequenceRunning=ownershipSequence.sequenceRunning;ownership.sequenceActionPending=sequencer_.HasPendingAction();
+        ownership.calibrationActive=complianceCalibration_.IsActive();ownership.calibrationVelocityRequested=calibrationOutputBefore.velocityRequested;
+        ownership.calibrationForceStopRequested=calibrationOutputBefore.forceStopRequested;
+        ownership.calibrationReturnPending=motionController_.GetRuntime().motionSource==UTM_COMMAND_SOURCE_CALIBRATION&&motionController_.HasPendingOrActive();
+        ownership.outputPositionActive=ownershipOutput.state==UtmMotionOutputState::POSITION_ACTIVE;
+        ownership.outputVelocityActive=ownershipOutput.state==UtmMotionOutputState::VELOCITY_ACTIVE;
+        ownership.pendingMotionCommand=motionController_.HasPendingOrActive()||commandMailbox_.HasPendingMotion()||
+            (hasCommand&&(command.type==UTM_COMMAND_START||command.type==UTM_COMMAND_JOG_UP_REQUEST||command.type==UTM_COMMAND_JOG_DOWN_REQUEST));
+        ownership.commandType=hasCommand?command.type:motionController_.GetRuntime().motionType;
+        ownership.commandSource=hasCommand?command.source:motionController_.GetRuntime().motionSource;
+        ownership.sequenceStep=ownershipSequence.currentStepType;
+        if(basicRecovery.incidentGeneration!=0&&basicRecovery.incidentGeneration!=observedCommunicationIncident)
+        {
+            observedCommunicationIncident=basicRecovery.incidentGeneration;
+            communicationIncidentMotionActive=UtmMotionOwnershipPolicy::IsActive(ownership);
+            communicationMotionInhibited_.store(true);
+            communicationWarningPolicy.Add(timestampNs);
+            const unsigned long long newEpoch=commandEpoch_.fetch_add(1)+1;
+            commandMailbox_.InvalidateMotionCommands(newEpoch);
+            jogController_.ClearCommandRequests();jogController_.InhibitPhysicalUntilReleased();
+            std::fprintf(stderr,"[UTM COMM] incident=%llu ownership=%s commandType=%d source=%d sequenceRunning=%d step=%d calibration=%d\n",basicRecovery.incidentGeneration,communicationIncidentMotionActive?"active":"idle",ownership.commandType,ownership.commandSource,ownership.sequenceRunning,ownership.sequenceStep,ownership.calibrationActive);
+            communicationRuntime.incidentMotionActive=communicationIncidentMotionActive?1:0;
+            communicationRuntime.motionInterrupted=communicationIncidentMotionActive?1:0;
+            communicationRuntime.incidentCommandType=ownership.commandType;communicationRuntime.incidentCommandSource=ownership.commandSource;
+            communicationRuntime.incidentSequenceRunning=ownership.sequenceRunning;communicationRuntime.incidentSequenceStep=ownership.sequenceStep;
+            communicationRuntime.incidentCalibrationActive=ownership.calibrationActive;
+        }
+        if(basicRecovery.communicationState==DAO_COMMUNICATION_HEALTHY&&basicRecovery.recoveryActive==0&&
+            snapshot.communicationValid&&snapshot.servoCommunicationValid&&!snapshot.servoFault&&
+            !snapshot.servoStoActive&&snapshot.servoOperationState!=0)
+            communicationMotionInhibited_.store(false);
+        if(communicationIncidentMotionActive&&basicRecovery.recoverySucceeded&&
+            alignedCommunicationIncident!=basicRecovery.incidentGeneration)
+        {
+            alignedCommunicationIncident=basicRecovery.incidentGeneration;
+            motionOutput.RequestRecoveryStopAlignment();
+            communicationRuntime.safeAlignmentResult=1; // requested; completion remains governed by StopLatch/arbiter
+        }
+        communicationRuntime.version=1;communicationRuntime.communicationState=basicRecovery.communicationState;
+        communicationRuntime.incidentGeneration=basicRecovery.incidentGeneration;communicationRuntime.recoveryActive=basicRecovery.recoveryActive;
+        communicationRuntime.recoveryStage=basicRecovery.recoveryStage;communicationRuntime.recoveryAttempt=basicRecovery.recoveryAttempt;
+        communicationRuntime.recoverySucceeded=basicRecovery.recoverySucceeded;communicationRuntime.recoveryFailed=basicRecovery.recoveryFailed;
+        communicationRuntime.recoveryElapsedMs=basicRecovery.recoveryElapsedMs;communicationRuntime.expectedWkc=basicRecovery.expectedWkc;
+        communicationRuntime.currentWkc=basicRecovery.currentWkc;communicationRuntime.minimumWkc=basicRecovery.minimumWkc;
+        communicationRuntime.consecutiveBadWkc=basicRecovery.consecutiveBadWkc;communicationRuntime.consecutiveGoodWkc=basicRecovery.consecutiveGoodWkc;
+        communicationRuntime.maximumConsecutiveBadWkc=basicRecovery.maximumConsecutiveBadWkc;
+        communicationRuntime.failedSlaveIndex=basicRecovery.failedSlaveIndex;communicationRuntime.failedSlaveState=basicRecovery.failedSlaveState;
+        communicationRuntime.failedSlaveAlStatus=basicRecovery.failedSlaveAlStatus;communicationRuntime.totalIncidentCount=basicRecovery.totalIncidentCount;
+        communicationRuntime.recoveredIncidentCount=basicRecovery.recoveredIncidentCount;communicationRuntime.recoveryFailureCount=basicRecovery.recoveryFailureCount;
+        communicationRuntime.maximumRecoveryDurationMs=basicRecovery.maximumRecoveryDurationMs;communicationRuntime.lastIncidentTimestampNs=basicRecovery.lastIncidentTimestampNs;
+        communicationRuntime.rollingHourIncidentCount=communicationWarningPolicy.Recent(timestampNs);
+        communicationRuntime.communicationUnstableWarning=communicationWarningPolicy.Unstable(timestampNs)?1:0;
+        communicationRuntime.postRecoveryServoState=snapshot.servoOperationState;
         safetyContext.machineState =
             stateMachine_.GetState();
-        safetyContext.motionActive =
-            motionOutput.IsMotionActive() ||
-            generalMotionActive ||
-            generalMotionStopping ||
-            ((safetyContext.machineState == UTM_MACHINE_READY ||
-                safetyContext.machineState == UTM_MACHINE_MANUAL) &&
-                jog.requested != 0)
-            ? 1
-            : 0;
+        safetyContext.motionActive = UtmMotionOwnershipPolicy::IsActive(ownership)?1:0;
         safetyContext.requestedDirection =
-            (generalMotionActive || generalMotionStopping)
+            calibrationOutputBefore.velocityRequested != 0
+                ? calibrationOutputBefore.direction
+                : (generalMotionActive || generalMotionStopping)
                 ? generalMotionRequest.direction
                 : jog.requested != 0
                 ? jog.direction
@@ -1682,7 +1825,7 @@ void UtmEngineCore::ControlThreadMain()
                 safetyContext,
                 userStop,
                 servoCanPrepareForMotion,
-                inputCollector_->GetCommunicationState()==UtmInputCollector::RECOVERING||inputCollector_->GetCommunicationState()==UtmInputCollector::FAULT);
+                (inputCollector_->GetCommunicationState()==UtmInputCollector::RECOVERING&&communicationIncidentMotionActive)||inputCollector_->GetCommunicationState()==UtmInputCollector::FAULT);
 
         const bool newlyLatched =
             stopLatch_.Update(
@@ -1724,6 +1867,12 @@ void UtmEngineCore::ControlThreadMain()
                     snapshot,
                     evaluation);
 
+            if(stopAcknowledged)
+            {
+                communicationRuntime.motionInterrupted=0;
+                communicationIncidentMotionActive=false;
+            }
+
             hasCommand = false;
         }
 
@@ -1738,6 +1887,107 @@ void UtmEngineCore::ControlThreadMain()
             stopLatch_.Get(),
             stateCommand,
             stopAcknowledged);
+
+        UtmComplianceCalibrationInput calibrationInput{};
+        calibrationInput.timestampNs = timestampNs;
+        calibrationInput.forceN = snapshot.forceN;
+        calibrationInput.machinePositionMm = motionController_.GetRuntime().machinePositionMm;
+        calibrationInput.testPositionMm = motionController_.GetRuntime().testPositionMm;
+        calibrationInput.forceValid = snapshot.forceValid;
+        calibrationInput.machineReady = stateMachine_.GetState() == UTM_MACHINE_READY;
+        calibrationInput.servoReady = snapshot.servoOn != 0 && snapshot.servoFault == 0;
+        calibrationInput.communicationValid = snapshot.communicationValid;
+        calibrationInput.communicationRecovering =
+            inputCollector_->GetCommunicationState() == UtmInputCollector::RECOVERING ||
+            inputCollector_->GetCommunicationState() == UtmInputCollector::FAULT;
+        calibrationInput.emergency = snapshot.emergency;
+        calibrationInput.externalStop = snapshot.externalStop;
+        calibrationInput.upperLimit = snapshot.upperLimit;
+        calibrationInput.lowerLimit = snapshot.lowerLimit;
+        calibrationInput.servoFault = snapshot.servoFault;
+        const auto& protection = safetyMonitor_.GetMachineProtection();
+        calibrationInput.overload = protection.overloadEnabled != 0 &&
+            snapshot.forceValid != 0 &&
+            std::fabs(snapshot.forceN) >= protection.maxAllowedForceN;
+        calibrationInput.stopLatched = stopLatch_.Get().latched;
+        calibrationInput.motionOutputStopped = motionOutput.IsStopComplete() ? 1 : 0;
+        calibrationInput.forceZeroCaptureActive =
+            servoCommand.adcStableCaptureActive != 0 &&
+            servoCommand.adcStableCaptureType == 1;
+        const UtmGeneralMotionRuntimeInfo calibrationMotionRuntime =
+            motionController_.GetRuntime();
+        calibrationInput.returnMotionActive =
+            calibrationMotionRuntime.motionSource == UTM_COMMAND_SOURCE_CALIBRATION &&
+            calibrationMotionRuntime.motionActive != 0;
+        calibrationInput.returnMotionComplete =
+            calibrationMotionRuntime.motionSource == UTM_COMMAND_SOURCE_CALIBRATION &&
+            calibrationMotionRuntime.motionComplete != 0;
+        calibrationInput.returnMotionFailed =
+            calibrationMotionRuntime.motionSource == UTM_COMMAND_SOURCE_CALIBRATION &&
+            (calibrationMotionRuntime.motionState == UTM_MOTION_STATE_FAILED ||
+             calibrationMotionRuntime.motionState == UTM_MOTION_STATE_ABORTED);
+        complianceCalibration_.Update(calibrationInput);
+
+        // Calibration-local guards are intentionally evaluated below the
+        // existing machine Safety layer.  A local guard fault must still use
+        // the common StopLatch/ACK contract so that motion ownership cannot be
+        // silently released while the operator has not acknowledged the stop.
+        UtmComplianceCalibrationRuntimeV1 calibrationRuntimeAfterUpdate{};
+        complianceCalibration_.GetRuntime(calibrationRuntimeAfterUpdate);
+        if (calibrationRuntimeAfterUpdate.state == UTM_COMPLIANCE_CAL_FAULTED &&
+            stopLatch_.Get().latched == 0)
+        {
+            UtmStopEvaluation calibrationStop{};
+            calibrationStop.requested = true;
+            calibrationStop.reasonMask =
+                1ULL << static_cast<unsigned int>(UTM_STOP_CALIBRATION_FAULT);
+            calibrationStop.primaryReason = UTM_STOP_CALIBRATION_FAULT;
+            calibrationStop.action = UTM_STOP_ACTION_CONTROLLED_STOP;
+
+            if (stopLatch_.Update(calibrationStop, cycle, timestampNs))
+            {
+                const unsigned long long newEpoch = commandEpoch_.fetch_add(1) + 1;
+                commandMailbox_.InvalidateMotionCommands(newEpoch);
+                jogController_.ClearCommandRequests();
+                jogController_.InhibitPhysicalUntilReleased();
+
+                if (generalMotionActive || generalMotionStopping)
+                {
+                    generalMotionActive = false;
+                    generalMotionStopping = true;
+                    generalStopReason = UTM_MOTION_FAILURE_SAFETY_STOP;
+                    generalStopDisposition = 2;
+                    motionController_.MarkStopping();
+                    stateMachine_.BeginGeneralMotionStop();
+                }
+                if (sequencer_.IsRunning()) sequencer_.AbortFromSafety();
+            }
+        }
+
+        UtmComplianceCalibrationAction calibrationAction{};
+        if (complianceCalibration_.TakeAction(calibrationAction))
+        {
+            bool accepted = false;
+            if (calibrationAction.type == UtmComplianceCalibrationActionType::ZeroForce)
+            {
+                accepted = DaoEngine_SetAdcZero(config_.logicalAdcIndex) == 1;
+                if (accepted) displayCaptureResetType_.store(1);
+            }
+            else if (calibrationAction.type == UtmComplianceCalibrationActionType::ReturnAbsolute)
+            {
+                const UtmJogConfigV2 motionConfig = motionController_.GetConfig();
+                UtmGeneralMotionCommand returnCommand{};
+                returnCommand.type = UTM_MOTION_ABSOLUTE;
+                returnCommand.targetPositionMm = calibrationAction.targetTestPositionMm;
+                returnCommand.speedMmPerMin = calibrationAction.speedMmPerMin;
+                returnCommand.acceleration = motionConfig.config.acceleration;
+                returnCommand.deceleration = motionConfig.config.deceleration;
+                returnCommand.timeoutMs = calibrationAction.timeoutMs;
+                returnCommand.source = UTM_COMMAND_SOURCE_CALIBRATION;
+                accepted = motionController_.Submit(returnCommand);
+            }
+            complianceCalibration_.ReportActionResult(calibrationAction.type, accepted);
+        }
 
         if (sequencer_.IsRunning())
         {
@@ -1874,6 +2124,9 @@ void UtmEngineCore::ControlThreadMain()
             jog.conflict == 0;
 
         UtmMotionRequest motionRequest{};
+
+        const UtmComplianceCalibrationOutput calibrationOutput =
+            complianceCalibration_.GetOutput();
 
         const bool forceMotionActive = generalMotionActive &&
             (generalMotionRequest.type == UTM_MOTION_MOVE_TO_FORCE ||
@@ -2026,7 +2279,25 @@ void UtmEngineCore::ControlThreadMain()
             }
         }
 
-        if (generalMotionActive)
+        if (calibrationOutput.velocityRequested != 0)
+        {
+            const UtmJogConfigV2 motionConfig = motionController_.GetConfig();
+            if (!motionController_.SetVelocityOutput(
+                calibrationOutput.speedMmPerMin,
+                calibrationOutput.direction,
+                motionConfig.config.acceleration,
+                motionConfig.config.deceleration,
+                motionRequest))
+            {
+                complianceCalibration_.ReportMotionOutputFailure();
+            }
+            else
+            {
+                motionRequest.type = UTM_MOTION_MOVE_TO_FORCE;
+                motionRequest.source = UTM_COMMAND_SOURCE_CALIBRATION;
+            }
+        }
+        else if (generalMotionActive)
         {
             motionRequest = generalMotionRequest;
         }
@@ -2049,6 +2320,7 @@ void UtmEngineCore::ControlThreadMain()
         const bool forceMotionStop =
             evaluation.requested ||
             stopLatch_.Get().latched != 0 ||
+            calibrationOutput.forceStopRequested != 0 ||
             generalMotionStopping ||
             (stateMachine_.GetState() == UTM_MACHINE_MANUAL &&
                 jog.conflict != 0);
@@ -2165,6 +2437,8 @@ void UtmEngineCore::ControlThreadMain()
 
         const UtmMotionOutputRuntime& motionRuntime =
             motionOutput.GetRuntime();
+        if(communicationRuntime.motionInterrupted&&alignedCommunicationIncident==observedCommunicationIncident&&
+            motionOutput.IsStopComplete())communicationRuntime.safeAlignmentResult=2;
 
         jogRuntime.jogActive =
             motionOutput.IsMotionActive() &&
@@ -2224,6 +2498,7 @@ void UtmEngineCore::ControlThreadMain()
             motionController_.GetRuntime(),
             forceRuntime,
             sequenceRuntime);
+        runtimeStore_.PublishCommunication(communicationRuntime);
 
         std::this_thread::sleep_until(
             nextWakeTime);

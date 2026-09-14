@@ -45,6 +45,7 @@ public:
     void AbortFromSafety();
     UtmSequenceRuntimeInfo GetRuntime() const;
     bool IsRunning() const;
+    bool HasPendingAction() const;
     UtmSequenceStep GetCurrentStep() const;
 
 private:
